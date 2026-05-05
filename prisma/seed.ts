@@ -1,4 +1,4 @@
-// prisma/seed.ts - Seed para schema DEPARTAMENTO ESTADUAL DE RODOVIAS
+// prisma/seed.ts - Seed para schema Departamento de Estradas de Rodagem
 import { PrismaClient, Roles, UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
@@ -18,7 +18,7 @@ export async function runSeed() {
 
 async function seedCompany() {
   const cnpj = '26.332.986/0001-90';
-  const name = 'DEPARTAMENTO ESTADUAL DE RODOVIAS';
+  const name = 'Departamento de Estradas de Rodagem';
   const exists = await prisma.company.findUnique({ where: { cnpj } });
   if (exists) return exists;
 
@@ -26,21 +26,21 @@ async function seedCompany() {
     data: {
       name,
       cnpj,
-      contactName: 'Contato DEPARTAMENTO ESTADUAL DE RODOVIAS',
-      contactEmail: 'contato@departamento-estadual-rodovias.com.br',
+      contactName: 'Contato Departamento de Estradas de Rodagem',
+      contactEmail: 'contato@der.com.br',
     },
   });
 
-  console.log('[Seed] Empresa DEPARTAMENTO ESTADUAL DE RODOVIAS criada');
+  console.log('[Seed] Empresa Departamento de Estradas de Rodagem criada');
   return company;
 }
 
 async function seedUsers(companyId: string) {
   // Admin (acesso total) - sem campos de funcionário
   const adminData = {
-    name: 'Admin DEPARTAMENTO ESTADUAL DE RODOVIAS',
-    email: 'admin@departamento-estadual-rodovias.com',
-    login: 'admin@departamento-estadual-rodovias.com',
+    name: 'Admin Departamento de Estradas de Rodagem',
+    email: 'admin@der.com',
+    login: 'admin@der.com',
     password: 'Admin123@Senha',
     role: Roles.ADMIN,
     status: UserStatus.ACTIVE,
@@ -61,14 +61,14 @@ async function seedUsers(companyId: string) {
       },
     });
     console.log(
-      '[Seed] Usuário admin criado (admin@departamento-estadual-rodovias.com / Admin123@Senha)',
+      '[Seed] Usuário admin criado (admin@der.com / Admin123@Senha)',
     );
   }
 
   const c2cData = {
-    name: 'C2C DEPARTAMENTO ESTADUAL DE RODOVIAS',
-    email: 'c2c@departamento-estadual-rodovias.com',
-    login: 'c2c@departamento-estadual-rodovias.com',
+    name: 'C2C Departamento de Estradas de Rodagem',
+    email: 'c2c@der.com',
+    login: 'c2c@der.com',
     password: 'C2C123@Senha',
     role: Roles.C2C,
     status: UserStatus.ACTIVE,
@@ -89,14 +89,14 @@ async function seedUsers(companyId: string) {
       },
     });
     console.log(
-      '[Seed] Usuário C2C criado (c2c@departamento-estadual-rodovias.com / C2C123@Senha)',
+      '[Seed] Usuário C2C criado (c2c@der.com / C2C123@Senha)',
     );
   }
 
   const fieldTeamData = {
-    name: 'Equipe de Campo DEPARTAMENTO ESTADUAL DE RODOVIAS',
-    email: 'field-team@departamento-estadual-rodovias.com',
-    login: 'field-team@departamento-estadual-rodovias.com',
+    name: 'Equipe de Campo Departamento de Estradas de Rodagem',
+    email: 'field-team@der.com',
+    login: 'field-team@der.com',
     password: 'FieldTeam123@Senha',
     role: Roles.FIELD_TEAM,
     status: UserStatus.ACTIVE,
@@ -117,7 +117,7 @@ async function seedUsers(companyId: string) {
       },
     });
     console.log(
-      '[Seed] Usuário Equipe de Campo criado (field-team@departamento-estadual-rodovias.com / FieldTeam123@Senha)',
+      '[Seed] Usuário Equipe de Campo criado (field-team@der.com / FieldTeam123@Senha)',
     );
   }
 }

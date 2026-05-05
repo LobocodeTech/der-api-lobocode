@@ -90,6 +90,10 @@ export class AuthGuard implements CanActivate {
   private async findAndValidateUser(userId: string) {
     const user = await this.prismaService.user.findUnique({
       where: { id: userId },
+      include: {
+        company: true,
+        permissions: true,
+      },
     });
 
     if (!user) {

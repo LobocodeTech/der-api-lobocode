@@ -24,6 +24,9 @@ import { AuthInterceptor } from './interceptors/auth.interceptor';
 import { PassportModule } from '@nestjs/passport';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { MicrosoftStrategy } from './strategies/microsoft.strategy';
+import { MeCompanyService } from './services/me-company.service';
+import { MeNotificationPreferencesService } from './services/me-notification-preferences.service';
+import { RoleGuard } from './guards/role.guard';
 
 @Global()
 @Module({
@@ -69,6 +72,9 @@ import { MicrosoftStrategy } from './strategies/microsoft.strategy';
     AuthInterceptor,
     GoogleStrategy,
     MicrosoftStrategy,
+    MeCompanyService,
+    MeNotificationPreferencesService,
+    RoleGuard,
   ],
   exports: [
     JwtModule,

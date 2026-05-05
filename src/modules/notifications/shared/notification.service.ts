@@ -328,8 +328,8 @@ export class NotificationService {
         {
           title: notification.title,
           body: notification.message,
-          icon: '/assets/icons/icon-192x192.png',
-          badge: '/assets/icons/icon-96x96.png',
+          icon: '/src/assets/der-logo.png',
+          badge: '/src/assets/der-logo.png',
           data: {
             entityType: notification.entityType,
             entityId: notification.entityId,

@@ -8,19 +8,6 @@ import { NotificationHelper } from './notification.helper';
 import { NotificationGateway } from './notification.gateway';
 import { NotificationRecipientsService } from './shared/notification.recipients';
 
-// Import helpers específicos
-import { SupplyNotificationHelper, SupplyContextBuilder } from './entities/supply';
-import { ShiftNotificationHelper, ShiftContextBuilder } from './entities/shift';
-import { OccurrenceNotificationHelper, OccurrenceContextBuilder } from './entities/occurrence';
-import { VehicleChecklistNotificationHelper, VehicleChecklistContextBuilder } from './entities/vehicle-checklist';
-import { UserNotificationHelper, UserContextBuilder } from './entities/user';
-import { DoormanChecklistNotificationHelper, DoormanChecklistContextBuilder } from './entities/doorman-checklist';
-import { ArmamentChecklistNotificationHelper, ArmamentChecklistContextBuilder } from './entities/armament-checklist';
-import { MotorcycleChecklistNotificationHelper, MotorcycleChecklistContextBuilder } from './entities/motorcycle-checklist';
-import { MotorizedServiceNotificationHelper, MotorizedServiceContextBuilder } from './entities/motorized-service';
-import { OccurrenceDispatchNotificationHelper, OccurrenceDispatchContextBuilder } from './entities/occurrence-dispatch';
-import { PatrolNotificationHelper, PatrolContextBuilder } from './entities/patrol';
-
 /**
  * 🔔 MÓDULO GLOBAL DE NOTIFICAÇÕES
  * 
@@ -46,29 +33,6 @@ import { PatrolNotificationHelper, PatrolContextBuilder } from './entities/patro
     NotificationHelper,
     NotificationGateway,
     NotificationRecipientsService,
-    // Helpers específicos
-    SupplyNotificationHelper,
-    SupplyContextBuilder,
-    ShiftNotificationHelper,
-    ShiftContextBuilder,
-    OccurrenceNotificationHelper,
-    OccurrenceContextBuilder,
-    VehicleChecklistNotificationHelper,
-    VehicleChecklistContextBuilder,
-    UserNotificationHelper,
-    UserContextBuilder,
-    DoormanChecklistNotificationHelper,
-    DoormanChecklistContextBuilder,
-    ArmamentChecklistNotificationHelper,
-    ArmamentChecklistContextBuilder,
-    MotorcycleChecklistNotificationHelper,
-    MotorcycleChecklistContextBuilder,
-    MotorizedServiceNotificationHelper,
-    MotorizedServiceContextBuilder,
-    OccurrenceDispatchNotificationHelper,
-    OccurrenceDispatchContextBuilder,
-    PatrolNotificationHelper,
-    PatrolContextBuilder,
   ],
   exports: [
     NotificationService,
@@ -76,29 +40,6 @@ import { PatrolNotificationHelper, PatrolContextBuilder } from './entities/patro
     NotificationHelper,
     NotificationGateway,
     NotificationRecipientsService,
-    // Helpers específicos
-    SupplyNotificationHelper,
-    SupplyContextBuilder,
-    ShiftNotificationHelper,
-    ShiftContextBuilder,
-    OccurrenceNotificationHelper,
-    OccurrenceContextBuilder,
-    VehicleChecklistNotificationHelper,
-    VehicleChecklistContextBuilder,
-    UserNotificationHelper,
-    UserContextBuilder,
-    DoormanChecklistNotificationHelper,
-    DoormanChecklistContextBuilder,
-    ArmamentChecklistNotificationHelper,
-    ArmamentChecklistContextBuilder,
-    MotorcycleChecklistNotificationHelper,
-    MotorcycleChecklistContextBuilder,
-    MotorizedServiceNotificationHelper,
-    MotorizedServiceContextBuilder,
-    OccurrenceDispatchNotificationHelper,
-    OccurrenceDispatchContextBuilder,
-    PatrolNotificationHelper,
-    PatrolContextBuilder,
   ],
 })
 export class NotificationModule {}

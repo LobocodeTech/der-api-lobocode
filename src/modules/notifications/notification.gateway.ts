@@ -113,7 +113,7 @@ export class NotificationGateway
       await this.enviarNotificacoesNaoLidas(client, userId);
     } catch (error) {
       this.logger.error(
-        `Erro na conexão: ${error.message} - Socket: ${client.id}`,
+        `Erro na conexão: ${error instanceof Error ? error.message : 'Erro desconhecido'} - Socket: ${client.id}`,
       );
       client.disconnect();
     }
@@ -200,7 +200,7 @@ export class NotificationGateway
       });
     } catch (error) {
       this.logger.error(
-        `Erro ao marcar notificação como lida: ${error.message}`,
+        `Erro ao marcar notificação como lida: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
       );
       client.emit('error', { message: 'Erro ao marcar notificação como lida' });
     }
@@ -313,7 +313,7 @@ export class NotificationGateway
       );
     } catch (error) {
       this.logger.error(
-        `Erro ao enviar contador de não lidas: ${error.message}`,
+        `Erro ao enviar contador de não lidas: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
       );
     }
   }

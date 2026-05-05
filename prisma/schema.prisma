@@ -146,9 +146,7 @@ model Company {
   id           String  @id @default(cuid())
   name         String
   cnpj         String  @unique
-  website      String?
   address      String?
-  country      String?
   contactName  String?
   contactEmail String?
   contactPhone String?
@@ -186,6 +184,10 @@ model User {
   profilePicture String?
   status         UserStatus @default(ACTIVE)
   phone          String?
+
+  notificationEmail            Boolean @default(true)
+  notificationPushNotification Boolean @default(true)
+  activitiesNotification       Json?   @default("{\"assignments\": true, \"comments\": true, \"deadlines\": true, \"reports\": true }")
 
   companyId String
   company   Company? @relation(fields: [companyId], references: [id])
@@ -350,10 +352,10 @@ model Location {
 }
 
 model WorkOrderColumn {
-  id    String @id @default(cuid())
-  name  String
-  color String
-  sortOrder Int @default(0)
+  id         String  @id @default(cuid())
+  name       String
+  color      String
+  sortOrder  Int     @default(0)
   isArchived Boolean @default(false)
 
   companyId  String
@@ -499,10 +501,10 @@ model Planning {
   serviceType   WorkOrderType
   equipmentType AssetType
   km            Float
-  observation String?
+  observation   String?
 
-  locationId   String
-  location     Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
 
   companyId String
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)

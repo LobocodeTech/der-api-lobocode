@@ -195,4 +195,15 @@ export class NotificationController {
       },
     };
   }
+
+  /**
+   * Retorna VAPID public key para registro do Push no frontend
+   * GET /notifications/push/vapid-public-key
+   */
+  @Get('push/vapid-public-key')
+  getVapidPublicKey() {
+    return {
+      publicKey: process.env.VAPID_PUBLIC_KEY || null,
+    };
+  }
 }

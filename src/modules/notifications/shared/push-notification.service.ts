@@ -77,8 +77,8 @@ export class PushNotificationService {
       }
     } catch (error) {
       this.logger.error(
-        `❌ Erro ao salvar subscription: ${error.message}`,
-        error.stack,
+        `❌ Erro ao salvar subscription: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+        error instanceof Error ? error.stack : undefined,
       );
       throw error;
     }
@@ -99,8 +99,8 @@ export class PushNotificationService {
       this.logger.log(`✅ Subscription removida para usuário ${userId}`);
     } catch (error) {
       this.logger.error(
-        `❌ Erro ao remover subscription: ${error.message}`,
-        error.stack,
+        `❌ Erro ao remover subscription: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+        error instanceof Error ? error.stack : undefined,
       );
       throw error;
     }
@@ -148,8 +148,8 @@ export class PushNotificationService {
       const payload = JSON.stringify({
         title: notification.title,
         body: notification.body,
-        icon: notification.icon || '/assets/icons/icon-192x192.png',
-        badge: notification.badge || '/assets/icons/icon-96x96.png',
+        icon: notification.icon || '/src/assets/der-logo.png',
+        badge: notification.badge || '/src/assets/der-logo.png',
         url,
         timestamp: Date.now(),
         ...(notification.data && {
@@ -209,8 +209,8 @@ export class PushNotificationService {
       await Promise.allSettled(promises);
     } catch (error) {
       this.logger.error(
-        `❌ Erro ao enviar push notification: ${error.message}`,
-        error.stack,
+        `❌ Erro ao enviar push notification: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+        error instanceof Error ? error.stack : undefined,
       );
       throw error;
     }

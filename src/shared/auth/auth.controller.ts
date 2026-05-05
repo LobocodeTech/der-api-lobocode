@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Post,
+  Patch,
   UseGuards,
   HttpCode,
   Get,
@@ -19,6 +20,7 @@ import {
 } from './dto';
 import { AuthService } from './services';
 import { AuthGuard, RefreshGuard, RateLimitGuard } from './guards';
+import { RoleGuard } from './guards/role.guard';
 import { Public } from './decorators';
 import { PasswordResetService } from './services/password-reset.service';
 import { MetricsService } from './services/metrics.service';
@@ -29,6 +31,13 @@ import { UnauthorizedError } from '../common/errors';
 import { AuthGuard as PassportAuthGuard } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
 import type { RequestUser } from './interfaces';
+import { RequiredRoles } from './required-roles.decorator';
+import { Roles } from '@prisma/client';
+import { MeCompanyService } from './services/me-company.service';
+import { MeNotificationPreferencesService } from './services/me-notification-preferences.service';
+import { UpdateMyCompanyDto } from './dto/update-my-company.dto';
+import { UpdateMyNotificationPreferencesDto } from './dto/update-my-notification-preferences.dto';
+import { toPublicMeUser } from './auth-me.mapper';
 
 @Controller('auth')
 export class AuthController {
@@ -39,6 +48,8 @@ export class AuthController {
     private readonly messagesService: MessagesService,
     private readonly oauthService: OAuthService,
     private readonly configService: ConfigService,
+    private readonly meCompanyService: MeCompanyService,
+    private readonly meNotificationPreferencesService: MeNotificationPreferencesService,
   ) {}
 
   @Post('login')
@@ -51,7 +62,33 @@ export class AuthController {
   @Get('me')
   @UseGuards(AuthGuard)
   async me(@Req() request: Request) {
-    return { data: request.user };
+    return { data: toPublicMeUser(request.user as any) };
+  }
+
+  @Patch('me/company')
+  @UseGuards(AuthGuard, RoleGuard)
+  @RequiredRoles(Roles.ADMIN)
+  async updateMyCompany(
+    @Req() request: Request,
+    @Body() dto: UpdateMyCompanyDto,
+  ) {
+    const authUser = request.user as { id: string };
+    const company = await this.meCompanyService.updateByUserId(authUser.id, dto);
+    return { data: { company } };
+  }
+
+  @Patch('me/notification-preferences')
+  @UseGuards(AuthGuard)
+  async updateMyNotificationPreferences(
+    @Req() request: Request,
+    @Body() dto: UpdateMyNotificationPreferencesDto,
+  ) {
+    const authUser = request.user as { id: string };
+    const prefs = await this.meNotificationPreferencesService.updateByUserId(
+      authUser.id,
+      dto,
+    );
+    return { data: prefs };
   }
 
   @Post('refresh')
