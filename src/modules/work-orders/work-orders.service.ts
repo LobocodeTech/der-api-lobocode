@@ -898,7 +898,7 @@ export class WorkOrdersService extends UniversalService<
       where: {
         id: userId,
         status: UserStatus.ACTIVE,
-        role: { in: [Roles.FIELD_TEAM, Roles.C2C] },
+        role: { in: [Roles.ADMIN, Roles.FIELD_TEAM, Roles.C2C] },
         ...(companyId && { companyId }),
       },
       select: {

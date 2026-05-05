@@ -6,8 +6,9 @@ set -euo pipefail
 ENV_FILE="${ENV_FILE:-.env}"
 if [ -f "${ENV_FILE}" ]; then
   set -a
+  # Suporta .env com final de linha CRLF (Windows) sem quebrar no Bash.
   # shellcheck disable=SC1090
-  . "${ENV_FILE}"
+  . <(sed 's/\r$//' "${ENV_FILE}")
   set +a
 fi
 

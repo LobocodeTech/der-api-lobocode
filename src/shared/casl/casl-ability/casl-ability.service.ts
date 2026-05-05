@@ -133,6 +133,16 @@ const specificPermissions = {
       companyId: user.companyId,
     });
   },
+  workOrderColumnsManage: (user: User, { can }: any) => {
+    can(['read'], 'WorkOrderColumn', {
+      companyId: user.companyId,
+    });
+  },
+  planningManage: (user: User, { can }: any) => {
+    can(['read'], 'Planning', {
+      companyId: user.companyId,
+    });
+  },
 };
 
 const operationalReadScopePermissions = {
@@ -361,6 +371,8 @@ const rolePermissionsMap: Record<Roles, (user: User, builder: any) => void> = {
     operationalReadScopePermissions.assetsLocationsRegionalsRead(user, { can });
     specificPermissions.notifications(user, { can });
     specificPermissions.workOrdersManage(user, { can });
+    specificPermissions.workOrderColumnsManage(user, { can });
+    specificPermissions.planningManage(user, { can });
     aplicarRestricaoGestaoEquipe(user, { cannot });
   },
 

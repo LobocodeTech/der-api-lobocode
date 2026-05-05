@@ -30,9 +30,12 @@ function montarRotuloResponsavelOs(
   name: string,
   regional: { sgr: string; city: string } | null | undefined,
 ): string {
-  const nomeRegional = regional?.sgr?.trim() || '—';
-  const regiao = regional?.city?.trim() || '—';
-  return `${name} - ${nomeRegional} - ${regiao}`;
+  const nomeRegional = regional?.sgr?.trim() ?? '';
+  const cidadeRegional = regional?.city?.trim() ?? '';
+  const partes = [name.trim(), nomeRegional, cidadeRegional].filter(
+    (parte) => parte.length > 0,
+  );
+  return partes.join(' - ');
 }
 
 @Injectable()
@@ -235,7 +238,7 @@ export class UsersService extends BaseUserService {
     }
 
     const whereClause: Prisma.UserWhereInput = {
-      role: { in: [Roles.FIELD_TEAM, Roles.C2C] },
+      role: { in: [Roles.ADMIN, Roles.FIELD_TEAM, Roles.C2C] },
       status: UserStatus.ACTIVE,
       deletedAt: null,
       ...(companyId ? { companyId } : {}),

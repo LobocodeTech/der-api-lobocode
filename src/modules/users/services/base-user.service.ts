@@ -200,7 +200,7 @@ export class BaseUserService {
       await this.userRepository.atualizarPermissoesDoUsuario(id, permissions);
     }
 
-    return updatedUser;
+    return this.removerCamposSensiveis(updatedUser);
   }
 
   /**
@@ -437,10 +437,18 @@ export class BaseUserService {
    */
   private transformData(users: any[]): any[] {
     return users.map((user) => ({
-      ...user,
+      ...this.removerCamposSensiveis(user),
       permissions:
         user.permissions?.map((permission: any) => permission.permissionType) ||
         [],
     }));
+  }
+
+  /**
+   * Remove campos sensíveis do usuário antes de responder para o frontend.
+   */
+  private removerCamposSensiveis<T extends Record<string, any>>(user: T): Omit<T, 'password'> {
+    const { password, ...safeUser } = user;
+    return safeUser as Omit<T, 'password'>;
   }
 }

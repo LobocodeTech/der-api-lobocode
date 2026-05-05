@@ -1,12 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { LoginDto } from '../dto';
+import { ChangeMyPasswordDto, LoginDto } from '../dto';
 import { IAuthResponse } from '../interfaces';
 import { RefreshTokenService } from './refresh-token.service';
 import { AuditService } from './audit.service';
 import { LoginService } from './login.service';
 import { AuthValidator } from '../validators/auth.validator';
 import { Request } from 'express';
+import { PrismaService } from '../../prisma/prisma.service';
+import { PasswordService } from './password.service';
+import { UnauthorizedError, ValidationError } from '../../common/errors';
+import { MessagesService } from '../../common/messages/messages.service';
 
 @Injectable()
 export class AuthService {
@@ -16,6 +20,9 @@ export class AuthService {
     private readonly auditService: AuditService,
     private readonly loginService: LoginService,
     private readonly authValidator: AuthValidator,
+    private readonly prisma: PrismaService,
+    private readonly passwordService: PasswordService,
+    private readonly messagesService: MessagesService,
   ) {}
 
   async login(loginDto: LoginDto, request?: Request): Promise<IAuthResponse> {
@@ -81,5 +88,49 @@ export class AuthService {
       console.warn('Logout all warning:', (error as Error).message);
     }
     await this.refreshTokenService.revokeAll(userId);
+  }
+
+  async changeMyPassword(
+    userId: string,
+    dto: ChangeMyPasswordDto,
+  ): Promise<{ message: string }> {
+    const { currentPassword, newPassword, confirmPassword } = dto;
+
+    if (newPassword !== confirmPassword) {
+      throw new ValidationError('Confirmação de senha deve ser igual à nova senha');
+    }
+
+    if (currentPassword === newPassword) {
+      throw new ValidationError('A nova senha deve ser diferente da senha atual');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true, email: true, status: true, password: true },
+    });
+
+    if (!user || user.status !== 'ACTIVE' || !user.password) {
+      throw new UnauthorizedError(
+        this.messagesService.getErrorMessage('AUTH', 'USER_NOT_FOUND'),
+      );
+    }
+
+    const currentPasswordValid = await this.passwordService.verifyPassword(
+      currentPassword,
+      user.password,
+    );
+
+    if (!currentPasswordValid) {
+      throw new UnauthorizedError('Senha atual inválida');
+    }
+
+    const hashedPassword = await this.passwordService.hashPassword(newPassword);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashedPassword, updatedAt: new Date() },
+    });
+
+    return { message: 'Senha alterada com sucesso' };
   }
 }

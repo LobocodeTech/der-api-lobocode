@@ -68,6 +68,14 @@ export class WorkOrdersController extends UniversalController<
   }
 
   @Delete(':id/assignees/:userId')
+  @RoleByMethod({
+    DELETE: [
+      Roles.SYSTEM_ADMIN,
+      Roles.ADMIN,
+      Roles.FIELD_TEAM,
+      Roles.C2C,
+    ],
+  })
   async removerResponsavel(
     @Param('id') id: string,
     @Param('userId') userId: string,
@@ -76,6 +84,14 @@ export class WorkOrdersController extends UniversalController<
   }
 
   @Delete(':id/checklist-items/:itemId')
+  @RoleByMethod({
+    DELETE: [
+      Roles.SYSTEM_ADMIN,
+      Roles.ADMIN,
+      Roles.FIELD_TEAM,
+      Roles.C2C,
+    ],
+  })
   async removerItemDoChecklist(
     @Param('id') id: string,
     @Param('itemId') itemId: string,

@@ -17,6 +17,7 @@ import {
   ForgotPasswordDto,
   ValidateResetTokenDto,
   ResetPasswordDto,
+  ChangeMyPasswordDto,
 } from './dto';
 import { AuthService } from './services';
 import { AuthGuard, RefreshGuard, RateLimitGuard } from './guards';
@@ -89,6 +90,16 @@ export class AuthController {
       dto,
     );
     return { data: prefs };
+  }
+
+  @Patch('me/password')
+  @UseGuards(AuthGuard)
+  async changeMyPassword(
+    @Req() request: Request,
+    @Body() dto: ChangeMyPasswordDto,
+  ) {
+    const authUser = request.user as { id: string };
+    return this.authService.changeMyPassword(authUser.id, dto);
   }
 
   @Post('refresh')
