@@ -139,12 +139,12 @@ export class OperationalDashboardService {
         where: {
           ...workOrderWhere,
           status: WorkOrderStatus.COMPLETED,
-          updatedAt: { gte: periodStart },
+          completedAt: { gte: periodStart },
         },
         select: {
           id: true,
-          createdAt: true,
-          updatedAt: true,
+          startedAt: true,
+          completedAt: true,
         },
       }),
       this.prisma.workOrder.findMany({
@@ -310,17 +310,25 @@ export class OperationalDashboardService {
   private construirSerieDeMttr(
     records: Array<{
       id: string;
-      createdAt: Date;
-      updatedAt: Date;
+      startedAt: Date | null;
+      completedAt: Date | null;
     }>,
     totalDias: number,
   ) {
     return this.obterJanelaDeDias(totalDias).map((day) => {
       const recordsOfDay = records.filter(
-        (record) => record.updatedAt.toISOString().slice(0, 10) === day.key,
+        (record) =>
+          record.completedAt &&
+          record.completedAt.toISOString().slice(0, 10) === day.key,
+      );
+      const validRecords = recordsOfDay.filter(
+        (record) =>
+          record.startedAt &&
+          record.completedAt &&
+          record.completedAt.getTime() > record.startedAt.getTime(),
       );
 
-      if (recordsOfDay.length === 0) {
+      if (validRecords.length === 0) {
         return {
           date: day.key,
           label: day.label,
@@ -329,10 +337,10 @@ export class OperationalDashboardService {
       }
 
       const averageHours =
-        recordsOfDay.reduce((total, record) => {
-          const elapsedMs = record.updatedAt.getTime() - record.createdAt.getTime();
+        validRecords.reduce((total, record) => {
+          const elapsedMs = record.completedAt!.getTime() - record.startedAt!.getTime();
           return total + elapsedMs / (1000 * 60 * 60);
-        }, 0) / recordsOfDay.length;
+        }, 0) / validRecords.length;
 
       return {
         date: day.key,

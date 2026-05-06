@@ -400,6 +400,8 @@ model WorkOrder {
   status           WorkOrderStatus     @default(PENDING)
   type             WorkOrderType
   dueDate          DateTime?
+  startedAt        DateTime?
+  completedAt      DateTime?
   slaDeadlineHours Int?
   slaStatus        WorkOrderSlaStatus? @default(OK)
   equipmentType    AssetType?
@@ -431,6 +433,8 @@ model WorkOrder {
   @@index([status])
   @@index([priority])
   @@index([dueDate])
+  @@index([startedAt])
+  @@index([completedAt])
   @@index([deletedAt])
 }
 
