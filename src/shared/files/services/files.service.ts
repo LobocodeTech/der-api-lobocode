@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { Request, Response } from 'express';
 import { PrismaService } from '../../../shared/prisma/prisma.service';
 import * as Minio from 'minio';
 
@@ -91,6 +92,64 @@ export class FilesService {
 
     this.publicMinioBaseUrl = this.resolvePublicMinioBaseUrl(isProduction);
     this.initializeBucket();
+  }
+
+  getBucketName(): string {
+    return this.bucketName;
+  }
+
+  /** GET/HEAD público: path-style /files/<bucket>/<objectKey> → objeto no MinIO. */
+  async tryStreamObjectToResponse(
+    objectKey: string,
+    req: Request,
+    res: Response,
+  ): Promise<boolean> {
+    try {
+      const stat = await this.minioClient.statObject(this.bucketName, objectKey);
+      const meta = stat.metaData ?? {};
+      const contentType =
+        (meta['content-type'] as string | undefined) ||
+        (meta['Content-Type'] as string | undefined) ||
+        'application/octet-stream';
+
+      if (req.method === 'HEAD') {
+        res.setHeader('Content-Type', contentType);
+        if (stat.size !== undefined) {
+          res.setHeader('Content-Length', String(stat.size));
+        }
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        res.end();
+        return true;
+      }
+
+      const stream = await this.minioClient.getObject(this.bucketName, objectKey);
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      stream.on('error', (err) => {
+        this.logger.warn(`Stream MinIO ${objectKey}: ${err instanceof Error ? err.message : err}`);
+        if (!res.headersSent) {
+          res.status(500).end();
+        }
+      });
+      stream.pipe(res);
+      return true;
+    } catch (error) {
+      const code =
+        error && typeof error === 'object' && 'code' in error
+          ? String((error as { code?: string }).code)
+          : '';
+      if (code === 'NotFound' || code === 'NoSuchKey') {
+        res.status(404).json({
+          error: 'NOT_FOUND',
+          message: 'Arquivo não encontrado no armazenamento',
+        });
+        return true;
+      }
+      this.logger.warn(
+        `stat/get MinIO ${objectKey}: ${error instanceof Error ? error.message : 'unknown'}`,
+      );
+      return false;
+    }
   }
 
   private resolvePublicMinioBaseUrl(isProduction: boolean): string {
