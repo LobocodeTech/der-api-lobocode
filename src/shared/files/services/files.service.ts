@@ -24,20 +24,23 @@ export class FilesService {
   private readonly logger = new Logger(FilesService.name);
   private readonly minioClient: Minio.Client;
   private readonly bucketName = 'departamento-estadual-rodovias-files';
+  private readonly publicMinioBaseUrl: string;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
   ) {
     const isProduction = this.configService.get<string>('NODE_ENV') === 'production';
-    const endpoint = this.configService.get<string>('MINIO_ENDPOINT');
+    const legacyEndpoint = this.configService.get<string>('MINIO_ENDPOINT');
+    const internalEndpoint =
+      this.configService.get<string>('MINIO_INTERNAL_ENDPOINT') ?? legacyEndpoint;
 
     let endpointHost: string | undefined;
     let endpointPort: number | undefined;
     let endpointUseSSL: boolean | undefined;
-    if (endpoint) {
+    if (internalEndpoint) {
       try {
-        const endpointUrl = new URL(endpoint);
+        const endpointUrl = new URL(internalEndpoint);
         endpointHost = endpointUrl.hostname || undefined;
         endpointPort = endpointUrl.port
           ? Number.parseInt(endpointUrl.port, 10)
@@ -48,22 +51,29 @@ export class FilesService {
       }
     }
 
+    const endpointLooksPublic =
+      endpointHost !== undefined &&
+      endpointHost !== 'localhost' &&
+      endpointHost !== '127.0.0.1' &&
+      endpointHost !== 'minio';
+
     const minioHost =
       this.configService.get<string>('MINIO_HOST') ??
-      endpointHost ??
+      (isProduction && endpointLooksPublic ? undefined : endpointHost) ??
       (isProduction ? 'minio' : 'localhost');
 
     const minioPortRaw = this.configService.get<string>('MINIO_PORT');
     const minioPort =
       (minioPortRaw ? Number.parseInt(minioPortRaw, 10) : undefined) ??
-      endpointPort ??
+      (isProduction && endpointLooksPublic ? undefined : endpointPort) ??
       (isProduction ? 9000 : 3311);
 
     const useSSLRaw = this.configService.get<string>('MINIO_USE_SSL');
     const useSSL =
       useSSLRaw !== undefined
         ? useSSLRaw.toLowerCase() === 'true'
-        : (endpointUseSSL ?? false);
+        : ((isProduction && endpointLooksPublic ? undefined : endpointUseSSL) ??
+          false);
 
     this.minioClient = new Minio.Client({
       endPoint: minioHost,
@@ -76,7 +86,48 @@ export class FilesService {
       ),
     });
 
+    this.publicMinioBaseUrl = this.resolvePublicMinioBaseUrl(isProduction);
     this.initializeBucket();
+  }
+
+  private resolvePublicMinioBaseUrl(isProduction: boolean): string {
+    const configuredPublicEndpoint = this.configService.get<string>(
+      'MINIO_PUBLIC_ENDPOINT',
+    );
+    const internalEndpoint =
+      this.configService.get<string>('MINIO_INTERNAL_ENDPOINT') ??
+      this.configService.get<string>('MINIO_ENDPOINT');
+
+    const isLocalUrl = (url?: string): boolean => {
+      if (!url) {
+        return false;
+      }
+      return url.includes('://localhost') || url.includes('://127.0.0.1');
+    };
+
+    if (isProduction) {
+      if (configuredPublicEndpoint && !isLocalUrl(configuredPublicEndpoint)) {
+        return configuredPublicEndpoint;
+      }
+
+      const appHost = this.configService.get<string>('APP_HOST');
+      if (appHost) {
+        return `https://${appHost}/files`;
+      }
+
+      return configuredPublicEndpoint ?? internalEndpoint ?? 'http://localhost:3311';
+    }
+
+    if (configuredPublicEndpoint && isLocalUrl(configuredPublicEndpoint)) {
+      return configuredPublicEndpoint;
+    }
+    if (isLocalUrl(internalEndpoint)) {
+      return internalEndpoint!;
+    }
+
+    const minioHost = this.configService.get<string>('MINIO_HOST') ?? 'localhost';
+    const minioPort = this.configService.get<string>('MINIO_PORT') ?? '3311';
+    return `http://${minioHost}:${minioPort}`;
   }
 
   private async initializeBucket(): Promise<void> {
@@ -135,11 +186,7 @@ export class FilesService {
       );
 
       // URL pública
-      const minioEndpoint = this.configService.get<string>(
-        'MINIO_ENDPOINT',
-        'http://localhost:3311',
-      );
-      const url = `${minioEndpoint}/${this.bucketName}/${fullPath}`;
+      const url = `${this.publicMinioBaseUrl}/${this.bucketName}/${fullPath}`;
 
       // Salvar no banco
       const fileRecord = await this.prisma.file.create({
