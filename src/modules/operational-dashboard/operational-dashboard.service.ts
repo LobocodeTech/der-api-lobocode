@@ -151,7 +151,7 @@ export class OperationalDashboardService {
         where: {
           ...workOrderWhere,
           equipmentType: {
-            in: [AssetType.CAMERA, AssetType.ATDB, AssetType.TMV],
+            in: [AssetType.CAMERA, AssetType.ATDB, AssetType.PMV],
           },
         },
         distinct: ['locationId', 'equipmentType'],
@@ -167,7 +167,7 @@ export class OperationalDashboardService {
                 select: {
                   id: true,
                   city: true,
-                  sgr: true,
+                  cgr: true,
                 },
               },
             },
@@ -180,7 +180,7 @@ export class OperationalDashboardService {
           type: WorkOrderType.PREVENTIVE,
           status: WorkOrderStatus.COMPLETED,
           equipmentType: {
-            in: [AssetType.CAMERA, AssetType.ATDB, AssetType.TMV],
+            in: [AssetType.CAMERA, AssetType.ATDB, AssetType.PMV],
           },
         },
         by: ['locationId', 'equipmentType'],

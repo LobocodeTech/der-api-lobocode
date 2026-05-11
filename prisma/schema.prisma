@@ -43,7 +43,7 @@ enum PermissionType {
 enum AssetType {
   CAMERA // Câmera
   ATDB // ATDB
-  TMV // TMV
+  PMV // PMV
   OTHER // Outro
 }
 
@@ -298,8 +298,10 @@ model Asset {
 
 model Regional {
   id     String         @id @default(cuid())
-  sgr    String
+  cgr    String
   city   String
+  /// Cor em hexadecimal (#RGB ou #RRGGBB) para identidade visual (ex.: menu lateral).
+  color  String
   status RegionalStatus @default(ACTIVE)
 
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -314,7 +316,7 @@ model Regional {
   workOrderColumns WorkOrderColumn[]
 
   @@index([companyId])
-  @@index([sgr])
+  @@index([cgr])
   @@index([deletedAt])
 }
 

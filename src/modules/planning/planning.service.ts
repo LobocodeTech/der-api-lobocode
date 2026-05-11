@@ -68,7 +68,7 @@ export class PlanningService extends UniversalService<
             regional: {
               select: {
                 id: true,
-                sgr: true,
+                cgr: true,
                 city: true,
               },
             },

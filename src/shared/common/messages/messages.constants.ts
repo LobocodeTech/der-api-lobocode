@@ -43,6 +43,8 @@ export const VALIDATION_MESSAGES = {
     DATE_INVALID: 'Data inválida',
     ARRAY_INVALID: 'Campo deve ser um array',
     OBJECT_INVALID: 'Campo deve ser um objeto',
+    HEX_COLOR_INVALID:
+      'Cor deve estar no formato hexadecimal #RGB ou #RRGGBB (ex.: #3b82f6)',
   },
 
   // Validações de unicidade

@@ -3,6 +3,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  Matches,
 } from 'class-validator';
 import { RegionalStatus } from '@prisma/client';
 import { IsCUID } from '../../../shared/validators';
@@ -15,11 +16,18 @@ export class CreateRegionalsDto {
 
   @IsNotEmpty({ message: VALIDATION_MESSAGES.REQUIRED.FIELD })
   @IsString({ message: VALIDATION_MESSAGES.REQUIRED.NAME })
-  sgr: string;
+  cgr: string;
 
   @IsNotEmpty({ message: VALIDATION_MESSAGES.REQUIRED.FIELD })
   @IsString({ message: VALIDATION_MESSAGES.REQUIRED.NAME })
   city: string;
+
+  @IsNotEmpty({ message: VALIDATION_MESSAGES.REQUIRED.FIELD })
+  @IsString({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
+  @Matches(/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/, {
+    message: VALIDATION_MESSAGES.FORMAT.HEX_COLOR_INVALID,
+  })
+  color: string;
 
   @IsOptional()
   @IsEnum(RegionalStatus, {

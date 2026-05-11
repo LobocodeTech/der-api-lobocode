@@ -60,7 +60,7 @@ export class RegionalsService extends UniversalService<
         flatten: {},
         exclude: ['companyId'],
       },
-      orderBy: { sgr: 'asc' },
+      orderBy: { cgr: 'asc' },
     };
   }
 

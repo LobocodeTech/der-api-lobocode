@@ -61,7 +61,7 @@ export class WorkOrdersService extends UniversalService<
         regional: {
           select: {
             id: true,
-            sgr: true,
+            cgr: true,
             city: true,
           },
         },
@@ -177,7 +177,7 @@ export class WorkOrdersService extends UniversalService<
             regional: {
               select: {
                 id: true,
-                sgr: true,
+                cgr: true,
                 city: true,
               },
             },
@@ -747,7 +747,7 @@ export class WorkOrdersService extends UniversalService<
     const equipmentTypeLabel: Record<AssetType, string> = {
       CAMERA: 'câmera',
       ATDB: 'ATDB',
-      TMV: 'TMV',
+      PMV: 'PMV',
       OTHER: 'equipamento',
     };
 

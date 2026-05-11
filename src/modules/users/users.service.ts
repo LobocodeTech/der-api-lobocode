@@ -28,9 +28,9 @@ import { TenantService } from '../../shared/tenant/tenant.service';
 
 function montarRotuloResponsavelOs(
   name: string,
-  regional: { sgr: string; city: string } | null | undefined,
+  regional: { cgr: string; city: string } | null | undefined,
 ): string {
-  const nomeRegional = regional?.sgr?.trim() ?? '';
+  const nomeRegional = regional?.cgr?.trim() ?? '';
   const cidadeRegional = regional?.city?.trim() ?? '';
   const partes = [name.trim(), nomeRegional, cidadeRegional].filter(
     (parte) => parte.length > 0,
@@ -252,7 +252,7 @@ export class UsersService extends BaseUserService {
         select: { permissionType: true },
       },
       regional: {
-        select: { id: true, sgr: true, city: true },
+        select: { id: true, cgr: true, city: true },
       },
     };
 
@@ -282,7 +282,7 @@ export class UsersService extends BaseUserService {
         name: u.name,
         label: montarRotuloResponsavelOs(u.name, regional),
         regionalId: u.regionalId,
-        regionalName: regional?.sgr ?? null,
+        regionalName: regional?.cgr ?? null,
         city: regional?.city ?? null,
       };
     });
