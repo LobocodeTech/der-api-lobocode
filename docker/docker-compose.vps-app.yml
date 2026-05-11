@@ -17,12 +17,16 @@ services:
       - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@${DB_CONTAINER_NAME}:5432/${DB_NAME}
       - JWT_SECRET=${JWT_SECRET}
       - REDIS_URL=redis://${REDIS_CONTAINER_NAME}:6379
+      # MinIO na rede interna (não use localhost/3311 do .env de dev no container).
       - MINIO_HOST=${MINIO_CONTAINER_NAME}
       - MINIO_PORT=9000
+      - MINIO_USE_SSL=false
+      - MINIO_INTERNAL_ENDPOINT=http://${MINIO_CONTAINER_NAME}:9000
+      - MINIO_ENDPOINT=http://${MINIO_CONTAINER_NAME}:9000
+      - MINIO_PUBLIC_ENDPOINT=https://${APP_HOST}/files
+      - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME}
       - MINIO_ROOT_USER=${MINIO_ROOT_USER}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
-      - MINIO_USE_SSL=${MINIO_USE_SSL}
-      - MINIO_ENDPOINT=${MINIO_ENDPOINT}
     labels:
       - traefik.enable=true
       - traefik.docker.network=${TRAEFIK_NETWORK}

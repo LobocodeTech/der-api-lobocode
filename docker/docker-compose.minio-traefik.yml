@@ -20,6 +20,8 @@ services:
       - traefik.http.middlewares.${VPS_APP_PROJECT_NAME}-minio-strip.stripprefix.prefixes=/files
       - traefik.http.routers.${VPS_APP_PROJECT_NAME}-minio-files.middlewares=${VPS_APP_PROJECT_NAME}-minio-strip@docker
       - traefik.http.routers.${VPS_APP_PROJECT_NAME}-minio-files.service=${VPS_APP_PROJECT_NAME}-minio-files
+      # Evita enviar Host=APP_HOST ao MinIO (path-style /bucket/obj costuma falhar com Host “externo”).
+      - traefik.http.services.${VPS_APP_PROJECT_NAME}-minio-files.loadbalancer.passHostHeader=false
       - traefik.http.services.${VPS_APP_PROJECT_NAME}-minio-files.loadbalancer.server.port=9000
     networks:
       - stack

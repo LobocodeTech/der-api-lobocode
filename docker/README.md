@@ -16,4 +16,6 @@
 
 Fluxo típico: `traefik/.env.gateway` → `./scripts/deploy.sh vps-gateway` → `COMPOSE_FILE_EXTRA=docker/docker-compose.minio-traefik.yml ./scripts/deploy.sh database` → `./scripts/deploy.sh vps-app`.
 
+**Produção — link público dos arquivos (bucket path-style):** `https://<APP_HOST>/files/<MINIO_BUCKET_NAME>/...` (ex.: prefixo `companies/<id>/...`). O `docker-compose.vps-app.yml` força `MINIO_PUBLIC_ENDPOINT` e endpoint interno para o container MinIO na rede Docker. Sem o overlay `minio-traefik`, o próprio Nest ainda atende `GET /files/...` via middleware. Com o overlay, o Traefik encaminha ao MinIO com `passHostHeader=false` para evitar falhas de roteamento S3.
+
 Documentação multi-projeto: `scripts/vps/VPS_MULTI_PROJECT.md`.

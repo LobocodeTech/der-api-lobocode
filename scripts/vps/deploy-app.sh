@@ -70,4 +70,7 @@ fi
 echo ""
 echo "Stack da aplicação iniciada."
 echo "Domínio roteado: ${APP_HOST}"
+if [ -n "${MINIO_BUCKET_NAME:-}" ]; then
+  echo "MinIO (URLs públicas de objeto): https://${APP_HOST}/files/${MINIO_BUCKET_NAME}/<caminho-do-objeto>"
+fi
 echo "Verifique: docker compose --env-file \"${ENV_FILE}\" -p ${COMPOSE_VPS_STACK_NAME} -f ${COMPOSE_FILE} ps"
