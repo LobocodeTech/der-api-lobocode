@@ -10,6 +10,8 @@ import { MinioPublicObjectMiddleware } from './middleware/minio-public-object.mi
 })
 export class FilesModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(MinioPublicObjectMiddleware).forRoutes(FilesController);
+    // forRoutes(FilesController) só amarra às rotas declaradas (ex.: GET /files/:id com 1 segmento).
+    // URLs públicas são /files/<bucket>/<objectKey com vários segmentos> — precisam deste middleware em qualquer GET/HEAD.
+    consumer.apply(MinioPublicObjectMiddleware).forRoutes('*');
   }
 }
