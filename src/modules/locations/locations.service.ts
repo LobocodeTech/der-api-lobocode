@@ -61,6 +61,7 @@ export class LocationsService extends UniversalService<
             id: true,
             cgr: true,
             city: true,
+            color: true,
           },
         },
       },

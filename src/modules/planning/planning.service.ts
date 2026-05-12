@@ -50,6 +50,58 @@ export class PlanningService extends UniversalService<
     this.setEntityConfig();
   }
 
+  /**
+   * `GET /planning/all?date=YYYY-MM-DD` — quando `date` é válido, retorna só planejamentos
+   * desse dia (intervalo UTC [00:00, 24h) a partir da data calendário).
+   * Sem `date`, mantém o comportamento anterior (todos os registros permitidos por CASL).
+   */
+  async buscarTodos() {
+    this.permissionService.validarAction(this.entityNameCasl, 'read');
+
+    const whereClause = this.queryService.construirWhereClauseParaRead(
+      this.entityNameCasl,
+    );
+
+    const req = (
+      this as unknown as { request?: { query?: Record<string, unknown> } }
+    ).request;
+    const dayYmd = PlanningService.parseDateQueryParam(req?.query?.date);
+    if (dayYmd) {
+      PlanningService.mergeDayUtcRangeIntoWhere(whereClause, dayYmd);
+    }
+
+    const includeConfig = this.getIncludeConfig();
+    const orderBy =
+      this.getEntityConfig().orderBy ?? ({ createdAt: 'desc' } as const);
+    const entities = await this.repository.buscarMuitos(
+      this.entityName,
+      whereClause,
+      { orderBy },
+      includeConfig,
+    );
+    return this.transformData(entities);
+  }
+
+  private static parseDateQueryParam(value: unknown): string | null {
+    if (typeof value !== 'string') return null;
+    const s = value.trim().slice(0, 10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
+  }
+
+  private static mergeDayUtcRangeIntoWhere(
+    whereClause: { AND?: unknown[] },
+    dayYmd: string,
+  ): void {
+    const start = new Date(`${dayYmd}T00:00:00.000Z`);
+    const endExclusive = new Date(start);
+    endExclusive.setUTCDate(endExclusive.getUTCDate() + 1);
+    const dateFilter = { date: { gte: start, lt: endExclusive } };
+    if (!Array.isArray(whereClause.AND)) {
+      whereClause.AND = [];
+    }
+    whereClause.AND.push(dateFilter);
+  }
+
   setEntityConfig() {
     const companyId = this.obterCompanyId();
     this.entityConfig = {
@@ -70,6 +122,7 @@ export class PlanningService extends UniversalService<
                 id: true,
                 cgr: true,
                 city: true,
+                color: true,
               },
             },
           },

@@ -1,28 +1,17 @@
 import {
-  IsArray,
   IsEnum,
-  IsIP,
   IsNotEmpty,
   IsNumber,
   IsOptional,
-  ValidateNested,
   IsString,
   MaxLength,
   Min,
+  Max,
 } from 'class-validator';
 import { RegionalStatus } from '@prisma/client';
 import { IsCUID } from '../../../shared/validators';
 import { VALIDATION_MESSAGES } from '../../../shared/common/messages';
 import { Type } from 'class-transformer';
-
-class LocationIpAddressDto {
-  @IsString({ message: VALIDATION_MESSAGES.REQUIRED.FIELD })
-  @MaxLength(120, { message: VALIDATION_MESSAGES.LENGTH.MAX_LENGTH })
-  name: string;
-
-  @IsIP('4', { message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
-  ip: string;
-}
 
 export class CreateLocationsDto {
   @IsOptional()
@@ -53,14 +42,22 @@ export class CreateLocationsDto {
   referenceKm: number;
 
   @IsOptional()
+  @Type(() => Number)
+  @IsNumber({}, { message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
+  @Min(-90, { message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
+  @Max(90, { message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
+  latitude?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({}, { message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
+  @Min(-180, { message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
+  @Max(180, { message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
+  longitude?: number;
+
+  @IsOptional()
   @IsEnum(RegionalStatus, {
     message: VALIDATION_MESSAGES.FORMAT.ENUM_INVALID,
   })
   status?: RegionalStatus;
-
-  @IsOptional()
-  @IsArray({ message: VALIDATION_MESSAGES.FORMAT.ARRAY_INVALID })
-  @ValidateNested({ each: true })
-  @Type(() => LocationIpAddressDto)
-  ipAddresses?: LocationIpAddressDto[];
 }

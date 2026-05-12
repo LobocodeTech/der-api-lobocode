@@ -221,11 +221,42 @@ export class WorkOrdersService extends UniversalService<
 
   async buscarPorId(id: string, include?: Prisma.WorkOrderInclude) {
     const ordem = await super.buscarPorId(id, include ?? this.detalhesInclude);
-    return this.normalizarDetalhesDaOrdem(ordem);
+    const normalizada = this.normalizarDetalhesDaOrdem(ordem);
+    return this.enriquecerComNumeroSequencial(normalizada);
   }
 
   async buscarDetalhesPorId(id: string) {
     return this.buscarPorId(id, this.detalhesInclude);
+  }
+
+  async buscarTodos() {
+    const resultado = await super.buscarTodos();
+    return this.enriquecerComNumeroSequencial(resultado);
+  }
+
+  async buscarComPaginacao(page = 1, limit = 20, include?: any) {
+    const resultado = await super.buscarComPaginacao(page, limit, include);
+    return this.enriquecerComNumeroSequencial(resultado);
+  }
+
+  async buscarPorCampo(field: string, value: any, include?: any) {
+    const resultado = await super.buscarPorCampo(field, value, include);
+    return this.enriquecerComNumeroSequencial(resultado);
+  }
+
+  async buscarMuitosPorCampo(field: string, value: any, include?: any) {
+    const resultado = await super.buscarMuitosPorCampo(field, value, include);
+    return this.enriquecerComNumeroSequencial(resultado);
+  }
+
+  async criar(data: CreateWorkOrderDto, include?: any, role?: Roles) {
+    const entity = await super.criar(data, include, role);
+    return this.enriquecerComNumeroSequencial(entity);
+  }
+
+  async atualizar(id: string, dto: UpdateWorkOrderDto, include?: any) {
+    const entity = await super.atualizar(id, dto, include);
+    return this.enriquecerComNumeroSequencial(entity);
   }
 
   async buscarPorLocalidade(locationId: string) {
@@ -1169,6 +1200,78 @@ export class WorkOrdersService extends UniversalService<
         },
       },
     } as any);
+  }
+
+  /**
+   * Calcula o número sequencial de cada OS da empresa atual, ordenado por
+   * createdAt ascendente (com id como desempate). OSs com soft-delete são
+   * ignoradas, o que faz a numeração re-ordenar automaticamente quando algo
+   * é excluído.
+   */
+  private async obterMapaSequencialPorEmpresa(): Promise<Map<string, number>> {
+    const companyId = this.obterCompanyId();
+    const rows = companyId
+      ? await this.prisma.$queryRaw<Array<{ id: string; seq: bigint | number }>>`
+          SELECT id, ROW_NUMBER() OVER (ORDER BY "createdAt" ASC, id ASC)::int AS seq
+          FROM "WorkOrder"
+          WHERE "deletedAt" IS NULL AND "companyId" = ${companyId}
+        `
+      : await this.prisma.$queryRaw<Array<{ id: string; seq: bigint | number }>>`
+          SELECT id, ROW_NUMBER() OVER (ORDER BY "createdAt" ASC, id ASC)::int AS seq
+          FROM "WorkOrder"
+          WHERE "deletedAt" IS NULL
+        `;
+
+    const mapa = new Map<string, number>();
+    for (const row of rows) {
+      const seq = typeof row.seq === 'bigint' ? Number(row.seq) : row.seq;
+      mapa.set(row.id, seq);
+    }
+    return mapa;
+  }
+
+  private aplicarNumeroSequencial<T extends Record<string, any>>(
+    entity: T,
+    mapa: Map<string, number>,
+  ): T {
+    if (!entity || typeof entity !== 'object' || typeof entity.id !== 'string') {
+      return entity;
+    }
+    return { ...entity, sequentialNumber: mapa.get(entity.id) ?? null };
+  }
+
+  /**
+   * Anexa `sequentialNumber` à(s) OS contida(s) na resposta. Funciona tanto
+   * para a entidade pura quanto para o envelope `{ data, ... }` usado pelas
+   * rotas de listagem/paginação.
+   */
+  private async enriquecerComNumeroSequencial<R>(resposta: R): Promise<R> {
+    if (!resposta || typeof resposta !== 'object') {
+      return resposta;
+    }
+
+    const mapa = await this.obterMapaSequencialPorEmpresa();
+
+    if (Array.isArray(resposta)) {
+      return resposta.map((item) =>
+        this.aplicarNumeroSequencial(item, mapa),
+      ) as unknown as R;
+    }
+
+    const respostaObj = resposta as Record<string, any>;
+    if ('data' in respostaObj) {
+      const dados = respostaObj.data;
+      if (Array.isArray(dados)) {
+        respostaObj.data = dados.map((item) =>
+          this.aplicarNumeroSequencial(item, mapa),
+        );
+      } else if (dados && typeof dados === 'object') {
+        respostaObj.data = this.aplicarNumeroSequencial(dados, mapa);
+      }
+      return resposta;
+    }
+
+    return this.aplicarNumeroSequencial(respostaObj, mapa) as unknown as R;
   }
 
   private normalizarDetalhesDaOrdem<T>(ordem: T): T {

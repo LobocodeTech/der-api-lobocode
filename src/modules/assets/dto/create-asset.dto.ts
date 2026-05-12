@@ -1,10 +1,14 @@
 import {
+  IsArray,
   IsEnum,
+  IsIP,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
   IsUrl,
+  MaxLength,
+  ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import {
@@ -15,6 +19,15 @@ import {
 } from '@prisma/client';
 import { IsCUID } from '../../../shared/validators';
 import { VALIDATION_MESSAGES } from '../../../shared/common/messages';
+
+class AssetIpAddressDto {
+  @IsString({ message: VALIDATION_MESSAGES.REQUIRED.FIELD })
+  @MaxLength(120, { message: VALIDATION_MESSAGES.LENGTH.MAX_LENGTH })
+  name: string;
+
+  @IsIP('4', { message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
+  ip: string;
+}
 
 export class CreateAssetDto {
   @IsOptional()
@@ -80,5 +93,11 @@ export class CreateAssetDto {
   @IsOptional()
   @IsString({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
   connectionToken?: string;
+
+  @IsOptional()
+  @IsArray({ message: VALIDATION_MESSAGES.FORMAT.ARRAY_INVALID })
+  @ValidateNested({ each: true })
+  @Type(() => AssetIpAddressDto)
+  ipAddresses?: AssetIpAddressDto[];
 }
 

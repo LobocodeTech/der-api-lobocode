@@ -280,6 +280,7 @@ export class UsersService extends BaseUserService {
       return {
         id: u.id,
         name: u.name,
+        role: u.role,
         label: montarRotuloResponsavelOs(u.name, regional),
         regionalId: u.regionalId,
         regionalName: regional?.cgr ?? null,

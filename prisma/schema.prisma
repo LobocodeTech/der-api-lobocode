@@ -270,6 +270,7 @@ model Asset {
   criticality     AssetCriticality     @default(MEDIUM)
   latitude        Float?
   longitude       Float?
+  ipAddresses     Json?
   lastSignalAt    DateTime?
   connectionType  AssetConnectionType?
   connectionUrl   String?
@@ -303,6 +304,10 @@ model Regional {
   color  String
   status RegionalStatus @default(ACTIVE)
 
+  latitude  Float?
+  longitude Float?
+  address   Json?
+
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   companyId String
 
@@ -330,7 +335,8 @@ model Location {
   uf          String
   referenceKm Float
   status      RegionalStatus @default(ACTIVE)
-  ipAddresses Json?
+  latitude    Float?
+  longitude   Float?
 
   companyId String
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
