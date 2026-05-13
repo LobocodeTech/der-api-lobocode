@@ -1,5 +1,3 @@
-import { PermissionType } from '@prisma/client';
-
 export interface IAuthResponse {
   access_token: string;
   refresh_token?: string;
@@ -10,7 +8,6 @@ export interface IAuthResponse {
   //   name: string;
   //   email: string;
   //   role: string;
-  //   userPermissions?: PermissionType[];
   // };
 }
 

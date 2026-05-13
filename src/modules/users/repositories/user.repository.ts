@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../shared/prisma/prisma.service';
 import { TenantService } from '../../../shared/tenant/tenant.service';
-import { User, Prisma, PermissionType } from '@prisma/client';
+import { User, Prisma } from '@prisma/client';
 
 @Injectable()
 export class UserRepository {
@@ -54,18 +54,6 @@ export class UserRepository {
           address: true,
         },
       },
-      permissions: {
-        select: {
-          permissionType: true,
-        },
-      },
-    };
-  }
-
-  // Includes para validação (schema DEPARTAMENTO ESTADUAL DE RODOVIAS - sem patrols/shifts/eventLogs/panicEvents)
-  private get validationInclude(): Prisma.UserInclude {
-    return {
-      permissions: true,
     };
   }
 
@@ -114,43 +102,6 @@ export class UserRepository {
     });
   }
 
-  async criarPermissaoDeVigilante(data: {
-    userId: string;
-    permissionType: PermissionType[];
-  }) {
-    return await this.prisma.permission.createMany({
-      data: data.permissionType.map((type) => ({
-        userId: data.userId,
-        permissionType: type,
-      })),
-      skipDuplicates: true,
-    });
-  }
-
-  async deletarPermissoesDoUsuario(userId: string) {
-    return await this.prisma.permission.deleteMany({
-      where: { userId },
-    });
-  }
-
-  async atualizarPermissoesDoUsuario(
-    userId: string,
-    permissions: PermissionType[],
-  ) {
-    // Primeiro deleta todas as permissões existentes
-    await this.deletarPermissoesDoUsuario(userId);
-
-    // Depois cria as novas permissões
-    if (permissions && permissions.length > 0) {
-      return await this.criarPermissaoDeVigilante({
-        userId,
-        permissionType: permissions,
-      });
-    }
-
-    return { count: 0 };
-  }
-
   async atualizar(
     where: Prisma.UserWhereUniqueInput,
     data: Prisma.UserUpdateInput,
@@ -171,7 +122,6 @@ export class UserRepository {
   async buscarUserComRelations(id: string) {
     return this.prisma.user.findUnique({
       where: { id },
-      include: this.validationInclude,
     });
   }
 

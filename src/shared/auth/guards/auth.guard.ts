@@ -92,7 +92,6 @@ export class AuthGuard implements CanActivate {
       where: { id: userId },
       include: {
         company: true,
-        permissions: true,
       },
     });
 

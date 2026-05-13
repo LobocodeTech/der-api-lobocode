@@ -171,9 +171,6 @@ export class UsersService extends BaseUserService {
     // Transformar dados dos usuários
     const transformedData = users.map((user) => ({
       ...user,
-      permissions:
-        user.permissions?.map((permission: any) => permission.permissionType) ||
-        [],
     }));
 
     return {
@@ -204,9 +201,6 @@ export class UsersService extends BaseUserService {
     // Transforma os dados dos usuários para o formato esperado pelo frontend
     return users.map((user) => ({
       ...user,
-      permissions:
-        user.permissions?.map((permission: any) => permission.permissionType) ||
-        [],
     }));
   }
 
@@ -247,9 +241,6 @@ export class UsersService extends BaseUserService {
     const includeAssignee: Prisma.UserInclude = {
       company: {
         select: { id: true, name: true, cnpj: true, address: true },
-      },
-      permissions: {
-        select: { permissionType: true },
       },
       regional: {
         select: { id: true, cgr: true, city: true, radiusKm: true },

@@ -1,16 +1,8 @@
 import { Injectable, Scope } from '@nestjs/common';
 import { AbilityBuilder, PureAbility } from '@casl/ability';
 import { createPrismaAbility, PrismaQuery, Subjects } from '@casl/prisma';
-import { Roles, User, PermissionType, WorkOrderType } from '@prisma/client';
+import { Roles, User, WorkOrderType } from '@prisma/client';
 import { isUsuarioAdministradorEmpresaOuSistema } from '../../regional-scope/regional-scope.helper';
-
-// Tipo estendido para User com permissões
-type UserWithPermissions = User & {
-  permissions?: Array<{
-    permissionType: PermissionType;
-    granted: boolean;
-  }>;
-};
 
 export type PermActions =
   | 'manage'
@@ -436,15 +428,5 @@ export class CaslAbilityService {
 
   obterUsuarioAtivo(): User {
     return this.usuarioAtivo;
-  }
-
-  // Método auxiliar para verificar permissões específicas
-  hasPermission(user: User, permissionType: PermissionType): boolean {
-    const userWithPermissions = user as UserWithPermissions;
-    return (
-      userWithPermissions.permissions?.some(
-        (p) => p.permissionType === permissionType && p.granted,
-      ) ?? false
-    );
   }
 }

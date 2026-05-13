@@ -7,5 +7,4 @@ export interface RequestUser {
   email: string;
   name: string;
   status: string;
-  permissions?: Array<{ permissionType: string }>;
 }

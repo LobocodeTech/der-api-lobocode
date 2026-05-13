@@ -49,7 +49,6 @@ export class OAuthService {
 
     const userExistente = await this.prisma.user.findFirst({
       where: { email: { equals: normalizedEmail, mode: 'insensitive' } },
-      include: { permissions: true },
     });
 
     if(!userExistente || userExistente.status !== UserStatus.ACTIVE || userExistente.deletedAt) {
@@ -60,7 +59,7 @@ export class OAuthService {
 
     const contaExistente = await this.prisma.oAuthAccount.findUnique({
       where: { provider_providerId: { provider, providerId } },
-      include: { user: { include: { permissions: true } } },
+      include: { user: true },
     });
 
     if (contaExistente) {
@@ -114,8 +113,6 @@ export class OAuthService {
       email: user.email,
       role: user.role,
       sub: user.id,
-      userPermissions: [],
-      permissions: packRules(ability.rules),
     };
 
     const access_token = this.jwtService.sign(payload);
@@ -125,7 +122,6 @@ export class OAuthService {
       void this.auditService.logLoginSuccess(user.id, request, {
         role: user.role,
         companyId: user.companyId,
-        userPermissions: user.permissions.map((permission) => permission.permissionType),
         authMethod: 'oauth',
         ...(provider ? { oauthProvider: provider } : {}),
       });

@@ -40,7 +40,7 @@ export class OAuthService {
 
     const contaExistente = await this.prisma.oAuthAccount.findUnique({
       where: { provider_providerId: { provider, providerId } },
-      include: { user: { include: { permissions: true } } },
+      include: { user: true },
     });
 
     if (contaExistente) {
@@ -53,7 +53,6 @@ export class OAuthService {
 
     const userExistente = await this.prisma.user.findUnique({
       where: { email },
-      include: { permissions: true },
     });
 
     if (userExistente) {
@@ -99,9 +98,7 @@ export class OAuthService {
             refreshToken,
           },
         },
-        permissions: { create: [] },
       },
-      include: { permissions: true },
     });
 
     this.logger.log(`Novo usuário criado via OAuth (${provider}): ${email} — status PENDING`);
@@ -122,8 +119,6 @@ export class OAuthService {
       email: user.email,
       role: user.role,
       sub: user.id,
-      userPermissions: [],
-      permissions: packRules(ability.rules),
     };
 
     const access_token = this.jwtService.sign(payload);

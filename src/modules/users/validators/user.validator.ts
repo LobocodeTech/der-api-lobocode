@@ -55,6 +55,5 @@ export class UserValidator {
 
   async validarSeUserPodeSerDeletado(id: string) {
     await this.userRepository.buscarUserComRelations(id);
-    // Schema DEPARTAMENTO ESTADUAL DE RODOVIAS: sem patrols/shifts - validação de vínculos pode usar employee/permissions no futuro
   }
 }

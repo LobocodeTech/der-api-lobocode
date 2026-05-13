@@ -46,17 +46,12 @@ export class LoginService {
         }
       }
 
-      // Gerar abilities do usuário
-      const ability = this.abilityService.createForUser(user);
-
       // Criar payload do token
       const payload: ITokenPayload = {
         name: user.name,
         email: user.email,
         role: user.role,
         sub: user.id,
-        userPermissions: user.permissions.map((permission) => permission.permissionType),
-        permissions: packRules(ability.rules),
       };
 
       // Gerar access token
@@ -71,7 +66,6 @@ export class LoginService {
         await this.auditService.logLoginSuccess(user.id, request, {
           role: user.role,
           companyId: user.companyId,
-          userPermissions: user.permissions.map((permission) => permission.permissionType),
         });
       }
 

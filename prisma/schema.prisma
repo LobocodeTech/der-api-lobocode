@@ -31,11 +31,6 @@ enum UserStatus {
   PENDING // Pendente
 }
 
-enum PermissionType {
-  REPORTS // Relatórios
-  INSPETOR_VIA // Motorista
-}
-
 // ===============================================
 // ENUMS - DOMÍNIO DEPARTAMENTO ESTADUAL DE RODOVIAS
 // ===============================================
@@ -195,7 +190,6 @@ model User {
   regionalId String?
   regional   Regional? @relation(fields: [regionalId], references: [id], onDelete: SetNull)
 
-  permissions             Permission[]
   oauthAccounts           OAuthAccount[]
   workOrderPauseHistories WorkOrderPauseHistory[]
   planningAssignments     PlanningResponsible[]
@@ -238,20 +232,6 @@ model OAuthAccount {
   @@unique([provider, providerId])
   @@index([userId])
   @@index([provider])
-}
-
-model Permission {
-  id             String         @id @default(cuid())
-  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId         String
-  permissionType PermissionType
-  granted        Boolean        @default(true)
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-
-  @@unique([userId, permissionType])
-  @@index([userId])
-  @@index([permissionType])
 }
 
 // ===============================================

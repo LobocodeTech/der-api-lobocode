@@ -5,7 +5,7 @@ import { UserFactory } from '../factories/user.factory';
 import { UserRepository } from '../repositories/user.repository';
 import { UserValidator } from '../validators/user.validator';
 import { UserQueryService } from './user-query.service';
-import { PermissionType, Roles } from '@prisma/client';
+import { Roles } from '@prisma/client';
 import { UserPermissionService } from './user-permission.service';
 
 @Injectable()
@@ -36,14 +36,6 @@ export class GuardService extends BaseUserService {
     // Criação do usuário
     const userData = this.userFactory.criarGuard(dto);
     const user = await this.userRepository.criar(userData);
-    // Permission
-    if (dto.permissions) {
-      await this.userRepository.criarPermissaoDeVigilante({
-        userId: user.id,
-        permissionType: dto.permissions,
-      });
-    }
-
     return user;
   }
 }

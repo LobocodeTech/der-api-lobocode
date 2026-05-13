@@ -36,15 +36,6 @@ export class SupervisorService extends BaseUserService {
     // Criação do usuário
     const userData = this.userFactory.criarSupervisor(dto);
     const user = await this.userRepository.criar(userData);
-
-    // Permission
-    if (dto.permissions) {
-      await this.userRepository.criarPermissaoDeVigilante({
-        userId: user.id,
-        permissionType: dto.permissions,
-      });
-    }
-
     return user;
   }
 }

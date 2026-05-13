@@ -14,7 +14,7 @@ import {
   IsUniqueLogin,
 } from '../../../shared/validators';
 import { VALIDATION_MESSAGES } from '../../../shared/common/messages';
-import { PermissionType, UserStatus } from '@prisma/client';
+import { UserStatus } from '@prisma/client';
 
 export class BaseUserDto {
   @IsOptional()
@@ -57,9 +57,4 @@ export class BaseUserDto {
   @IsOptional()
   @IsString({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
   function?: string;
-
-  @IsOptional()
-  @IsArray({ message: VALIDATION_MESSAGES.FORMAT.ARRAY_INVALID })
-  @IsEnum(PermissionType, { each: true, message: VALIDATION_MESSAGES.FORMAT.ENUM_INVALID })
-  permissions?: PermissionType[];
 }

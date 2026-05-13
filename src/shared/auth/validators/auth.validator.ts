@@ -26,9 +26,6 @@ export class AuthValidator {
           { login: login.trim().toLowerCase() },
         ],
       },
-      include: {
-        permissions: true,
-      },
     });
 
     if (!user) {
@@ -74,7 +71,6 @@ export class AuthValidator {
         phone: true,
         status: true,
         role: true,
-        permissions: true,
       },
     });
 

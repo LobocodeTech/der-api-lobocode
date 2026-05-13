@@ -169,7 +169,7 @@ export class BaseUserService {
     this.validarResultadoDaBusca(user, 'User', 'id', id);
 
     // Prepara dados para atualização (sem permissões)
-    const { permissions, ...userData } = updateUserDto;
+    const { ...userData } = updateUserDto;
     const updateData = this.prepararDadosParaUpdate(userData);
     const emailAtualNormalizado = user?.email?.trim().toLowerCase();
     const loginAtualNormalizado = user?.login?.trim().toLowerCase();
@@ -194,11 +194,6 @@ export class BaseUserService {
 
     // Atualiza o usuário
     const updatedUser = await this.userRepository.atualizar({ id }, updateData);
-
-    // Atualiza permissões se fornecidas
-    if (permissions !== undefined) {
-      await this.userRepository.atualizarPermissoesDoUsuario(id, permissions);
-    }
 
     return this.removerCamposSensiveis(updatedUser);
   }
@@ -438,9 +433,6 @@ export class BaseUserService {
   private transformData(users: any[]): any[] {
     return users.map((user) => ({
       ...this.removerCamposSensiveis(user),
-      permissions:
-        user.permissions?.map((permission: any) => permission.permissionType) ||
-        [],
     }));
   }
 

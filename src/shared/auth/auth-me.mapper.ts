@@ -1,4 +1,4 @@
-import { Company, Permission, User } from '@prisma/client';
+import { Company, User } from '@prisma/client';
 
 export type PublicCompany = {
   id: string;
@@ -59,7 +59,6 @@ export type PublicMeUser = {
   status: User['status'];
   companyId: string;
   regionalId: string | null;
-  permissions?: Array<{ permissionType: Permission['permissionType'] }>;
   company: PublicCompany | null;
   notificationEmail: boolean;
   notificationPushNotification: boolean;
@@ -84,7 +83,6 @@ export function toPublicCompany(
 export function toPublicMeUser(
   user: User & {
     company?: Company | null;
-    permissions?: Permission[];
   },
 ): PublicMeUser {
   return {
@@ -98,9 +96,6 @@ export function toPublicMeUser(
     status: user.status,
     companyId: user.companyId,
     regionalId: user.regionalId ?? null,
-    permissions: user.permissions?.map((p) => ({
-      permissionType: p.permissionType,
-    })),
     company: toPublicCompany(user.company ?? undefined),
     notificationEmail: user.notificationEmail,
     notificationPushNotification: user.notificationPushNotification,

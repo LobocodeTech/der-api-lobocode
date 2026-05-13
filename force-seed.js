@@ -107,13 +107,6 @@ async function forceSeed() {
         phone: '(11) 97073-6987',
         address: 'Rua Jabuticabeira, 393',
         companyId: company.id,
-        permissions: {
-          create: [
-            { permissionType: 'DOORMAN' },
-            { permissionType: 'PATROL' },
-            { permissionType: 'SUPPORT' },
-          ],
-        },
       },
     });
     console.log('✅ Usuário guarda criado/atualizado:', guardUser.name);
