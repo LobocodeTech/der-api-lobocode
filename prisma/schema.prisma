@@ -496,6 +496,11 @@ model WorkOrderPauseHistory {
   @@index([workOrderId])
 }
 
+enum PlanningExecutionStatus {
+  PENDING
+  COMPLETED
+}
+
 model Planning {
   id            String        @id @default(cuid())
   title         String
@@ -504,6 +509,9 @@ model Planning {
   equipmentType AssetType
   km            Float
   observation   String?
+
+  executionStatus PlanningExecutionStatus @default(PENDING)
+  completedAt     DateTime?
 
   locationId String
   location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
@@ -521,6 +529,7 @@ model Planning {
   @@index([id])
   @@index([companyId])
   @@index([locationId])
+  @@index([executionStatus])
 }
 
 model PlanningResponsible {

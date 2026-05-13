@@ -11,6 +11,7 @@ import { REQUEST } from '@nestjs/core';
 import {
   AssetType,
   FileType,
+  PlanningExecutionStatus,
   Prisma,
   Roles,
   UserStatus,
@@ -454,6 +455,8 @@ export class WorkOrdersService extends UniversalService<
         : 'OS concluída.',
     );
 
+    await this.concluirPlanejamentoVinculadoAoFinalizarOs(ordem.id);
+
     return this.buscarDetalhesPorId(ordem.id);
   }
 
@@ -541,6 +544,10 @@ export class WorkOrdersService extends UniversalService<
         updatedBy: this.obterUsuarioLogadoId() ?? undefined,
       },
     });
+
+    if (novoStatus === WorkOrderStatus.COMPLETED) {
+      await this.concluirPlanejamentoVinculadoAoFinalizarOs(ordem.id);
+    }
 
     return this.buscarDetalhesPorId(ordem.id);
   }
@@ -984,6 +991,8 @@ export class WorkOrdersService extends UniversalService<
     id: string,
     _data: UpdateWorkOrderDto,
   ): Promise<void> {
+    await this.concluirPlanejamentoVinculadoAoFinalizarOs(id);
+
     if (this.pendingUpdateAssigneeIds === null) {
       return;
     }
@@ -1369,5 +1378,30 @@ export class WorkOrdersService extends UniversalService<
     }
 
     return WorkOrderSlaStatus.OK;
+  }
+
+  /** Planejamento vinculado à OS passa a COMPLETED quando a OS fica concluída. */
+  private async concluirPlanejamentoVinculadoAoFinalizarOs(
+    workOrderId: string,
+  ): Promise<void> {
+    const ordem = await this.prisma.workOrder.findFirst({
+      where: { id: workOrderId, deletedAt: null },
+      select: { status: true },
+    });
+    if (!ordem || ordem.status !== WorkOrderStatus.COMPLETED) {
+      return;
+    }
+
+    await this.prisma.planning.updateMany({
+      where: {
+        deletedAt: null,
+        executionStatus: PlanningExecutionStatus.PENDING,
+        workOrder: { id: workOrderId },
+      },
+      data: {
+        executionStatus: PlanningExecutionStatus.COMPLETED,
+        completedAt: new Date(),
+      },
+    });
   }
 }

@@ -7,7 +7,7 @@ import {
   Scope,
 } from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
-import { UserStatus } from '@prisma/client';
+import { PlanningExecutionStatus, UserStatus } from '@prisma/client';
 import {
   UniversalMetricsService,
   UniversalPermissionService,
@@ -173,6 +173,13 @@ export class PlanningService extends UniversalService<
     (data as any).km = data.km;
     (data as any).observation = data.observation?.trim() || null;
     (data as any).locationId = data.locationId;
+
+    if (data.executionStatus !== undefined) {
+      PlanningService.aplicarExecutionStatusECompletedAt(
+        data as CreatePlanningDto & { completedAt?: Date | null },
+      );
+    }
+
     delete (data as any).responsibleIds;
     delete (data as any).workOrderId;
   }
@@ -213,6 +220,12 @@ export class PlanningService extends UniversalService<
     }
     if (data.observation !== undefined) {
       (data as any).observation = data.observation?.trim() || null;
+    }
+
+    if (data.executionStatus !== undefined) {
+      PlanningService.aplicarExecutionStatusECompletedAt(
+        data as UpdatePlanningDto & { completedAt?: Date | null },
+      );
     }
 
     this.pendingUpdateWorkOrderCurrentId = atual.workOrder?.id ?? null;
@@ -344,6 +357,19 @@ export class PlanningService extends UniversalService<
   private validarCompanyId() {
     if (!this.obterCompanyId()) {
       throw new BadRequestException('Empresa do usuário não encontrada.');
+    }
+  }
+
+  /** Preenche `completedAt` conforme o status de execução (somente campos Prisma). */
+  private static aplicarExecutionStatusECompletedAt(
+    data: { executionStatus?: PlanningExecutionStatus } & {
+      completedAt?: Date | null;
+    },
+  ): void {
+    if (data.executionStatus === PlanningExecutionStatus.COMPLETED) {
+      (data as { completedAt?: Date }).completedAt = new Date();
+    } else if (data.executionStatus === PlanningExecutionStatus.PENDING) {
+      (data as { completedAt?: null }).completedAt = null;
     }
   }
 }

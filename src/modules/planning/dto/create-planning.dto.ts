@@ -1,4 +1,8 @@
-import { AssetType, WorkOrderType } from '@prisma/client';
+import {
+  AssetType,
+  PlanningExecutionStatus,
+  WorkOrderType,
+} from '@prisma/client';
 import {
   ArrayMinSize,
   ArrayUnique,
@@ -44,6 +48,12 @@ export class CreatePlanningDto {
   @IsOptional()
   @IsString({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
   observation?: string;
+
+  @IsOptional()
+  @IsEnum(PlanningExecutionStatus, {
+    message: VALIDATION_MESSAGES.FORMAT.ENUM_INVALID,
+  })
+  executionStatus?: PlanningExecutionStatus;
 
   @IsArray({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
   @ArrayMinSize(1, { message: VALIDATION_MESSAGES.REQUIRED.FIELD })
