@@ -316,7 +316,7 @@ model Location {
   code        String
   name        String
   uf          String
-  referenceKm Float
+  referenceKm String
   status      RegionalStatus @default(ACTIVE)
   latitude    Float?
   longitude   Float?
@@ -507,7 +507,7 @@ model Planning {
   date          DateTime
   serviceType   WorkOrderType
   equipmentType AssetType
-  km            Float
+  km            String
   observation   String?
 
   executionStatus PlanningExecutionStatus @default(PENDING)

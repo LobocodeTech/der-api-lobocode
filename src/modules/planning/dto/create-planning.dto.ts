@@ -9,15 +9,13 @@ import {
   IsArray,
   IsDateString,
   IsEnum,
-  IsNumber,
   IsNotEmpty,
   IsOptional,
   IsString,
-  Min,
   ValidateIf,
 } from 'class-validator';
 import { VALIDATION_MESSAGES } from 'src/shared/common/messages';
-import { IsCUID } from 'src/shared/validators';
+import { IsCUID, IsReferenceKm } from 'src/shared/validators';
 
 export class CreatePlanningDto {
   @IsNotEmpty({ message: VALIDATION_MESSAGES.REQUIRED.FIELD })
@@ -40,10 +38,10 @@ export class CreatePlanningDto {
   @IsNotEmpty({ message: VALIDATION_MESSAGES.REQUIRED.FIELD })
   date: string;
 
-  @IsNumber({}, { message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
-  @Min(0, { message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
-  @IsNotEmpty({ message: VALIDATION_MESSAGES.REQUIRED.FIELD })
-  km: number;
+  @IsNotEmpty({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
+  @IsString({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
+  @IsReferenceKm({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
+  km: string;
 
   @IsOptional()
   @IsString({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })

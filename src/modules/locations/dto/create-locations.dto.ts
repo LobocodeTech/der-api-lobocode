@@ -9,7 +9,7 @@ import {
   Max,
 } from 'class-validator';
 import { RegionalStatus } from '@prisma/client';
-import { IsCUID } from '../../../shared/validators';
+import { IsCUID, IsReferenceKm } from '../../../shared/validators';
 import { VALIDATION_MESSAGES } from '../../../shared/common/messages';
 import { Type } from 'class-transformer';
 
@@ -35,11 +35,9 @@ export class CreateLocationsDto {
   uf: string;
 
   @IsNotEmpty({ message: VALIDATION_MESSAGES.REQUIRED.FIELD })
-  @IsNumber(
-    { maxDecimalPlaces: 2 },
-    { message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID },
-  )
-  referenceKm: number;
+  @IsString({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
+  @IsReferenceKm({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
+  referenceKm: string;
 
   @IsOptional()
   @Type(() => Number)

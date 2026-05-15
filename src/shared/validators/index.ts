@@ -5,4 +5,5 @@ export { IsStrongPassword } from './strong-password.validator';
 export { IsUniqueLogin } from './unique-login.validator';
 export { IsUniqueEmail } from './unique-email.validator';
 export { IsCUID } from './is-cuid.validator';
-export { IsExpectedRole } from './is-expected-role.validator'; 
+export { IsExpectedRole } from './is-expected-role.validator';
+export { IsReferenceKm } from './reference-km.validator';
