@@ -10,7 +10,7 @@ export class AuthValidator {
   constructor(
     private readonly prisma: PrismaService,
     private readonly messagesService: MessagesService,
-  ) { }
+  ) {}
 
   /**
    * Valida credenciais de login
@@ -38,12 +38,6 @@ export class AuthValidator {
     if (user.status !== 'ACTIVE') {
       throw new UnauthorizedError(
         this.messagesService.getErrorMessage('RESOURCE', 'INACTIVE'),
-      );
-    }
-
-    if (user.deletedAt !== null) {
-      throw new UnauthorizedError(
-        this.messagesService.getErrorMessage('RESOURCE', 'NOT_FOUND'),
       );
     }
 
@@ -77,7 +71,6 @@ export class AuthValidator {
         phone: true,
         status: true,
         role: true,
-        deletedAt: true,
       },
     });
 
@@ -93,12 +86,6 @@ export class AuthValidator {
       );
     }
 
-    if (user.deletedAt !== null) {
-      throw new UnauthorizedError(
-        this.messagesService.getErrorMessage('RESOURCE', 'NOT_FOUND'),
-      );
-    }
-
     return user;
   }
 
@@ -108,7 +95,7 @@ export class AuthValidator {
   async validateEmailForReset(email: string) {
     const user = await this.prisma.user.findUnique({
       where: { email },
-      select: { id: true, email: true, name: true, status: true, deletedAt: true },
+      select: { id: true, email: true, name: true, status: true },
     });
 
     if (!user) {
@@ -119,12 +106,6 @@ export class AuthValidator {
     if (user.status !== 'ACTIVE') {
       throw new BadRequestException(
         this.messagesService.getErrorMessage('RESOURCE', 'INACTIVE'),
-      );
-    }
-
-    if (user.deletedAt !== null) {
-      throw new UnauthorizedError(
-        this.messagesService.getErrorMessage('RESOURCE', 'NOT_FOUND'),
       );
     }
 

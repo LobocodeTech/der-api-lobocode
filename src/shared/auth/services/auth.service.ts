@@ -105,10 +105,10 @@ export class AuthService {
 
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, name: true, email: true, status: true, password: true, deletedAt: true },
+      select: { id: true, name: true, email: true, status: true, password: true },
     });
 
-    if (!user || user.status !== 'ACTIVE' || !user.password || user.deletedAt !== null) {
+    if (!user || user.status !== 'ACTIVE' || !user.password) {
       throw new UnauthorizedError(
         this.messagesService.getErrorMessage('AUTH', 'USER_NOT_FOUND'),
       );
