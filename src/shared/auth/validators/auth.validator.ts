@@ -41,6 +41,12 @@ export class AuthValidator {
       );
     }
 
+    if (user.deletedAt !== null) {
+      throw new UnauthorizedError(
+        this.messagesService.getErrorMessage('RESOURCE', 'INACTIVE'),
+      );
+    }
+
     if (!user.password) {
       throw new UnauthorizedError(
         this.messagesService.getErrorMessage('AUTH', 'INVALID_CREDENTIALS'),
@@ -71,6 +77,7 @@ export class AuthValidator {
         phone: true,
         status: true,
         role: true,
+        deletedAt: true,
       },
     });
 
@@ -86,6 +93,12 @@ export class AuthValidator {
       );
     }
 
+    if (user.deletedAt !== null) {
+      throw new UnauthorizedError(
+        this.messagesService.getErrorMessage('RESOURCE', 'INACTIVE'),
+      );
+    }
+
     return user;
   }
 
@@ -95,7 +108,7 @@ export class AuthValidator {
   async validateEmailForReset(email: string) {
     const user = await this.prisma.user.findUnique({
       where: { email },
-      select: { id: true, email: true, name: true, status: true },
+      select: { id: true, email: true, name: true, status: true, deletedAt: true },
     });
 
     if (!user) {
@@ -105,6 +118,12 @@ export class AuthValidator {
 
     if (user.status !== 'ACTIVE') {
       throw new BadRequestException(
+        this.messagesService.getErrorMessage('RESOURCE', 'INACTIVE'),
+      );
+    }
+
+    if (user.deletedAt !== null) {
+      throw new UnauthorizedError(
         this.messagesService.getErrorMessage('RESOURCE', 'INACTIVE'),
       );
     }
