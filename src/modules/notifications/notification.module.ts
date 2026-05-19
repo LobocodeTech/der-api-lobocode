@@ -9,6 +9,7 @@ import { NotificationGateway } from './notification.gateway';
 import { NotificationRecipientsService } from './shared/notification.recipients';
 import { ActivityNotificationPreferencesService } from './shared/activity-notification-preferences.service';
 import { WorkOrderActivityNotificationService } from './shared/work-order-activity-notification.service';
+import { PlanningActivityNotificationService } from './shared/planning-activity-notification.service';
 import { NotificationChannelDeliveryService } from './shared/notification-channel-delivery.service';
 
 /**
@@ -38,6 +39,7 @@ import { NotificationChannelDeliveryService } from './shared/notification-channe
     NotificationRecipientsService,
     ActivityNotificationPreferencesService,
     WorkOrderActivityNotificationService,
+    PlanningActivityNotificationService,
     NotificationChannelDeliveryService,
   ],
   exports: [
@@ -48,6 +50,7 @@ import { NotificationChannelDeliveryService } from './shared/notification-channe
     NotificationRecipientsService,
     ActivityNotificationPreferencesService,
     WorkOrderActivityNotificationService,
+    PlanningActivityNotificationService,
     NotificationChannelDeliveryService,
   ],
 })

@@ -14,7 +14,11 @@ import {
 } from '@prisma/client';
 import { PrismaService } from 'src/shared/prisma/prisma.service';
 import { CreateWorkOrderPauseHistoryDto } from '../dto/create-work-order-pause-history.dto';
-import { buildWorkOrderPauseHistoryReason } from './work-order-pause-preset.constants';
+import {
+  buildWorkOrderPauseHistoryReason,
+  isWorkOrderPausePresetReason,
+  isWorkOrderResumePresetReason,
+} from './work-order-pause-preset.constants';
 import { horasRestantesAteFimDoPrazo } from '../work-order-due-date.util';
 import { WorkOrdersService } from '../work-orders.service';
 
@@ -57,6 +61,12 @@ export class WorkOrderPauseHistoryService {
       );
     }
 
+    if (!isWorkOrderPausePresetReason(dto.presetReason)) {
+      throw new BadRequestException(
+        'Motivo inválido para pausa da ordem de serviço.',
+      );
+    }
+
     const reason = buildWorkOrderPauseHistoryReason(
       dto.presetReason,
       dto.customReason,
@@ -95,6 +105,12 @@ export class WorkOrderPauseHistoryService {
     if (workOrder.status !== WorkOrderStatus.PAUSED) {
       throw new BadRequestException(
         'Somente OS pausadas podem ser retomadas.',
+      );
+    }
+
+    if (!isWorkOrderResumePresetReason(dto.presetReason)) {
+      throw new BadRequestException(
+        'Motivo inválido para retorno da ordem de serviço.',
       );
     }
 

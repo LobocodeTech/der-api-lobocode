@@ -4,6 +4,8 @@ import { WorkOrderStatus } from '@prisma/client';
 import { PrismaService } from '../../../shared/prisma/prisma.service';
 import { NotificationService } from './notification.service';
 import { ActivityNotificationPreferencesService } from './activity-notification-preferences.service';
+import { NotificationRecipientsService } from './notification.recipients';
+import { resolveActorDisplayName } from './activity-notification-actor';
 
 @Injectable()
 export class WorkOrderActivityNotificationService {
@@ -11,6 +13,7 @@ export class WorkOrderActivityNotificationService {
     private readonly prisma: PrismaService,
     private readonly notificationService: NotificationService,
     private readonly preferencesService: ActivityNotificationPreferencesService,
+    private readonly recipientsService: NotificationRecipientsService,
   ) {}
 
   async notifyAssignment(params: {
@@ -27,9 +30,77 @@ export class WorkOrderActivityNotificationService {
       );
     if (recipients.length === 0) return;
 
+    const actorName = await resolveActorDisplayName(
+      this.prisma,
+      params.actorUserId,
+    );
+
     await this.notificationService.criar({
       title: 'Nova tarefa atribuída a você',
-      message: `Você foi atribuído à OS "${params.workOrderTitle}".`,
+      message: `${actorName} atribuiu você à OS "${params.workOrderTitle}".`,
+      entityType: 'work-order',
+      entityId: params.workOrderId,
+      userId: params.actorUserId,
+      companyId: params.companyId,
+      recipients,
+    });
+  }
+
+  async notifyUnassignment(params: {
+    workOrderId: string;
+    workOrderTitle: string;
+    actorUserId: string;
+    companyId?: string;
+    removedUserId: string;
+  }) {
+    const recipients =
+      await this.preferencesService.filtrarUsuariosComPreferenciaAtiva(
+        [params.removedUserId],
+        'assignments',
+      );
+    if (recipients.length === 0) return;
+
+    const actorName = await resolveActorDisplayName(
+      this.prisma,
+      params.actorUserId,
+    );
+
+    await this.notificationService.criar({
+      title: 'Você foi removido da tarefa',
+      message: `${actorName} removeu você da OS "${params.workOrderTitle}".`,
+      entityType: 'work-order-unassignment',
+      entityId: params.workOrderId,
+      userId: params.actorUserId,
+      companyId: params.companyId,
+      recipients,
+    });
+  }
+
+  async notifyOnCreate(params: {
+    workOrderId: string;
+    workOrderTitle: string;
+    actorUserId: string;
+    companyId: string;
+  }) {
+    const companyUserIds = await this.recipientsService.getRecipients(
+      params.companyId,
+      'ALL',
+    );
+    const recipients =
+      await this.preferencesService.filtrarUsuariosComPreferenciaAtiva(
+        companyUserIds.filter((id) => id !== params.actorUserId),
+        'assignments',
+      );
+    if (recipients.length === 0) return;
+
+    const actorName = await resolveActorDisplayName(
+      this.prisma,
+      params.actorUserId,
+    );
+
+    await this.notificationService.criar({
+      title: 'Nova OS criada',
+      message: `${actorName} criou a OS "${params.workOrderTitle}".`,
       entityType: 'work-order',
       entityId: params.workOrderId,
       userId: params.actorUserId,
@@ -55,9 +126,14 @@ export class WorkOrderActivityNotificationService {
       );
     if (recipients.length === 0) return;
 
+    const actorName = await resolveActorDisplayName(
+      this.prisma,
+      params.actorUserId,
+    );
+
     await this.notificationService.criar({
       title: 'Novo comentário em sua tarefa',
-      message: `A OS "${params.workOrderTitle}" recebeu um novo comentário.`,
+      message: `${actorName} comentou na OS "${params.workOrderTitle}".`,
       entityType: 'work-order',
       entityId: params.workOrderId,
       userId: params.actorUserId,
@@ -152,7 +228,7 @@ export class WorkOrderActivityNotificationService {
       byCompany.set(user.companyId, ids);
     });
 
-    for (const [companyId, userIds] of byCompany.entries()) {
+    for (const [companyId, userIds] of Array.from(byCompany.entries())) {
       const recipients =
         await this.preferencesService.filtrarUsuariosComPreferenciaAtiva(
           userIds,

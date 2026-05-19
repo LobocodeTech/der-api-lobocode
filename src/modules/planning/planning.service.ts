@@ -2,12 +2,13 @@ import {
   BadRequestException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
   Optional,
   Scope,
 } from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
-import { PlanningExecutionStatus, UserStatus } from '@prisma/client';
+import { AssetType, PlanningExecutionStatus, UserStatus } from '@prisma/client';
 import {
   UniversalMetricsService,
   UniversalPermissionService,
@@ -16,6 +17,7 @@ import {
   UniversalService,
   createEntityConfig,
 } from 'src/shared/universal';
+import { PlanningActivityNotificationService } from '../notifications/shared/planning-activity-notification.service';
 import { CreatePlanningDto } from './dto/create-planning.dto';
 import { UpdatePlanningDto } from './dto/update-planning.dto';
 
@@ -28,6 +30,13 @@ export class PlanningService extends UniversalService<
   private pendingCreateWorkOrderId: string | null = null;
   private pendingUpdateWorkOrderCurrentId: string | null = null;
   private pendingUpdateWorkOrderNextId: string | null = null;
+  /** Responsáveis informados na criação (para notificar após persistir). */
+  private pendingCreateResponsibleIds: string[] = [];
+  /** Responsáveis antes do PATCH (notificar só os novos). */
+  private pendingPreviousResponsibleIds: string[] | null = null;
+  private pendingUpdateResponsibleIds: string[] | null = null;
+
+  private readonly logger = new Logger(PlanningService.name);
 
   constructor(
     repository: UniversalRepository<CreatePlanningDto, UpdatePlanningDto>,
@@ -35,6 +44,7 @@ export class PlanningService extends UniversalService<
     permissionService: UniversalPermissionService,
     metricsService: UniversalMetricsService,
     @Optional() @Inject(REQUEST) request: any,
+    private readonly planningActivityNotificationService: PlanningActivityNotificationService,
   ) {
     const { model, casl } = PlanningService.entityConfig;
     super(
@@ -135,6 +145,13 @@ export class PlanningService extends UniversalService<
                 id: true,
                 name: true,
                 role: true,
+                regionalId: true,
+                regional: {
+                  select: {
+                    id: true,
+                    color: true,
+                  },
+                },
               },
             },
           },
@@ -155,6 +172,7 @@ export class PlanningService extends UniversalService<
   protected async antesDeCriar(data: CreatePlanningDto): Promise<void> {
     this.validarCompanyId();
     await this.validarResponsaveis(data.responsibleIds);
+    this.pendingCreateResponsibleIds = [...data.responsibleIds];
 
     if (data.workOrderId) {
       await this.validarWorkOrderDisponivel(data.workOrderId);
@@ -185,13 +203,56 @@ export class PlanningService extends UniversalService<
   }
 
   protected async depoisDeCriar(data: any): Promise<void> {
-    if (!this.pendingCreateWorkOrderId) return;
-    await this.repository.atualizar(
-      'workOrder',
-      { id: this.pendingCreateWorkOrderId },
-      { planningId: data.id } as any,
-    );
-    this.pendingCreateWorkOrderId = null;
+    try {
+      if (this.pendingCreateWorkOrderId) {
+        await this.repository.atualizar(
+          'workOrder',
+          { id: this.pendingCreateWorkOrderId },
+          { planningId: data.id } as any,
+        );
+        this.pendingCreateWorkOrderId = null;
+      }
+
+      const responsibleIds = this.pendingCreateResponsibleIds;
+      this.pendingCreateResponsibleIds = [];
+
+      const planningTitle =
+        String(data.title ?? '').trim() || `Planejamento ${data.id}`;
+      const planningEquipmentType =
+        (data.equipmentType as AssetType | undefined) ?? AssetType.OTHER;
+      const companyId =
+        (data.companyId as string | undefined) ??
+        this.obterCompanyId() ??
+        undefined;
+      const actorUserId = this.obterUsuarioLogadoId();
+
+      if (companyId) {
+        await this.planningActivityNotificationService.notifyOnCreate({
+          planningId: data.id,
+          planningTitle,
+          planningEquipmentType,
+          actorUserId: actorUserId ?? responsibleIds[0] ?? 'system',
+          companyId,
+        });
+      }
+
+      if (responsibleIds.length > 0) {
+        await this.notificarResponsaveisNovos({
+          planningId: data.id,
+          planningTitle,
+          planningEquipmentType,
+          responsibleUserIds: responsibleIds,
+          companyId,
+        });
+      }
+    } catch (error) {
+      this.logger.error(
+        '[PlanningService] depoisDeCriar falhou ao notificar responsáveis',
+        error,
+      );
+      this.pendingCreateResponsibleIds = [];
+      this.pendingCreateWorkOrderId = null;
+    }
   }
 
   protected async antesDeAtualizar(
@@ -203,6 +264,10 @@ export class PlanningService extends UniversalService<
 
     if (data.responsibleIds) {
       await this.validarResponsaveis(data.responsibleIds);
+      this.pendingPreviousResponsibleIds = (
+        (atual as { responsibles?: { userId: string }[] }).responsibles ?? []
+      ).map((r) => r.userId);
+      this.pendingUpdateResponsibleIds = [...data.responsibleIds];
       (data as any).responsibles = {
         deleteMany: {},
         create: data.responsibleIds.map((userId) => ({
@@ -245,28 +310,86 @@ export class PlanningService extends UniversalService<
   }
 
   protected async depoisDeAtualizar(id: string): Promise<void> {
-    const current = this.pendingUpdateWorkOrderCurrentId;
-    const next = this.pendingUpdateWorkOrderNextId;
+    try {
+      const current = this.pendingUpdateWorkOrderCurrentId;
+      const next = this.pendingUpdateWorkOrderNextId;
 
-    if (current !== next) {
-      if (current) {
-        await this.repository.atualizar(
-          'workOrder',
-          { id: current },
-          { planningId: null } as any,
-        );
+      if (current !== next) {
+        if (current) {
+          await this.repository.atualizar(
+            'workOrder',
+            { id: current },
+            { planningId: null } as any,
+          );
+        }
+        if (next) {
+          await this.repository.atualizar(
+            'workOrder',
+            { id: next },
+            { planningId: id } as any,
+          );
+        }
       }
-      if (next) {
-        await this.repository.atualizar(
-          'workOrder',
-          { id: next },
-          { planningId: id } as any,
+
+      if (this.pendingUpdateResponsibleIds !== null) {
+        const previousIds = new Set(this.pendingPreviousResponsibleIds ?? []);
+        const nextIds = new Set(this.pendingUpdateResponsibleIds);
+        const newResponsibleIds = this.pendingUpdateResponsibleIds.filter(
+          (userId) => !previousIds.has(userId),
         );
+        const removedResponsibleIds = (
+          this.pendingPreviousResponsibleIds ?? []
+        ).filter((userId) => !nextIds.has(userId));
+
+        if (newResponsibleIds.length > 0 || removedResponsibleIds.length > 0) {
+          const companyIdFilter = this.obterCompanyId();
+          const planning = await this.repository.buscarPrimeiro('planning', {
+            id,
+            ...(companyIdFilter && { companyId: companyIdFilter }),
+          });
+          const planningTitle =
+            String((planning as { title?: string })?.title ?? '').trim() ||
+            `Planejamento ${id}`;
+          const planningEquipmentType =
+            (planning as { equipmentType?: AssetType }).equipmentType ??
+            AssetType.OTHER;
+          const companyId =
+            (planning as { companyId?: string })?.companyId ??
+            this.obterCompanyId() ??
+            undefined;
+
+          if (newResponsibleIds.length > 0) {
+            await this.notificarResponsaveisNovos({
+              planningId: id,
+              planningTitle,
+              planningEquipmentType,
+              responsibleUserIds: newResponsibleIds,
+              companyId,
+            });
+          }
+
+          if (removedResponsibleIds.length > 0) {
+            await this.notificarResponsaveisRemovidos({
+              planningId: id,
+              planningTitle,
+              planningEquipmentType,
+              responsibleUserIds: removedResponsibleIds,
+              companyId,
+            });
+          }
+        }
       }
+    } catch (error) {
+      this.logger.error(
+        '[PlanningService] depoisDeAtualizar falhou ao notificar responsáveis',
+        error,
+      );
+    } finally {
+      this.pendingUpdateWorkOrderCurrentId = null;
+      this.pendingUpdateWorkOrderNextId = null;
+      this.pendingPreviousResponsibleIds = null;
+      this.pendingUpdateResponsibleIds = null;
     }
-
-    this.pendingUpdateWorkOrderCurrentId = null;
-    this.pendingUpdateWorkOrderNextId = null;
   }
 
   protected async antesDeDesativar(id: string): Promise<void> {
@@ -292,6 +415,9 @@ export class PlanningService extends UniversalService<
       {
         workOrder: {
           select: { id: true },
+        },
+        responsibles: {
+          select: { userId: true },
         },
       },
     );
@@ -357,6 +483,50 @@ export class PlanningService extends UniversalService<
   private validarCompanyId() {
     if (!this.obterCompanyId()) {
       throw new BadRequestException('Empresa do usuário não encontrada.');
+    }
+  }
+
+  private async notificarResponsaveisNovos(params: {
+    planningId: string;
+    planningTitle: string;
+    planningEquipmentType: AssetType;
+    responsibleUserIds: string[];
+    companyId?: string;
+  }) {
+    const actorUserId = this.obterUsuarioLogadoId();
+    const companyId = params.companyId ?? this.obterCompanyId() ?? undefined;
+
+    for (const assignedUserId of params.responsibleUserIds) {
+      await this.planningActivityNotificationService.notifyAssignment({
+        planningId: params.planningId,
+        planningTitle: params.planningTitle,
+        planningEquipmentType: params.planningEquipmentType,
+        actorUserId: actorUserId ?? assignedUserId,
+        companyId,
+        assignedUserId,
+      });
+    }
+  }
+
+  private async notificarResponsaveisRemovidos(params: {
+    planningId: string;
+    planningTitle: string;
+    planningEquipmentType: AssetType;
+    responsibleUserIds: string[];
+    companyId?: string;
+  }) {
+    const actorUserId = this.obterUsuarioLogadoId();
+    const companyId = params.companyId ?? this.obterCompanyId() ?? undefined;
+
+    for (const removedUserId of params.responsibleUserIds) {
+      await this.planningActivityNotificationService.notifyUnassignment({
+        planningId: params.planningId,
+        planningTitle: params.planningTitle,
+        planningEquipmentType: params.planningEquipmentType,
+        actorUserId: actorUserId ?? removedUserId,
+        companyId,
+        removedUserId,
+      });
     }
   }
 

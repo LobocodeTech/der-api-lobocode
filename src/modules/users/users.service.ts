@@ -243,7 +243,7 @@ export class UsersService extends BaseUserService {
         select: { id: true, name: true, cnpj: true, address: true },
       },
       regional: {
-        select: { id: true, cgr: true, city: true, radiusKm: true },
+        select: { id: true, cgr: true, city: true, color: true, radiusKm: true },
       },
     };
 
@@ -276,6 +276,7 @@ export class UsersService extends BaseUserService {
         regionalId: u.regionalId,
         regionalName: regional?.cgr ?? null,
         city: regional?.city ?? null,
+        regionalColor: regional?.color ?? null,
       };
     });
   }

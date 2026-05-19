@@ -2,6 +2,12 @@ import { Injectable, Scope } from '@nestjs/common';
 import { accessibleBy } from '@casl/prisma';
 import { Roles } from '@prisma/client';
 import { CaslAbilityService } from 'src/shared/casl/casl-ability/casl-ability.service';
+import {
+  buildAssetTextSearchOr,
+  getAssetDisplayTitle,
+  getAssetSearchPathTerm,
+} from 'src/shared/common/utils/asset-display.util';
+import { formatAssetTypeLabel } from 'src/shared/common/utils/asset-type-label';
 import { PrismaService } from 'src/shared/prisma/prisma.service';
 
 type RequestUser = {
@@ -87,10 +93,18 @@ export class GlobalSearchService {
           where: {
             companyId: user.companyId,
             deletedAt: null,
-            OR: [{ name: contains }, { code: contains }],
+            OR: buildAssetTextSearchOr(contains),
             AND: [accessibleBy(ability, 'read').Asset],
           },
-          select: { id: true, name: true, type: true, location: { select: { name: true } } },
+          select: {
+            id: true,
+            name: true,
+            manufacturer: true,
+            model: true,
+            serialNumber: true,
+            type: true,
+            location: { select: { name: true } },
+          },
           take: limit,
           orderBy: { updatedAt: 'desc' },
         }),
@@ -159,14 +173,17 @@ export class GlobalSearchService {
         view: 'team' as const,
         path: `/team?search=${encodeURIComponent(item.name)}`,
       })),
-      ...assets.map((item) => ({
-        id: item.id,
-        type: 'asset' as const,
-        title: item.name,
-        subtitle: `${item.type} • ${item.location?.name ?? 'Sem localidade'}`,
-        view: 'time-equipment' as const,
-        path: `/time-equipment?search=${encodeURIComponent(item.name)}`,
-      })),
+      ...assets.map((item) => {
+        const searchTerm = getAssetSearchPathTerm(item);
+        return {
+          id: item.id,
+          type: 'asset' as const,
+          title: getAssetDisplayTitle(item),
+          subtitle: `${formatAssetTypeLabel(item.type)} • ${item.location?.name ?? 'Sem localidade'}`,
+          view: 'time-equipment' as const,
+          path: `/time-equipment?search=${encodeURIComponent(searchTerm)}`,
+        };
+      }),
       ...locations.map((item) => ({
         id: item.id,
         type: 'location' as const,

@@ -1,4 +1,10 @@
-import { Inject, Injectable, Optional, Scope } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Optional,
+  Scope,
+} from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 import {
   UniversalService,
@@ -8,6 +14,7 @@ import {
   UniversalPermissionService,
   createEntityConfig,
 } from 'src/shared/universal';
+import { aplicarCamposAssetPorTipo } from './asset-field.util';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
 
@@ -37,6 +44,31 @@ export class AssetsService extends UniversalService<
     );
 
     this.setEntityConfig();
+  }
+
+  protected async antesDeCriar(data: CreateAssetDto): Promise<void> {
+    if (!data.type) {
+      throw new BadRequestException('Tipo do equipamento é obrigatório.');
+    }
+    aplicarCamposAssetPorTipo(data);
+  }
+
+  protected async antesDeAtualizar(
+    id: string,
+    data: UpdateAssetDto,
+  ): Promise<void> {
+    if (!data.type) {
+      const existente = await this.repository.buscarPrimeiro('asset', {
+        id,
+        deletedAt: null,
+      });
+      if (!existente) return;
+      (data as CreateAssetDto).type = (existente as { type: CreateAssetDto['type'] })
+        .type;
+    }
+    if (data.type) {
+      aplicarCamposAssetPorTipo(data as CreateAssetDto);
+    }
   }
 
   setEntityConfig() {

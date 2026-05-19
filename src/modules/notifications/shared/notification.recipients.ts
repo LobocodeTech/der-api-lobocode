@@ -99,7 +99,7 @@ export class NotificationRecipientsService {
     const users = await this.prisma.user.findMany({
       where: {
         companyId,
-        role: 'ADMIN',
+        role: { in: [Roles.ADMIN, Roles.SYSTEM_ADMIN] },
         status: 'ACTIVE',
         deletedAt: null,
       },

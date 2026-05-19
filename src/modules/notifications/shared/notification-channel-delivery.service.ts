@@ -6,8 +6,21 @@ import { NotificationGateway } from '../notification.gateway';
 import { NotificationResponse } from './notification.types';
 
 function resolvePushUrl(notification: NotificationResponse): string {
-  if (notification.entityType === 'work-order' && notification.entityId) {
-    return `/work-orders?id=${encodeURIComponent(notification.entityId)}`;
+  const entityType = notification.entityType ?? '';
+  const entityId = notification.entityId;
+
+  if (
+    (entityType === 'work-order' || entityType === 'work-order-unassignment') &&
+    entityId
+  ) {
+    return `/work-orders?id=${encodeURIComponent(entityId)}`;
+  }
+  if (
+    (entityType === 'planning' || entityType === 'planning-unassignment') &&
+    entityId
+  ) {
+    const id = encodeURIComponent(entityId);
+    return `/schedule?tab=planning&planningId=${id}`;
   }
   return '/notifications';
 }

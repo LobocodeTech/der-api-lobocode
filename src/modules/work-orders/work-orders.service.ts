@@ -43,6 +43,7 @@ import {
   extrairDiaCivilDoPrazo,
   horasRestantesAteFimDoPrazo,
 } from './work-order-due-date.util';
+import { formatAssetTypeLabel } from 'src/shared/common/utils/asset-type-label';
 
 @Injectable({ scope: Scope.REQUEST })
 export class WorkOrdersService extends UniversalService<
@@ -71,6 +72,7 @@ export class WorkOrdersService extends UniversalService<
             id: true,
             cgr: true,
             city: true,
+            color: true,
             radiusKm: true,
           },
         },
@@ -188,6 +190,7 @@ export class WorkOrdersService extends UniversalService<
                 id: true,
                 cgr: true,
                 city: true,
+                color: true,
                 radiusKm: true,
               },
             },
@@ -360,6 +363,22 @@ export class WorkOrdersService extends UniversalService<
       ordem.id,
       `Responsável ${nome} removido da OS.`,
     );
+
+    const workOrderTitle =
+      (ordem as { title?: string }).title?.trim() || `OS ${ordem.id}`;
+    const companyId =
+      (ordem as { companyId?: string }).companyId ??
+      this.obterCompanyId() ??
+      undefined;
+    const actorUserId = this.obterUsuarioLogadoId();
+
+    await this.workOrderActivityNotificationService.notifyUnassignment({
+      workOrderId: ordem.id,
+      workOrderTitle,
+      actorUserId: actorUserId ?? userId,
+      companyId,
+      removedUserId: userId,
+    });
 
     return this.buscarDetalhesPorId(ordem.id);
   }
@@ -807,13 +826,6 @@ export class WorkOrdersService extends UniversalService<
       return;
     }
 
-    const equipmentTypeLabel: Record<AssetType, string> = {
-      CAMERA: 'câmera',
-      ATDB: 'ATDB',
-      PMV: 'PMV',
-      OTHER: 'equipamento',
-    };
-
     const companyId = this.obterCompanyId();
     const osAberta = await this.prisma.workOrder.findFirst({
       where: {
@@ -836,7 +848,7 @@ export class WorkOrdersService extends UniversalService<
       throw new BadRequestException(
         `Bloqueio: já existe uma OS ${
           type === WorkOrderType.CORRECTIVE ? 'corretiva' : 'preventiva'
-        } em aberto para esta localidade para a ${equipmentTypeLabel[equipmentType ?? AssetType.OTHER]}. Conclua a OS atual deste equipamento na localidade antes de abrir outra.`,
+        } em aberto para esta localidade para ${formatAssetTypeLabel(equipmentType ?? AssetType.OTHER)}. Conclua a OS atual deste equipamento na localidade antes de abrir outra.`,
       );
     }
   }
@@ -1007,13 +1019,17 @@ export class WorkOrdersService extends UniversalService<
     }
 
     const previousIds = new Set(this.pendingPreviousAssigneeIds ?? []);
+    const nextIds = new Set(this.pendingUpdateAssigneeIds);
     const newAssigneeIds = this.pendingUpdateAssigneeIds.filter(
       (userId) => !previousIds.has(userId),
+    );
+    const removedAssigneeIds = (this.pendingPreviousAssigneeIds ?? []).filter(
+      (userId) => !nextIds.has(userId),
     );
 
     await this.sincronizarResponsaveis(id, this.pendingUpdateAssigneeIds);
 
-    if (newAssigneeIds.length > 0) {
+    if (newAssigneeIds.length > 0 || removedAssigneeIds.length > 0) {
       const ordem = await this.buscarOrdemPorId(id);
       const workOrderTitle =
         (ordem as { title?: string }).title?.trim() || `OS ${id}`;
@@ -1030,6 +1046,16 @@ export class WorkOrdersService extends UniversalService<
           actorUserId: actorUserId ?? assignedUserId,
           companyId,
           assignedUserId,
+        });
+      }
+
+      for (const removedUserId of removedAssigneeIds) {
+        await this.workOrderActivityNotificationService.notifyUnassignment({
+          workOrderId: id,
+          workOrderTitle,
+          actorUserId: actorUserId ?? removedUserId,
+          companyId,
+          removedUserId,
         });
       }
     }
@@ -1050,15 +1076,27 @@ export class WorkOrdersService extends UniversalService<
       // await this.criarChecklistPadrao(data.id, data.type);
       await this.registrarComentarioAutomatico(data.id, 'OS criada.');
 
-      if (this.pendingCreateAssigneeIds.length > 0) {
-        const ordemCriada = await this.prisma.workOrder.findUnique({
-          where: { id: data.id },
-          select: { title: true, companyId: true },
+      const ordemCriada = await this.prisma.workOrder.findUnique({
+        where: { id: data.id },
+        select: { title: true, companyId: true },
+      });
+      const workOrderTitle =
+        ordemCriada?.title?.trim() || `OS ${data.id}`;
+      const companyId =
+        ordemCriada?.companyId ?? this.obterCompanyId() ?? undefined;
+      const actorUserId = this.obterUsuarioLogadoId();
+
+      if (companyId) {
+        await this.workOrderActivityNotificationService.notifyOnCreate({
+          workOrderId: data.id,
+          workOrderTitle,
+          actorUserId:
+            actorUserId ?? this.pendingCreateAssigneeIds[0] ?? 'system',
+          companyId,
         });
-        const workOrderTitle =
-          ordemCriada?.title?.trim() || `OS ${data.id}`;
-        const companyId =
-          ordemCriada?.companyId ?? this.obterCompanyId() ?? undefined;
+      }
+
+      if (this.pendingCreateAssigneeIds.length > 0) {
 
         const responsaveis = await this.prisma.user.findMany({
           where: { id: { in: this.pendingCreateAssigneeIds } },
@@ -1074,7 +1112,6 @@ export class WorkOrdersService extends UniversalService<
           `OS atribuída para: ${nomes}.`,
         );
 
-        const actorUserId = this.obterUsuarioLogadoId();
         for (const assignedUserId of this.pendingCreateAssigneeIds) {
           await this.workOrderActivityNotificationService.notifyAssignment({
             workOrderId: data.id,

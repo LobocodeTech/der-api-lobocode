@@ -239,12 +239,16 @@ model OAuthAccount {
 // ===============================================
 
 model Asset {
-  id              String               @id @default(cuid())
-  companyId       String
-  name            String
-  code            String?
+  id        String @id @default(cuid())
+  companyId String
+
+  name         String?
+  manufacturer String?
+  model        String?
+  serialNumber String?
+
   type            AssetType
-  direction       String
+  direction       String?
   status          AssetStatus          @default(ONLINE)
   criticality     AssetCriticality     @default(MEDIUM)
   ipAddresses     Json?
@@ -319,6 +323,7 @@ model Location {
   status      RegionalStatus @default(ACTIVE)
   latitude    Float?
   longitude   Float?
+  isEdicule   Boolean @default(false)
 
   companyId String
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)

@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsString,
   IsUrl,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -32,12 +33,38 @@ export class CreateAssetDto {
   @IsCUID({ message: VALIDATION_MESSAGES.FORMAT.UUID_INVALID })
   companyId?: string;
 
-  @IsString({ message: VALIDATION_MESSAGES.REQUIRED.NAME })
-  name: string;
-
+  /** ATDB (ID) e PMV (nome); não usado em câmeras. */
+  @ValidateIf((o: CreateAssetDto) => o.type === AssetType.ATDB || o.type === AssetType.PMV)
+  @IsNotEmpty({ message: VALIDATION_MESSAGES.REQUIRED.FIELD })
+  @IsString({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
+  @ValidateIf((o: CreateAssetDto) => o.type !== AssetType.ATDB && o.type !== AssetType.PMV)
   @IsOptional()
   @IsString({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
-  code?: string;
+  name?: string;
+
+  @ValidateIf((o: CreateAssetDto) => o.type === AssetType.CAMERA)
+  @IsNotEmpty({ message: VALIDATION_MESSAGES.REQUIRED.FIELD })
+  @IsString({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
+  @ValidateIf((o: CreateAssetDto) => o.type !== AssetType.CAMERA)
+  @IsOptional()
+  @IsString({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
+  manufacturer?: string;
+
+  @ValidateIf((o: CreateAssetDto) => o.type === AssetType.CAMERA)
+  @IsNotEmpty({ message: VALIDATION_MESSAGES.REQUIRED.FIELD })
+  @IsString({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
+  @ValidateIf((o: CreateAssetDto) => o.type !== AssetType.CAMERA)
+  @IsOptional()
+  @IsString({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
+  model?: string;
+
+  @ValidateIf((o: CreateAssetDto) => o.type === AssetType.CAMERA)
+  @IsNotEmpty({ message: VALIDATION_MESSAGES.REQUIRED.FIELD })
+  @IsString({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
+  @ValidateIf((o: CreateAssetDto) => o.type !== AssetType.CAMERA)
+  @IsOptional()
+  @IsString({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
+  serialNumber?: string;
 
   @IsEnum(AssetType, {
     message: VALIDATION_MESSAGES.FORMAT.ENUM_INVALID,
@@ -50,7 +77,8 @@ export class CreateAssetDto {
   locationId: string;
 
   @IsString({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
-  direction: string;
+  @IsOptional()
+  direction?: string;
 
   @IsOptional()
   @IsEnum(AssetStatus, {
@@ -84,4 +112,3 @@ export class CreateAssetDto {
   @Type(() => AssetIpAddressDto)
   ipAddresses?: AssetIpAddressDto[];
 }
-
