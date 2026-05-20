@@ -323,7 +323,13 @@ model Location {
   status      RegionalStatus @default(ACTIVE)
   latitude    Float?
   longitude   Float?
-  hasEdicule  Boolean        @default(true)
+
+  hasEdicule         Boolean @default(false)
+  ediculePostalCode  String?
+  ediculeStreet      String?
+  ediculeNumber      String?
+  ediculeCity        String?
+  ediculeLegalName   String?
 
   companyId String
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
