@@ -7,6 +7,7 @@ import {
   MaxLength,
   Min,
   Max,
+  IsBoolean,
 } from 'class-validator';
 import { RegionalStatus } from '@prisma/client';
 import { IsCUID, IsReferenceKm } from '../../../shared/validators';
@@ -25,6 +26,10 @@ export class CreateLocationsDto {
   @IsString({ message: VALIDATION_MESSAGES.REQUIRED.NAME })
   @MaxLength(50, { message: VALIDATION_MESSAGES.LENGTH.MAX_LENGTH })
   code: string;
+
+  @IsOptional()
+  @IsBoolean({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
+  hasEdicule?: boolean;
 
   @IsString({ message: VALIDATION_MESSAGES.REQUIRED.NAME })
   @MaxLength(120, { message: VALIDATION_MESSAGES.LENGTH.MAX_LENGTH })
