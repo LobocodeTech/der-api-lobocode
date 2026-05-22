@@ -228,7 +228,18 @@ function aplicarRestricoesRegionaisNaoAdmin(user: User, { cannot }: any) {
 
   const r = user.regionalId;
   const workOrderPermitidoForaRegional = {
-    OR: [{ location: { regionalId: r } }, { assignees: { some: { userId: user.id } } }],
+    OR: [
+      { location: { regionalId: r } },
+      {
+        workOrderQueues: {
+          some: {
+            queue: {
+              queueUsers: { some: { userId: user.id } },
+            },
+          },
+        },
+      },
+    ],
   };
 
   cannot('read', 'Regional', { companyId: c, NOT: { id: r } });

@@ -4,8 +4,9 @@ import { WorkOrderColumnsController } from './work-order-columns/work-order-colu
 import { WorkOrderColumnsService } from './work-order-columns/work-order-columns.service';
 import { WorkOrderPauseHistoryController } from './work-order-pause-history/work-order-pause-history.controller';
 import { WorkOrderPauseHistoryService } from './work-order-pause-history/work-order-pause-history.service';
-import { WorkOrdersController } from './work-orders.controller';
+import { WorkOrdersController } from './work-order-queue-users/work-orders.controller';
 import { WorkOrdersService } from './work-orders.service';
+import { WorkOrderQueueUsersService } from './work-order-queue-users/work-order-queue-users.service';
 
 @Module({
   imports: [FilesModule],
@@ -18,8 +19,14 @@ import { WorkOrdersService } from './work-orders.service';
     WorkOrdersService,
     WorkOrderColumnsService,
     WorkOrderPauseHistoryService,
+    WorkOrderQueueUsersService,
   ],
-  exports: [WorkOrdersService, WorkOrderColumnsService, WorkOrderPauseHistoryService],
+  exports: [
+    WorkOrdersService,
+    WorkOrderColumnsService,
+    WorkOrderPauseHistoryService,
+    WorkOrderQueueUsersService,
+  ],
 })
 export class WorkOrdersModule {}
 

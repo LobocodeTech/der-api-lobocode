@@ -14,7 +14,6 @@ import {
   PlanningExecutionStatus,
   Prisma,
   Roles,
-  UserStatus,
   WorkOrderSlaStatus,
   WorkOrderStatus,
   WorkOrderType,
@@ -29,7 +28,6 @@ import {
   UniversalPermissionService,
   createEntityConfig,
 } from 'src/shared/universal';
-import { AssignWorkOrderDto } from './dto/assign-work-order.dto';
 import { CompleteWorkOrderDto } from './dto/complete-work-order.dto';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { CreateWorkOrderCommentDto } from './dto/create-work-order-comment.dto';
@@ -37,12 +35,19 @@ import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
 import { UpdateWorkOrderChecklistItemDto } from './dto/update-work-order-checklist-item.dto';
 import { CreateWorkOrderCheckListDto } from './dto/create-work-order-checklist-item.dto';
 import { MoveWorkOrderColumnDto } from './dto/move-work-order-column.dto';
-import { WorkOrderActivityNotificationService } from '../notifications/shared/work-order-activity-notification.service';
+import {
+  WorkOrderActivityNotificationService,
+  type WorkOrderLifecycleEventKind,
+} from '../notifications/shared/work-order-activity-notification.service';
+import {
+  WORK_ORDER_QUEUES_ON_WORK_ORDER_INCLUDE,
+  WorkOrderQueueUsersService,
+} from './work-order-queue-users/work-order-queue-users.service';
 import {
   diaCivilParaDatePostgres,
   extrairDiaCivilDoPrazo,
   horasRestantesAteFimDoPrazo,
-} from './work-order-due-date.util';
+} from './utils/work-order-due-date.util';
 import { formatAssetTypeLabel } from 'src/shared/common/utils/asset-type-label';
 
 @Injectable({ scope: Scope.REQUEST })
@@ -51,10 +56,11 @@ export class WorkOrdersService extends UniversalService<
   UpdateWorkOrderDto
 > {
   private static readonly entityConfig = createEntityConfig('workOrder');
-  private pendingCreateAssigneeIds: string[] = [];
-  private pendingUpdateAssigneeIds: string[] | null = null;
-  /** Responsáveis antes de `assignedToUserIds` no PATCH (para notificar só os novos). */
-  private pendingPreviousAssigneeIds: string[] | null = null;
+  private pendingCreateQueueIds: string[] | null = null;
+  private pendingUpdateQueueIds: string[] | null = null;
+  private pendingPreviousQueueIds: string[] | null = null;
+  private pendingLifecycleEvent: WorkOrderLifecycleEventKind | null = null;
+  private pendingLifecycleWorkOrderId: string | null = null;
 
   private readonly detalhesInclude: any = {
     column: {
@@ -78,17 +84,7 @@ export class WorkOrdersService extends UniversalService<
         },
       },
     },
-    assignees: {
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            role: true,
-          },
-        },
-      },
-    },
+    workOrderQueues: WORK_ORDER_QUEUES_ON_WORK_ORDER_INCLUDE,
     checklistItems: {
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
     },
@@ -153,6 +149,7 @@ export class WorkOrdersService extends UniversalService<
     @Inject(FilesService) private readonly filesService: FilesService,
     @Inject(WorkOrderActivityNotificationService)
     private readonly workOrderActivityNotificationService: WorkOrderActivityNotificationService,
+    private readonly workOrderQueueUsersService: WorkOrderQueueUsersService,
     @Optional() @Inject(REQUEST) request: any,
   ) {
     const { model, casl } = WorkOrdersService.entityConfig;
@@ -196,17 +193,7 @@ export class WorkOrdersService extends UniversalService<
             },
           },
         },
-        assignees: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                role: true,
-              },
-            },
-          },
-        },
+        workOrderQueues: WORK_ORDER_QUEUES_ON_WORK_ORDER_INCLUDE,
         planning: {
           select: {
             id: true,
@@ -230,7 +217,8 @@ export class WorkOrdersService extends UniversalService<
   async buscarPorId(id: string, include?: Prisma.WorkOrderInclude) {
     const ordem = await super.buscarPorId(id, include ?? this.detalhesInclude);
     const normalizada = this.normalizarDetalhesDaOrdem(ordem);
-    return this.enriquecerComNumeroSequencial(normalizada);
+    const enriquecida = await this.enriquecerComNumeroSequencial(normalizada);
+    return this.mapWorkOrderResponse(enriquecida);
   }
 
   async buscarDetalhesPorId(id: string) {
@@ -239,148 +227,43 @@ export class WorkOrdersService extends UniversalService<
 
   async buscarTodos() {
     const resultado = await super.buscarTodos();
-    return this.enriquecerComNumeroSequencial(resultado);
+    const enriquecida = await this.enriquecerComNumeroSequencial(resultado);
+    return this.mapWorkOrderResponse(enriquecida);
   }
 
   async buscarComPaginacao(page = 1, limit = 20, include?: any) {
     const resultado = await super.buscarComPaginacao(page, limit, include);
-    return this.enriquecerComNumeroSequencial(resultado);
+    const enriquecida = await this.enriquecerComNumeroSequencial(resultado);
+    return this.mapWorkOrderResponse(enriquecida);
   }
 
   async buscarPorCampo(field: string, value: any, include?: any) {
     const resultado = await super.buscarPorCampo(field, value, include);
-    return this.enriquecerComNumeroSequencial(resultado);
+    const enriquecida = await this.enriquecerComNumeroSequencial(resultado);
+    return this.mapWorkOrderResponse(enriquecida);
   }
 
   async buscarMuitosPorCampo(field: string, value: any, include?: any) {
     const resultado = await super.buscarMuitosPorCampo(field, value, include);
-    return this.enriquecerComNumeroSequencial(resultado);
+    const enriquecida = await this.enriquecerComNumeroSequencial(resultado);
+    return this.mapWorkOrderResponse(enriquecida);
   }
 
   async criar(data: CreateWorkOrderDto, include?: any, role?: Roles) {
     const entity = await super.criar(data, include, role);
-    return this.enriquecerComNumeroSequencial(entity);
+    const enriquecida = await this.enriquecerComNumeroSequencial(entity);
+    return this.mapWorkOrderResponse(enriquecida);
   }
 
   async atualizar(id: string, dto: UpdateWorkOrderDto, include?: any) {
     const entity = await super.atualizar(id, dto, include);
-    return this.enriquecerComNumeroSequencial(entity);
+    const enriquecida = await this.enriquecerComNumeroSequencial(entity);
+    return this.mapWorkOrderResponse(enriquecida);
   }
 
   async buscarPorLocalidade(locationId: string) {
     await this.buscarLocalidadeValida(locationId);
     return this.buscarMuitosPorCampo('locationId', locationId);
-  }
-
-  async atribuirResponsavel(id: string, dto: AssignWorkOrderDto) {
-    const ordem = await this.buscarOrdemPorId(id);
-
-    const userId = dto.assignedToUserIds?.[0];
-    if (!userId) {
-      throw new BadRequestException('Informe ao menos um responsável.');
-    }
-    const responsavel = await this.buscarResponsavelValido(userId);
-
-    const jaExiste = ordem.assignees.some(
-      (assignee) => assignee.userId === responsavel.id,
-    );
-    if (!jaExiste) {
-      await this.prisma.workOrderAssignee.create({
-        data: {
-          workOrderId: ordem.id,
-          userId: responsavel.id,
-        },
-      });
-    }
-
-    const status =
-      ordem.status === WorkOrderStatus.COMPLETED
-        ? WorkOrderStatus.COMPLETED
-        : WorkOrderStatus.ASSIGNED;
-
-    await this.prisma.workOrder.update({
-      where: { id: ordem.id },
-      data: {
-        status,
-        updatedBy: this.obterUsuarioLogadoId() ?? undefined,
-        slaStatus: this.calcularSlaStatus(ordem.dueDate, status),
-      },
-    });
-
-    await this.registrarComentarioAutomatico(
-      ordem.id,
-      jaExiste
-        ? `Responsável ${responsavel.name} já estava vinculado à OS.`
-        : `Responsável ${responsavel.name} adicionado à OS.`,
-    );
-
-    if (!jaExiste) {
-      await this.workOrderActivityNotificationService.notifyAssignment({
-        workOrderId: ordem.id,
-        workOrderTitle: (ordem as any).title ?? `OS ${ordem.id}`,
-        actorUserId: this.obterUsuarioLogadoId() ?? responsavel.id,
-        companyId: (ordem as any).companyId ?? this.obterCompanyId() ?? undefined,
-        assignedUserId: responsavel.id,
-      });
-    }
-
-    return this.buscarDetalhesPorId(ordem.id);
-  }
-
-  async removerResponsavel(id: string, userId: string) {
-    const ordem = await this.buscarOrdemPorId(id);
-
-    const existente = ordem.assignees.find(
-      (assignee) => assignee.userId === userId,
-    );
-    if (!existente) {
-      throw new NotFoundException('Responsável não encontrado na OS.');
-    }
-
-    await this.prisma.workOrderAssignee.delete({
-      where: { id: existente.id },
-    });
-
-    const restantes = ordem.assignees.filter(
-      (assignee) => assignee.userId !== userId,
-    );
-    const nextStatus =
-      restantes.length === 0 && ordem.status === WorkOrderStatus.ASSIGNED
-        ? WorkOrderStatus.PENDING
-        : ordem.status;
-
-    await this.prisma.workOrder.update({
-      where: { id: ordem.id },
-      data: {
-        status: nextStatus,
-        updatedBy: this.obterUsuarioLogadoId() ?? undefined,
-        slaStatus: this.calcularSlaStatus(ordem.dueDate, nextStatus),
-      },
-    });
-
-    const nome = existente.user?.name ?? 'Responsável';
-    await this.registrarComentarioAutomatico(
-      ordem.id,
-      `Responsável ${nome} removido da OS.`,
-    );
-
-    const workOrderTitle =
-      (ordem as { title?: string }).title?.trim() || `OS ${ordem.id}`;
-    const companyId =
-      (ordem as { companyId?: string }).companyId ??
-      this.obterCompanyId() ??
-      undefined;
-    const actorUserId = this.obterUsuarioLogadoId();
-
-    await this.workOrderActivityNotificationService.notifyUnassignment({
-      workOrderId: ordem.id,
-      workOrderTitle,
-      actorUserId: actorUserId ?? userId,
-      companyId,
-      removedUserId: userId,
-    });
-
-    return this.buscarDetalhesPorId(ordem.id);
   }
 
   async removerItemDoChecklist(id: string, itemId: string) {
@@ -408,10 +291,16 @@ export class WorkOrdersService extends UniversalService<
 
   async iniciarTrabalho(id: string) {
     const ordem = await this.buscarOrdemPorId(id);
+    const companyId = (ordem as { companyId?: string }).companyId ?? this.obterCompanyId();
+    const recipientIds =
+      await this.workOrderQueueUsersService.resolveUserIdsFromWorkOrderId(
+        ordem.id,
+        companyId ?? undefined,
+      );
 
-    if (ordem.assignees.length === 0) {
+    if (recipientIds.length === 0) {
       throw new BadRequestException(
-        'A ordem de serviço precisa ter um responsável antes de iniciar.',
+        'A ordem de serviço precisa ter ao menos uma fila com membros antes de iniciar.',
       );
     }
 
@@ -449,6 +338,8 @@ export class WorkOrdersService extends UniversalService<
       'Trabalho iniciado na ordem de serviço.',
     );
 
+    await this.notificarEventoCicloDeVida(ordem.id, 'started', recipientIds);
+
     return this.buscarDetalhesPorId(ordem.id);
   }
 
@@ -477,6 +368,15 @@ export class WorkOrdersService extends UniversalService<
     );
 
     await this.concluirPlanejamentoVinculadoAoFinalizarOs(ordem.id);
+
+    const companyId =
+      (ordem as { companyId?: string }).companyId ?? this.obterCompanyId();
+    const recipientIds =
+      await this.workOrderQueueUsersService.resolveUserIdsFromWorkOrderId(
+        ordem.id,
+        companyId ?? undefined,
+      );
+    await this.notificarEventoCicloDeVida(ordem.id, 'completed', recipientIds);
 
     return this.buscarDetalhesPorId(ordem.id);
   }
@@ -568,6 +468,24 @@ export class WorkOrdersService extends UniversalService<
 
     if (novoStatus === WorkOrderStatus.COMPLETED) {
       await this.concluirPlanejamentoVinculadoAoFinalizarOs(ordem.id);
+    }
+
+    if (novoStatus !== ordem.status) {
+      const companyId = ordem.companyId ?? this.obterCompanyId();
+      const recipientIds =
+        await this.workOrderQueueUsersService.resolveUserIdsFromWorkOrderId(
+          ordem.id,
+          companyId ?? undefined,
+        );
+      if (novoStatus === WorkOrderStatus.IN_PROGRESS) {
+        await this.notificarEventoCicloDeVida(ordem.id, 'started', recipientIds);
+      } else if (novoStatus === WorkOrderStatus.COMPLETED) {
+        await this.notificarEventoCicloDeVida(
+          ordem.id,
+          'completed',
+          recipientIds,
+        );
+      }
     }
 
     return this.buscarDetalhesPorId(ordem.id);
@@ -713,7 +631,13 @@ export class WorkOrdersService extends UniversalService<
       workOrderTitle: (ordem as any).title ?? `OS ${ordem.id}`,
       actorUserId: autorId,
       companyId: (ordem as any).companyId ?? this.obterCompanyId() ?? undefined,
-      assigneeUserIds: ordem.assignees.map((assignee) => assignee.userId),
+      assigneeUserIds:
+        await this.workOrderQueueUsersService.resolveUserIdsFromWorkOrderId(
+          ordem.id,
+          (ordem as { companyId?: string }).companyId ??
+            this.obterCompanyId() ??
+            undefined,
+        ),
     });
 
     return this.buscarDetalhesPorId(ordem.id);
@@ -755,18 +679,26 @@ export class WorkOrdersService extends UniversalService<
       data.equipmentType,
     );
 
-    const responsaveis = await this.resolverResponsaveisDoPayload(data);
-    this.pendingCreateAssigneeIds = responsaveis.map(
-      (responsavel) => responsavel.id,
+    const companyId = this.obterCompanyId();
+    const queueIds = this.workOrderQueueUsersService.normalizarQueueIds(
+      Object.prototype.hasOwnProperty.call(data as object, 'queueIds')
+        ? data.queueIds
+        : [],
     );
-
-    delete (data as any).assignedToUserIds;
+    if (companyId && queueIds.length > 0) {
+      await this.workOrderQueueUsersService.validarFilasDaEmpresa(
+        queueIds,
+        companyId,
+      );
+    }
+    this.pendingCreateQueueIds = queueIds;
+    delete (data as any).queueIds;
 
     if (data.planningId) {
       await this.validarPlanejamentoDisponivel(data.planningId, undefined, data.type);
     }
 
-    if (this.pendingCreateAssigneeIds.length > 0 && !data.status) {
+    if (queueIds.length > 0 && !data.status) {
       data.status = WorkOrderStatus.ASSIGNED;
     }
 
@@ -857,8 +789,8 @@ export class WorkOrdersService extends UniversalService<
     _id: string,
     data: UpdateWorkOrderDto,
   ): Promise<void> {
-    this.pendingUpdateAssigneeIds = null;
-    this.pendingPreviousAssigneeIds = null;
+    this.pendingUpdateQueueIds = null;
+    this.pendingPreviousQueueIds = null;
     const companyId = this.obterCompanyId();
     const ordemAtual = await this.repository.buscarPrimeiro('workOrder', {
       id: _id,
@@ -916,35 +848,57 @@ export class WorkOrdersService extends UniversalService<
       }
     }
 
-    const payloadPossuiLista = Object.prototype.hasOwnProperty.call(
-      data as object,
-      'assignedToUserIds',
-    );
+    const companyIdUpdate = this.obterCompanyId();
 
-    if (payloadPossuiLista) {
-      const atuais = await this.prisma.workOrderAssignee.findMany({
-        where: { workOrderId: _id },
-        select: { userId: true },
-      });
-      this.pendingPreviousAssigneeIds = atuais.map((a) => a.userId);
+    if (Object.prototype.hasOwnProperty.call(data as object, 'queueIds')) {
+      this.pendingPreviousQueueIds =
+        await this.workOrderQueueUsersService.resolveQueueIdsFromWorkOrderId(
+          _id,
+        );
 
-      const responsaveis = await this.resolverResponsaveisDoPayload(data);
-      this.pendingUpdateAssigneeIds = responsaveis.map(
-        (responsavel) => responsavel.id,
+      const queueIds = this.workOrderQueueUsersService.normalizarQueueIds(
+        (data as CreateWorkOrderDto).queueIds,
       );
-      delete (data as any).assignedToUserIds;
+      if (companyIdUpdate && queueIds.length > 0) {
+        await this.workOrderQueueUsersService.validarFilasDaEmpresa(
+          queueIds,
+          companyIdUpdate,
+        );
+      }
+      this.pendingUpdateQueueIds = queueIds;
+      delete (data as any).queueIds;
+
       if (!data.status) {
         if (
           ordemAtual.status === WorkOrderStatus.PENDING &&
-          this.pendingUpdateAssigneeIds.length > 0
+          queueIds.length > 0
         ) {
           data.status = WorkOrderStatus.ASSIGNED;
         } else if (
           ordemAtual.status === WorkOrderStatus.ASSIGNED &&
-          this.pendingUpdateAssigneeIds.length === 0
+          queueIds.length === 0
         ) {
           data.status = WorkOrderStatus.PENDING;
         }
+      }
+    }
+
+    if (data.status !== undefined && data.status !== ordemAtual.status) {
+      if (data.status === WorkOrderStatus.PAUSED) {
+        this.pendingLifecycleEvent = 'paused';
+        this.pendingLifecycleWorkOrderId = _id;
+      } else if (
+        data.status === WorkOrderStatus.IN_PROGRESS &&
+        ordemAtual.status === WorkOrderStatus.PAUSED
+      ) {
+        this.pendingLifecycleEvent = 'resumed';
+        this.pendingLifecycleWorkOrderId = _id;
+      } else if (data.status === WorkOrderStatus.IN_PROGRESS) {
+        this.pendingLifecycleEvent = 'started';
+        this.pendingLifecycleWorkOrderId = _id;
+      } else if (data.status === WorkOrderStatus.COMPLETED) {
+        this.pendingLifecycleEvent = 'completed';
+        this.pendingLifecycleWorkOrderId = _id;
       }
     }
 
@@ -1014,54 +968,31 @@ export class WorkOrdersService extends UniversalService<
   ): Promise<void> {
     await this.concluirPlanejamentoVinculadoAoFinalizarOs(id);
 
-    if (this.pendingUpdateAssigneeIds === null) {
-      return;
+    if (this.pendingUpdateQueueIds !== null) {
+      await this.sincronizarFilas(id, this.pendingUpdateQueueIds);
+      await this.notificarMudancasFilasNaOs(
+        id,
+        this.pendingPreviousQueueIds ?? [],
+        this.pendingUpdateQueueIds,
+      );
+      this.pendingPreviousQueueIds = null;
+      this.pendingUpdateQueueIds = null;
     }
 
-    const previousIds = new Set(this.pendingPreviousAssigneeIds ?? []);
-    const nextIds = new Set(this.pendingUpdateAssigneeIds);
-    const newAssigneeIds = this.pendingUpdateAssigneeIds.filter(
-      (userId) => !previousIds.has(userId),
-    );
-    const removedAssigneeIds = (this.pendingPreviousAssigneeIds ?? []).filter(
-      (userId) => !nextIds.has(userId),
-    );
-
-    await this.sincronizarResponsaveis(id, this.pendingUpdateAssigneeIds);
-
-    if (newAssigneeIds.length > 0 || removedAssigneeIds.length > 0) {
-      const ordem = await this.buscarOrdemPorId(id);
-      const workOrderTitle =
-        (ordem as { title?: string }).title?.trim() || `OS ${id}`;
-      const companyId =
-        (ordem as { companyId?: string }).companyId ??
-        this.obterCompanyId() ??
-        undefined;
-      const actorUserId = this.obterUsuarioLogadoId();
-
-      for (const assignedUserId of newAssigneeIds) {
-        await this.workOrderActivityNotificationService.notifyAssignment({
-          workOrderId: id,
-          workOrderTitle,
-          actorUserId: actorUserId ?? assignedUserId,
-          companyId,
-          assignedUserId,
-        });
-      }
-
-      for (const removedUserId of removedAssigneeIds) {
-        await this.workOrderActivityNotificationService.notifyUnassignment({
-          workOrderId: id,
-          workOrderTitle,
-          actorUserId: actorUserId ?? removedUserId,
-          companyId,
-          removedUserId,
-        });
-      }
+    if (this.pendingLifecycleEvent && this.pendingLifecycleWorkOrderId) {
+      const recipientIds =
+        await this.workOrderQueueUsersService.resolveUserIdsFromWorkOrderId(
+          this.pendingLifecycleWorkOrderId,
+          this.obterCompanyId() ?? undefined,
+        );
+      await this.notificarEventoCicloDeVida(
+        this.pendingLifecycleWorkOrderId,
+        this.pendingLifecycleEvent,
+        recipientIds,
+      );
+      this.pendingLifecycleEvent = null;
+      this.pendingLifecycleWorkOrderId = null;
     }
-
-    this.pendingPreviousAssigneeIds = null;
-    this.pendingUpdateAssigneeIds = null;
   }
 
   protected async depoisDeCriar(data: {
@@ -1069,10 +1000,8 @@ export class WorkOrdersService extends UniversalService<
     type: WorkOrderType;
   }): Promise<void> {
     try {
-      await this.sincronizarResponsaveis(
-        data.id,
-        this.pendingCreateAssigneeIds,
-      );
+      const queueIds = this.pendingCreateQueueIds ?? [];
+      await this.sincronizarFilas(data.id, queueIds);
       // await this.criarChecklistPadrao(data.id, data.type);
       await this.registrarComentarioAutomatico(data.id, 'OS criada.');
 
@@ -1084,53 +1013,38 @@ export class WorkOrdersService extends UniversalService<
         ordemCriada?.title?.trim() || `OS ${data.id}`;
       const companyId =
         ordemCriada?.companyId ?? this.obterCompanyId() ?? undefined;
-      const actorUserId = this.obterUsuarioLogadoId();
+      const actorUserId = this.obterUsuarioLogadoId() ?? 'system';
 
       if (companyId) {
         await this.workOrderActivityNotificationService.notifyOnCreate({
           workOrderId: data.id,
           workOrderTitle,
-          actorUserId:
-            actorUserId ?? this.pendingCreateAssigneeIds[0] ?? 'system',
+          actorUserId,
           companyId,
         });
       }
 
-      if (this.pendingCreateAssigneeIds.length > 0) {
-
-        const responsaveis = await this.prisma.user.findMany({
-          where: { id: { in: this.pendingCreateAssigneeIds } },
-          select: { name: true },
+      if (queueIds.length > 0) {
+        const filas = await this.prisma.queue.findMany({
+          where: { id: { in: queueIds } },
+          select: { title: true },
         });
-        const nomes = responsaveis
-          .map((responsavel) => responsavel.name)
-          .filter(Boolean)
-          .join(', ');
-
+        const titulos = filas.map((fila) => fila.title).filter(Boolean).join(', ');
         await this.registrarComentarioAutomatico(
           data.id,
-          `OS atribuída para: ${nomes}.`,
+          `OS associada às filas: ${titulos}.`,
         );
-
-        for (const assignedUserId of this.pendingCreateAssigneeIds) {
-          await this.workOrderActivityNotificationService.notifyAssignment({
-            workOrderId: data.id,
-            workOrderTitle,
-            actorUserId: actorUserId ?? assignedUserId,
-            companyId,
-            assignedUserId,
-          });
-        }
+        await this.notificarMudancasFilasNaOs(data.id, [], queueIds);
       }
 
-      this.pendingCreateAssigneeIds = [];
+      this.pendingCreateQueueIds = null;
     } catch (error) {
       console.error(
         '[WorkOrdersService] depoisDeCriar falhou',
         JSON.stringify({
           workOrderId: data.id,
           workOrderType: data.type,
-          assignedToUserIds: this.pendingCreateAssigneeIds,
+          queueIds: this.pendingCreateQueueIds,
         }),
         error,
       );
@@ -1154,17 +1068,7 @@ export class WorkOrdersService extends UniversalService<
     const ordem = await this.prisma.workOrder.findFirst({
       where: whereClause,
       include: {
-        assignees: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                role: true,
-              },
-            },
-          },
-        },
+        workOrderQueues: WORK_ORDER_QUEUES_ON_WORK_ORDER_INCLUDE,
       },
     });
 
@@ -1173,28 +1077,6 @@ export class WorkOrdersService extends UniversalService<
     }
 
     return ordem;
-  }
-
-  private async buscarResponsavelValido(userId: string) {
-    const companyId = this.obterCompanyId();
-    const responsavel = await this.prisma.user.findFirst({
-      where: {
-        id: userId,
-        status: UserStatus.ACTIVE,
-        role: { in: [Roles.ADMIN, Roles.FIELD_TEAM, Roles.C2C] },
-        ...(companyId && { companyId }),
-      },
-      select: {
-        id: true,
-        name: true,
-      },
-    });
-
-    if (!responsavel) {
-      throw new NotFoundException('Responsável não encontrado ou inativo.');
-    }
-
-    return responsavel;
   }
 
   private async buscarLocalidadeValida(locationId: string) {
@@ -1229,28 +1111,6 @@ export class WorkOrdersService extends UniversalService<
       orderBy: [{ regionalId: 'desc' }, { createdAt: 'asc' }],
       select: { id: true },
     });
-  }
-
-  private async resolverResponsaveisDoPayload(
-    data: Pick<CreateWorkOrderDto, 'assignedToUserIds'>,
-  ) {
-    const ids = Array.from(
-      new Set(
-        [...(data.assignedToUserIds ?? [])]
-          .filter(Boolean)
-          .map((value) => String(value).trim()),
-      ),
-    ).filter(Boolean);
-
-    if (ids.length === 0) {
-      return [];
-    }
-
-    const responsaveis = await Promise.all(
-      ids.map((userId) => this.buscarResponsavelValido(userId)),
-    );
-
-    return responsaveis;
   }
 
   private async validarPlanejamentoDisponivel(
@@ -1292,22 +1152,185 @@ export class WorkOrdersService extends UniversalService<
     }
   }
 
-  private async sincronizarResponsaveis(
-    workOrderId: string,
-    userIds: string[],
-  ) {
-    await this.prisma.workOrderAssignee.deleteMany({
+  private async sincronizarFilas(workOrderId: string, queueIds: string[]) {
+    await this.prisma.workOrderQueue.deleteMany({
       where: { workOrderId },
     });
 
-    if (userIds.length > 0) {
-      await this.prisma.workOrderAssignee.createMany({
-        data: userIds.map((userId) => ({
+    if (queueIds.length > 0) {
+      await this.prisma.workOrderQueue.createMany({
+        data: queueIds.map((queueId) => ({
           workOrderId,
-          userId,
+          queueId,
         })),
       });
     }
+  }
+
+  private async notificarMudancasFilasNaOs(
+    workOrderId: string,
+    previousQueueIds: string[],
+    nextQueueIds: string[],
+  ): Promise<void> {
+    const { added, removed } = this.workOrderQueueUsersService.diffQueueIds(
+      previousQueueIds,
+      nextQueueIds,
+    );
+    if (added.length === 0 && removed.length === 0) {
+      return;
+    }
+
+    const ordem = await this.prisma.workOrder.findFirst({
+      where: { id: workOrderId, deletedAt: null },
+      select: { title: true, companyId: true },
+    });
+    if (!ordem) return;
+
+    const workOrderTitle = ordem.title?.trim() || `OS ${workOrderId}`;
+    const companyId = ordem.companyId ?? this.obterCompanyId() ?? undefined;
+    const actorUserId = this.obterUsuarioLogadoId() ?? 'system';
+
+    const queueIds = [...added, ...removed];
+    const filas = await this.prisma.queue.findMany({
+      where: { id: { in: queueIds } },
+      select: { id: true, title: true },
+    });
+    const tituloPorId = new Map(filas.map((fila) => [fila.id, fila.title]));
+
+    for (const queueId of added) {
+      const usuarios =
+        await this.workOrderQueueUsersService.resolveUsersFromQueueIds(
+          [queueId],
+          companyId,
+        );
+      const queueTitle = tituloPorId.get(queueId) ?? 'Fila';
+      for (const user of usuarios) {
+        if (user.id === actorUserId) continue;
+        await this.workOrderActivityNotificationService.notifyAssignmentViaQueue(
+          {
+            workOrderId,
+            workOrderTitle,
+            queueTitle,
+            actorUserId,
+            companyId,
+            assignedUserId: user.id,
+          },
+        );
+      }
+    }
+
+    for (const queueId of removed) {
+      const usuarios =
+        await this.workOrderQueueUsersService.resolveUsersFromQueueIds(
+          [queueId],
+          companyId,
+        );
+      const queueTitle = tituloPorId.get(queueId) ?? 'Fila';
+      for (const user of usuarios) {
+        if (user.id === actorUserId) continue;
+        await this.workOrderActivityNotificationService.notifyUnassignmentViaQueue(
+          {
+            workOrderId,
+            workOrderTitle,
+            queueTitle,
+            actorUserId,
+            companyId,
+            removedUserId: user.id,
+          },
+        );
+      }
+    }
+  }
+
+  private async notificarEventoCicloDeVida(
+    workOrderId: string,
+    kind: WorkOrderLifecycleEventKind,
+    recipientUserIds: string[],
+  ): Promise<void> {
+    const ordem = await this.prisma.workOrder.findFirst({
+      where: { id: workOrderId, deletedAt: null },
+      select: { title: true, companyId: true },
+    });
+    if (!ordem) return;
+
+    const actorUserId = this.obterUsuarioLogadoId() ?? 'system';
+    await this.workOrderActivityNotificationService.notifyAssigneesAboutEvent({
+      workOrderId,
+      workOrderTitle: ordem.title?.trim() || `OS ${workOrderId}`,
+      actorUserId,
+      companyId: ordem.companyId ?? this.obterCompanyId() ?? undefined,
+      recipientUserIds,
+      kind,
+    });
+  }
+
+  protected async depoisDeDesativar(id: string): Promise<void> {
+    const companyId = this.obterCompanyId();
+    const recipientIds =
+      await this.workOrderQueueUsersService.resolveUserIdsFromWorkOrderId(
+        id,
+        companyId ?? undefined,
+      );
+    await this.notificarEventoCicloDeVida(id, 'deleted', recipientIds);
+  }
+
+  private mapWorkOrderResponse<T>(resposta: T): T {
+    if (!resposta || typeof resposta !== 'object') {
+      return resposta;
+    }
+
+    const respostaObj = resposta as Record<string, unknown>;
+    if ('data' in respostaObj) {
+      const dados = respostaObj.data;
+      if (Array.isArray(dados)) {
+        return {
+          ...respostaObj,
+          data: dados.map((item) => this.mapWorkOrderEntity(item)),
+        } as T;
+      }
+      if (dados && typeof dados === 'object') {
+        return {
+          ...respostaObj,
+          data: this.mapWorkOrderEntity(dados),
+        } as T;
+      }
+    }
+
+    if (Array.isArray(resposta)) {
+      return resposta.map((item) =>
+        this.mapWorkOrderEntity(item),
+      ) as unknown as T;
+    }
+
+    return this.mapWorkOrderEntity(resposta) as T;
+  }
+
+  private mapWorkOrderEntity(entity: unknown): unknown {
+    if (!entity || typeof entity !== 'object') {
+      return entity;
+    }
+
+    const record = entity as Record<string, unknown>;
+    if (typeof record.id !== 'string') {
+      return entity;
+    }
+
+    const workOrderQueues = (record.workOrderQueues ?? []) as Parameters<
+      WorkOrderQueueUsersService['mapQueuesToResponse']
+    >[0];
+    const queues =
+      this.workOrderQueueUsersService.mapQueuesToResponse(workOrderQueues);
+    const users =
+      this.workOrderQueueUsersService.mapAssigneesFromQueues(queues);
+    const assignees =
+      this.workOrderQueueUsersService.mapAssigneesPrismaShape(users);
+
+    const { workOrderQueues: _removed, ...rest } = record;
+    return {
+      ...rest,
+      queues,
+      assignees,
+    };
   }
 
   private async registrarComentarioAutomatico(

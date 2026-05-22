@@ -19,7 +19,9 @@ import {
   isWorkOrderPausePresetReason,
   isWorkOrderResumePresetReason,
 } from './work-order-pause-preset.constants';
-import { horasRestantesAteFimDoPrazo } from '../work-order-due-date.util';
+import { horasRestantesAteFimDoPrazo } from '../utils/work-order-due-date.util';
+import { WorkOrderActivityNotificationService } from '../../notifications/shared/work-order-activity-notification.service';
+import { WorkOrderQueueUsersService } from '../work-order-queue-users/work-order-queue-users.service';
 import { WorkOrdersService } from '../work-orders.service';
 
 @Injectable({ scope: Scope.REQUEST })
@@ -27,6 +29,8 @@ export class WorkOrderPauseHistoryService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(WorkOrdersService) private readonly workOrdersService: WorkOrdersService,
+    private readonly workOrderQueueUsersService: WorkOrderQueueUsersService,
+    private readonly workOrderActivityNotificationService: WorkOrderActivityNotificationService,
     @Optional() @Inject(REQUEST) private readonly request?: any,
   ) {}
 
@@ -92,6 +96,8 @@ export class WorkOrderPauseHistoryService {
       });
     });
 
+    await this.notificarMembrosDasFilas(workOrder.id, 'paused');
+
     return this.workOrdersService.buscarDetalhesPorId(workOrder.id);
   }
 
@@ -139,7 +145,38 @@ export class WorkOrderPauseHistoryService {
       });
     });
 
+    await this.notificarMembrosDasFilas(workOrder.id, 'resumed');
+
     return this.workOrdersService.buscarDetalhesPorId(workOrder.id);
+  }
+
+  private async notificarMembrosDasFilas(
+    workOrderId: string,
+    kind: 'paused' | 'resumed',
+  ): Promise<void> {
+    const companyId = this.request?.user?.companyId as string | undefined;
+    const recipientIds =
+      await this.workOrderQueueUsersService.resolveUserIdsFromWorkOrderId(
+        workOrderId,
+        companyId,
+      );
+    if (recipientIds.length === 0) return;
+
+    const ordem = await this.prisma.workOrder.findFirst({
+      where: { id: workOrderId, deletedAt: null },
+      select: { title: true, companyId: true },
+    });
+    if (!ordem) return;
+
+    const actorUserId = this.getCurrentUserId() ?? 'system';
+    await this.workOrderActivityNotificationService.notifyAssigneesAboutEvent({
+      workOrderId,
+      workOrderTitle: ordem.title?.trim() || `OS ${workOrderId}`,
+      actorUserId,
+      companyId: ordem.companyId ?? companyId,
+      recipientUserIds: recipientIds,
+      kind,
+    });
   }
 
   private async findScopedWorkOrder(workOrderId: string) {

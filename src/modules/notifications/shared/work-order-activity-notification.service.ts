@@ -7,6 +7,13 @@ import { ActivityNotificationPreferencesService } from './activity-notification-
 import { NotificationRecipientsService } from './notification.recipients';
 import { resolveActorDisplayName } from './activity-notification-actor';
 
+export type WorkOrderLifecycleEventKind =
+  | 'started'
+  | 'paused'
+  | 'resumed'
+  | 'completed'
+  | 'deleted';
+
 @Injectable()
 export class WorkOrderActivityNotificationService {
   constructor(
@@ -39,6 +46,72 @@ export class WorkOrderActivityNotificationService {
       title: 'Nova tarefa atribuída a você',
       message: `${actorName} atribuiu você à OS "${params.workOrderTitle}".`,
       entityType: 'work-order',
+      entityId: params.workOrderId,
+      userId: params.actorUserId,
+      companyId: params.companyId,
+      recipients,
+    });
+  }
+
+  async notifyAssignmentViaQueue(params: {
+    workOrderId: string;
+    workOrderTitle: string;
+    queueTitle: string;
+    actorUserId: string;
+    companyId?: string;
+    assignedUserId: string;
+  }) {
+    const recipients =
+      await this.preferencesService.filtrarUsuariosComPreferenciaAtiva(
+        [params.assignedUserId],
+        'assignments',
+      );
+    if (recipients.length === 0) return;
+
+    const actorName = await resolveActorDisplayName(
+      this.prisma,
+      params.actorUserId,
+    );
+    const fila = params.queueTitle.trim() || 'Fila';
+    const os = params.workOrderTitle.trim() || `OS ${params.workOrderId}`;
+
+    await this.notificationService.criar({
+      title: 'Nova tarefa atribuída a você',
+      message: `${actorName} associou você à OS "${os}" pela fila "${fila}".`,
+      entityType: 'work-order',
+      entityId: params.workOrderId,
+      userId: params.actorUserId,
+      companyId: params.companyId,
+      recipients,
+    });
+  }
+
+  async notifyUnassignmentViaQueue(params: {
+    workOrderId: string;
+    workOrderTitle: string;
+    queueTitle: string;
+    actorUserId: string;
+    companyId?: string;
+    removedUserId: string;
+  }) {
+    const recipients =
+      await this.preferencesService.filtrarUsuariosComPreferenciaAtiva(
+        [params.removedUserId],
+        'assignments',
+      );
+    if (recipients.length === 0) return;
+
+    const actorName = await resolveActorDisplayName(
+      this.prisma,
+      params.actorUserId,
+    );
+    const fila = params.queueTitle.trim() || 'Fila';
+    const os = params.workOrderTitle.trim() || `OS ${params.workOrderId}`;
+
+    await this.notificationService.criar({
+      title: 'Você foi removido da tarefa',
+      message: `${actorName} removeu você da OS "${os}" (fila "${fila}" desvinculada).`,
+      entityType: 'work-order-unassignment',
       entityId: params.workOrderId,
       userId: params.actorUserId,
       companyId: params.companyId,
@@ -109,6 +182,80 @@ export class WorkOrderActivityNotificationService {
     });
   }
 
+  private lifecycleMessages: Record<
+    WorkOrderLifecycleEventKind,
+    { title: string; message: (actorName: string, workOrderTitle: string) => string }
+  > = {
+    started: {
+      title: 'OS iniciada',
+      message: (actor, title) =>
+        `${actor} iniciou a OS "${title}".`,
+    },
+    paused: {
+      title: 'OS pausada',
+      message: (actor, title) =>
+        `${actor} pausou a OS "${title}".`,
+    },
+    resumed: {
+      title: 'OS retomada',
+      message: (actor, title) =>
+        `${actor} retomou a OS "${title}".`,
+    },
+    completed: {
+      title: 'OS concluída',
+      message: (actor, title) =>
+        `${actor} concluiu a OS "${title}".`,
+    },
+    deleted: {
+      title: 'OS excluída',
+      message: (actor, title) =>
+        `${actor} excluiu a OS "${title}".`,
+    },
+  };
+
+  async notifyAssigneesAboutEvent(params: {
+    workOrderId: string;
+    workOrderTitle: string;
+    actorUserId: string;
+    companyId?: string;
+    recipientUserIds: string[];
+    kind: WorkOrderLifecycleEventKind;
+  }) {
+    const uniqueRecipients = Array.from(
+      new Set(
+        params.recipientUserIds.filter(
+          (id) => id && id !== params.actorUserId,
+        ),
+      ),
+    );
+    if (uniqueRecipients.length === 0) return;
+
+    const recipients =
+      await this.preferencesService.filtrarUsuariosComPreferenciaAtiva(
+        uniqueRecipients,
+        'assignments',
+      );
+    if (recipients.length === 0) return;
+
+    const actorName = await resolveActorDisplayName(
+      this.prisma,
+      params.actorUserId,
+    );
+    const config = this.lifecycleMessages[params.kind];
+    const workOrderTitle =
+      params.workOrderTitle.trim() || `OS ${params.workOrderId}`;
+
+    await this.notificationService.criar({
+      title: config.title,
+      message: config.message(actorName, workOrderTitle),
+      entityType: 'work-order',
+      entityId: params.workOrderId,
+      userId: params.actorUserId,
+      companyId: params.companyId,
+      recipients,
+    });
+  }
+
   async notifyNewComment(params: {
     workOrderId: string;
     workOrderTitle: string;
@@ -157,9 +304,9 @@ export class WorkOrderActivityNotificationService {
         title: true,
         companyId: true,
         dueDate: true,
-        assignees: {
+        workOrderQueues: {
           select: {
-            userId: true,
+            queueId: true,
           },
         },
       },
@@ -187,9 +334,20 @@ export class WorkOrderActivityNotificationService {
         continue;
       }
 
+      const queueIds = order.workOrderQueues.map((link) => link.queueId);
+      if (queueIds.length === 0) continue;
+
+      const queueUserRows = await this.prisma.queueUser.findMany({
+        where: { queueId: { in: queueIds } },
+        select: { userId: true },
+      });
+      const recipientIds = Array.from(
+        new Set(queueUserRows.map((row) => row.userId)),
+      );
+
       const recipients =
         await this.preferencesService.filtrarUsuariosComPreferenciaAtiva(
-          order.assignees.map((a) => a.userId),
+          recipientIds,
           'deadlines',
         );
       if (recipients.length === 0) continue;

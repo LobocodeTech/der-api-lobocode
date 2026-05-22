@@ -61,7 +61,7 @@ export class CreateWorkOrderDto {
     each: true,
     message: VALIDATION_MESSAGES.FORMAT.UUID_INVALID,
   })
-  assignedToUserIds?: string[];
+  queueIds?: string[];
 
   @IsOptional()
   @Transform(({ value }) => (value === '' || value === null ? undefined : value))

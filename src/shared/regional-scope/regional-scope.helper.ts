@@ -45,16 +45,23 @@ export function construirClausulaAndEscopoRegional(
       }
       return { location: { regionalId: user.regionalId } };
 
-    case 'WorkOrder':
+    case 'WorkOrder': {
+      const membroDeFilaNaOs = {
+        workOrderQueues: {
+          some: {
+            queue: {
+              queueUsers: { some: { userId: user.id } },
+            },
+          },
+        },
+      };
       if (user.regionalId) {
         return {
-          OR: [
-            { location: { regionalId: user.regionalId } },
-            { assignees: { some: { userId: user.id } } },
-          ],
+          OR: [{ location: { regionalId: user.regionalId } }, membroDeFilaNaOs],
         };
       }
-      return { assignees: { some: { userId: user.id } } };
+      return membroDeFilaNaOs;
+    }
 
     case 'User':
       if (!user.regionalId) {

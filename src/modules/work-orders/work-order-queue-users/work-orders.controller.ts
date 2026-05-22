@@ -21,14 +21,14 @@ import { RoleByMethodGuard } from 'src/shared/auth/guards/role-by-method.guard';
 import { RoleByMethod } from 'src/shared/auth/role-by-method.decorator';
 import { TenantInterceptor } from 'src/shared/tenant';
 import { UniversalController } from 'src/shared/universal';
-import { CompleteWorkOrderDto } from './dto/complete-work-order.dto';
-import { CreateWorkOrderDto } from './dto/create-work-order.dto';
-import { CreateWorkOrderCommentDto } from './dto/create-work-order-comment.dto';
-import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
-import { UpdateWorkOrderChecklistItemDto } from './dto/update-work-order-checklist-item.dto';
-import { WorkOrdersService } from './work-orders.service';
-import { CreateWorkOrderCheckListDto } from './dto/create-work-order-checklist-item.dto';
-import { MoveWorkOrderColumnDto } from './dto/move-work-order-column.dto';
+import { CompleteWorkOrderDto } from '../dto/complete-work-order.dto';
+import { CreateWorkOrderDto } from '../dto/create-work-order.dto';
+import { CreateWorkOrderCommentDto } from '../dto/create-work-order-comment.dto';
+import { UpdateWorkOrderDto } from '../dto/update-work-order.dto';
+import { UpdateWorkOrderChecklistItemDto } from '../dto/update-work-order-checklist-item.dto';
+import { WorkOrdersService } from '../work-orders.service';
+import { CreateWorkOrderCheckListDto } from '../dto/create-work-order-checklist-item.dto';
+import { MoveWorkOrderColumnDto } from '../dto/move-work-order-column.dto';
 
 @UseGuards(AuthGuard, RoleByMethodGuard)
 @UseInterceptors(TenantInterceptor)
