@@ -99,7 +99,7 @@ const administrativePermissions = {
       companyId: user.companyId,
       role: { in: allowedRoles },
     });
-    
+
   },
 
   resourceManagement: (user: User, { can }: any) => {
@@ -138,6 +138,10 @@ const specificPermissions = {
   },
   queuesManage: (user: User, { can }: any) => {
     can('manage', 'Queue', { companyId: user.companyId });
+  },
+  /** Listagem/leitura de filas (ex.: picker em OS) — sem criar/editar/excluir filas. */
+  queuesRead: (user: User, { can }: any) => {
+    can('read', 'Queue', { companyId: user.companyId });
   },
 };
 
@@ -211,7 +215,6 @@ function aplicarRestricoesRegionaisNaoAdmin(user: User, { cannot }: any) {
     cannot('read', 'Location', { companyId: c });
     cannot('read', 'Asset', { companyId: c });
     cannot('read', 'WorkOrder', { companyId: c });
-    cannot('read', 'Queue', { companyId: c });
     for (const action of ['create', 'update', 'delete'] as const) {
       cannot(action, 'Regional', { companyId: c });
       cannot(action, 'Queue', { companyId: c });
@@ -252,7 +255,6 @@ function aplicarRestricoesRegionaisNaoAdmin(user: User, { cannot }: any) {
     companyId: c,
     NOT: workOrderPermitidoForaRegional,
   });
-  cannot('read', 'Queue', { companyId: c });
   cannot(['create', 'update', 'delete'], 'Queue', { companyId: c });
 
   for (const action of ['create', 'update', 'delete'] as const) {
@@ -412,7 +414,7 @@ const rolePermissionsMap: Record<Roles, (user: User, builder: any) => void> = {
     specificPermissions.workOrderColumnsManage(user, { can });
     specificPermissions.planningManage(user, { can });
     aplicarRestricaoGestaoEquipe(user, { cannot });
-    cannot('read', 'Queue', { companyId: user.companyId });
+    specificPermissions.queuesRead(user, { can });
     cannot(['create', 'update', 'delete'], 'Queue', {
       companyId: user.companyId,
     });
@@ -427,7 +429,7 @@ const rolePermissionsMap: Record<Roles, (user: User, builder: any) => void> = {
     specificPermissions.workOrderColumnsManage(user, { can });
     specificPermissions.planningManage(user, { can });
     aplicarRestricaoGestaoEquipeC2c(user, { can, cannot });
-    cannot('read', 'Queue', { companyId: user.companyId });
+    specificPermissions.queuesRead(user, { can });
     cannot(['create', 'update', 'delete'], 'Queue', {
       companyId: user.companyId,
     });

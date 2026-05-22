@@ -10,7 +10,7 @@ import { QueuesService } from './queues.service';
 
 @UseGuards(AuthGuard, RoleByMethodGuard)
 @RoleByMethod({
-  GET: [Roles.SYSTEM_ADMIN, Roles.ADMIN, Roles.C2C, Roles.FIELD_TEAM],
+  GET: [Roles.SYSTEM_ADMIN, Roles.ADMIN, Roles.FIELD_TEAM, Roles.C2C],
   POST: [Roles.SYSTEM_ADMIN, Roles.ADMIN],
   PATCH: [Roles.SYSTEM_ADMIN, Roles.ADMIN],
   DELETE: [Roles.SYSTEM_ADMIN, Roles.ADMIN],
