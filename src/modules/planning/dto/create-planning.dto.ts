@@ -38,10 +38,11 @@ export class CreatePlanningDto {
   @IsNotEmpty({ message: VALIDATION_MESSAGES.REQUIRED.FIELD })
   date: string;
 
-  @IsNotEmpty({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
+  @IsOptional()
+  @ValidateIf((_, value) => value != null && String(value).trim() !== '')
   @IsString({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
   @IsReferenceKm({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
-  km: string;
+  km?: string;
 
   @IsOptional()
   @IsString({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
@@ -64,8 +65,14 @@ export class CreatePlanningDto {
   @IsCUID({ message: VALIDATION_MESSAGES.FORMAT.UUID_INVALID })
   workOrderId?: string | null;
 
-  @IsNotEmpty({ message: VALIDATION_MESSAGES.REQUIRED.FIELD })
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
   @IsString({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
   @IsCUID({ message: VALIDATION_MESSAGES.FORMAT.UUID_INVALID })
-  locationId: string;
+  locationId?: string | null;
+
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsString({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
+  customLocationName?: string | null;
 }

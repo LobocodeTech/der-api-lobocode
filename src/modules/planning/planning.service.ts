@@ -178,6 +178,9 @@ export class PlanningService extends UniversalService<
       await this.validarWorkOrderDisponivel(data.workOrderId);
     }
 
+    const localidade = PlanningService.normalizarLocalidadePlanejamento(data);
+    PlanningService.validarKmPlanejamento(localidade, data.km);
+
     this.pendingCreateWorkOrderId = data.workOrderId ?? null;
     (data as any).responsibles = {
       create: data.responsibleIds.map((userId) => ({
@@ -188,9 +191,10 @@ export class PlanningService extends UniversalService<
     (data as any).date = new Date(data.date);
     (data as any).serviceType = data.serviceType;
     (data as any).equipmentType = data.equipmentType;
-    (data as any).km = data.km;
+    (data as any).km = PlanningService.normalizarKmPlanejamento(data.km);
     (data as any).observation = data.observation?.trim() || null;
-    (data as any).locationId = data.locationId;
+    (data as any).locationId = localidade.locationId;
+    (data as any).customLocationName = localidade.customLocationName;
 
     if (data.executionStatus !== undefined) {
       PlanningService.aplicarExecutionStatusECompletedAt(
@@ -285,6 +289,44 @@ export class PlanningService extends UniversalService<
     }
     if (data.observation !== undefined) {
       (data as any).observation = data.observation?.trim() || null;
+    }
+
+    if (
+      data.locationId !== undefined ||
+      data.customLocationName !== undefined
+    ) {
+      const merged = {
+        locationId:
+          data.locationId !== undefined
+            ? data.locationId
+            : (atual as { locationId?: string | null }).locationId,
+        customLocationName:
+          data.customLocationName !== undefined
+            ? data.customLocationName
+            : (atual as { customLocationName?: string | null })
+                .customLocationName,
+      };
+      const localidade =
+        PlanningService.normalizarLocalidadePlanejamento(merged);
+      PlanningService.validarKmPlanejamento(
+        localidade,
+        data.km !== undefined
+          ? data.km
+          : (atual as { km?: string }).km,
+      );
+      (data as any).locationId = localidade.locationId;
+      (data as any).customLocationName = localidade.customLocationName;
+      if (data.km !== undefined) {
+        (data as any).km = PlanningService.normalizarKmPlanejamento(data.km);
+      }
+    } else if (data.km !== undefined) {
+      const localidade = PlanningService.normalizarLocalidadePlanejamento({
+        locationId: (atual as { locationId?: string | null }).locationId,
+        customLocationName: (atual as { customLocationName?: string | null })
+          .customLocationName,
+      });
+      PlanningService.validarKmPlanejamento(localidade, data.km);
+      (data as any).km = PlanningService.normalizarKmPlanejamento(data.km);
     }
 
     if (data.executionStatus !== undefined) {
@@ -527,6 +569,47 @@ export class PlanningService extends UniversalService<
         companyId,
         removedUserId,
       });
+    }
+  }
+
+  private static normalizarLocalidadePlanejamento(data: {
+    locationId?: string | null;
+    customLocationName?: string | null;
+  }): { locationId: string | null; customLocationName: string | null } {
+    const locationId = String(data.locationId ?? '').trim() || null;
+    const customLocationName =
+      String(data.customLocationName ?? '').trim() || null;
+
+    if (locationId && customLocationName) {
+      throw new BadRequestException(
+        'Informe a localidade cadastrada ou o nome da rodovia, não ambos.',
+      );
+    }
+    if (!locationId && !customLocationName) {
+      throw new BadRequestException(
+        'Informe a localidade cadastrada ou o nome da rodovia.',
+      );
+    }
+
+    return {
+      locationId,
+      customLocationName: locationId ? null : customLocationName,
+    };
+  }
+
+  private static normalizarKmPlanejamento(km?: string | null): string {
+    return String(km ?? '').trim();
+  }
+
+  private static validarKmPlanejamento(
+    localidade: { locationId: string | null; customLocationName: string | null },
+    km?: string | null,
+  ): void {
+    const kmNorm = PlanningService.normalizarKmPlanejamento(km);
+    if (localidade.locationId && !kmNorm) {
+      throw new BadRequestException(
+        'Informe o KM de referência para a localidade cadastrada.',
+      );
     }
   }
 

@@ -345,11 +345,11 @@ model Location {
 
   assets     Asset[]
   workOrders WorkOrder[]
+  plannings Planning[]
 
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   deletedAt DateTime?
-  plannings Planning[]
 
   @@index([companyId])
   @@index([code])
@@ -523,14 +523,17 @@ model Planning {
   date          DateTime
   serviceType   WorkOrderType
   equipmentType AssetType
-  km            String
+  km            String?
   observation   String?
 
   executionStatus PlanningExecutionStatus @default(PENDING)
   completedAt     DateTime?
 
-  locationId String
-  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  /** Nome da rodovia/localidade fora do cadastro DER (sem `locationId`). */
+  customLocationName String?
+
+  locationId String?
+  location   Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
 
   companyId String
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
