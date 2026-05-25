@@ -4,8 +4,8 @@ import { WorkOrderStatus } from '@prisma/client';
 import { PrismaService } from '../../../shared/prisma/prisma.service';
 import { NotificationService } from './notification.service';
 import { ActivityNotificationPreferencesService } from './activity-notification-preferences.service';
-import { NotificationRecipientsService } from './notification.recipients';
 import { resolveActorDisplayName } from './activity-notification-actor';
+import { WorkOrderNotificationScopeService } from '../../../shared/regional-scope/work-order-notification-scope.service';
 
 export type WorkOrderLifecycleEventKind =
   | 'started'
@@ -20,8 +20,18 @@ export class WorkOrderActivityNotificationService {
     private readonly prisma: PrismaService,
     private readonly notificationService: NotificationService,
     private readonly preferencesService: ActivityNotificationPreferencesService,
-    private readonly recipientsService: NotificationRecipientsService,
+    private readonly workOrderNotificationScopeService: WorkOrderNotificationScopeService,
   ) {}
+
+  private async filtrarDestinatariosOs(
+    workOrderId: string,
+    userIds: string[],
+  ): Promise<string[]> {
+    return this.workOrderNotificationScopeService.filtrarDestinatariosPorEscopoOs(
+      workOrderId,
+      userIds,
+    );
+  }
 
   async notifyAssignment(params: {
     workOrderId: string;
@@ -30,11 +40,13 @@ export class WorkOrderActivityNotificationService {
     companyId?: string;
     assignedUserId: string;
   }) {
-    const recipients =
+    const recipients = await this.filtrarDestinatariosOs(
+      params.workOrderId,
       await this.preferencesService.filtrarUsuariosComPreferenciaAtiva(
         [params.assignedUserId],
         'assignments',
-      );
+      ),
+    );
     if (recipients.length === 0) return;
 
     const actorName = await resolveActorDisplayName(
@@ -61,11 +73,13 @@ export class WorkOrderActivityNotificationService {
     companyId?: string;
     assignedUserId: string;
   }) {
-    const recipients =
+    const recipients = await this.filtrarDestinatariosOs(
+      params.workOrderId,
       await this.preferencesService.filtrarUsuariosComPreferenciaAtiva(
         [params.assignedUserId],
         'assignments',
-      );
+      ),
+    );
     if (recipients.length === 0) return;
 
     const actorName = await resolveActorDisplayName(
@@ -94,11 +108,13 @@ export class WorkOrderActivityNotificationService {
     companyId?: string;
     removedUserId: string;
   }) {
-    const recipients =
+    const recipients = await this.filtrarDestinatariosOs(
+      params.workOrderId,
       await this.preferencesService.filtrarUsuariosComPreferenciaAtiva(
         [params.removedUserId],
         'assignments',
-      );
+      ),
+    );
     if (recipients.length === 0) return;
 
     const actorName = await resolveActorDisplayName(
@@ -126,11 +142,13 @@ export class WorkOrderActivityNotificationService {
     companyId?: string;
     removedUserId: string;
   }) {
-    const recipients =
+    const recipients = await this.filtrarDestinatariosOs(
+      params.workOrderId,
       await this.preferencesService.filtrarUsuariosComPreferenciaAtiva(
         [params.removedUserId],
         'assignments',
-      );
+      ),
+    );
     if (recipients.length === 0) return;
 
     const actorName = await resolveActorDisplayName(
@@ -155,15 +173,18 @@ export class WorkOrderActivityNotificationService {
     actorUserId: string;
     companyId: string;
   }) {
-    const companyUserIds = await this.recipientsService.getRecipients(
-      params.companyId,
-      'ALL',
-    );
-    const recipients =
+    const companyUserIds =
+      await this.workOrderNotificationScopeService.resolverDestinatariosBroadcastCriacaoOs(
+        params.workOrderId,
+        params.companyId,
+      );
+    const recipients = await this.filtrarDestinatariosOs(
+      params.workOrderId,
       await this.preferencesService.filtrarUsuariosComPreferenciaAtiva(
         companyUserIds.filter((id) => id !== params.actorUserId),
         'assignments',
-      );
+      ),
+    );
     if (recipients.length === 0) return;
 
     const actorName = await resolveActorDisplayName(
@@ -230,11 +251,13 @@ export class WorkOrderActivityNotificationService {
     );
     if (uniqueRecipients.length === 0) return;
 
-    const recipients =
+    const recipients = await this.filtrarDestinatariosOs(
+      params.workOrderId,
       await this.preferencesService.filtrarUsuariosComPreferenciaAtiva(
         uniqueRecipients,
         'assignments',
-      );
+      ),
+    );
     if (recipients.length === 0) return;
 
     const actorName = await resolveActorDisplayName(
@@ -266,11 +289,13 @@ export class WorkOrderActivityNotificationService {
     const baseRecipients = params.assigneeUserIds.filter(
       (id) => id !== params.actorUserId,
     );
-    const recipients =
+    const recipients = await this.filtrarDestinatariosOs(
+      params.workOrderId,
       await this.preferencesService.filtrarUsuariosComPreferenciaAtiva(
         baseRecipients,
         'comments',
-      );
+      ),
+    );
     if (recipients.length === 0) return;
 
     const actorName = await resolveActorDisplayName(
@@ -345,11 +370,13 @@ export class WorkOrderActivityNotificationService {
         new Set(queueUserRows.map((row) => row.userId)),
       );
 
-      const recipients =
+      const recipients = await this.filtrarDestinatariosOs(
+        order.id,
         await this.preferencesService.filtrarUsuariosComPreferenciaAtiva(
           recipientIds,
           'deadlines',
-        );
+        ),
+      );
       if (recipients.length === 0) continue;
 
       const quando = ymd === todayBr ? 'hoje' : 'amanhã';

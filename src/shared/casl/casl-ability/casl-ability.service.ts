@@ -2,7 +2,10 @@ import { Injectable, Scope } from '@nestjs/common';
 import { AbilityBuilder, PureAbility } from '@casl/ability';
 import { createPrismaAbility, PrismaQuery, Subjects } from '@casl/prisma';
 import { Roles, User, WorkOrderType } from '@prisma/client';
-import { isUsuarioAdministradorEmpresaOuSistema } from '../../regional-scope/regional-scope.helper';
+import {
+  construirClausulaOsVisivelParaUsuario,
+  isUsuarioAdministradorEmpresaOuSistema,
+} from '../../regional-scope/regional-scope.helper';
 
 export type PermActions =
   | 'manage'
@@ -118,6 +121,11 @@ const specificPermissions = {
     can('read', 'Notification', { companyId: user.companyId });
     can('manage', 'Notification', { companyId: user.companyId });
   },
+  /** FIELD_TEAM: leitura/gestão na empresa; escopo de OS é aplicado no serviço de notificações. */
+  notificationsFieldTeam: (user: User, { can }: any) => {
+    can('read', 'Notification', { companyId: user.companyId });
+    can(['update', 'delete'], 'Notification', { companyId: user.companyId });
+  },
   workOrdersRead: (user: User, { can }: any) => {
     can('read', 'WorkOrder', { companyId: user.companyId });
   },
@@ -202,6 +210,10 @@ function aplicarRestricaoGestaoEquipeC2c(user: User, { can, cannot }: any) {
 /**
  * Restringe leitura e mutação de Regional, Location, Asset, WorkOrder e User (listagens)
  * ao escopo da regional do usuário. Admin / SYSTEM_ADMIN não são alterados.
+ *
+ * Notificações de OS para FIELD_TEAM: o modelo Notification não tem relação Prisma com
+ * WorkOrder; o escopo (regional + fila associada) é aplicado em
+ * WorkOrderNotificationScopeService e NotificationService.
  */
 function aplicarRestricoesRegionaisNaoAdmin(user: User, { cannot }: any) {
   if (isUsuarioAdministradorEmpresaOuSistema(user)) {
@@ -230,20 +242,8 @@ function aplicarRestricoesRegionaisNaoAdmin(user: User, { cannot }: any) {
   }
 
   const r = user.regionalId;
-  const workOrderPermitidoForaRegional = {
-    OR: [
-      { location: { regionalId: r } },
-      {
-        workOrderQueues: {
-          some: {
-            queue: {
-              queueUsers: { some: { userId: user.id } },
-            },
-          },
-        },
-      },
-    ],
-  };
+  const workOrderPermitidoForaRegional =
+    construirClausulaOsVisivelParaUsuario(user);
 
   cannot('read', 'Regional', { companyId: c, NOT: { id: r } });
   cannot('read', 'Location', { companyId: c, NOT: { regionalId: r } });
@@ -409,7 +409,7 @@ const rolePermissionsMap: Record<Roles, (user: User, builder: any) => void> = {
     profilePermissions.ownProfileExtended(user, { can });
     basicResourcePermissions.readDocuments(user, { can });
     operationalReadScopePermissions.assetsLocationsRegionalsRead(user, { can });
-    specificPermissions.notifications(user, { can });
+    specificPermissions.notificationsFieldTeam(user, { can });
     specificPermissions.workOrdersManage(user, { can });
     specificPermissions.workOrderColumnsManage(user, { can });
     specificPermissions.planningManage(user, { can });

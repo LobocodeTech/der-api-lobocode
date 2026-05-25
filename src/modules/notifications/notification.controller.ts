@@ -46,7 +46,7 @@ export class NotificationController {
       ...(entityType && { entityType }),
     };
 
-    return this.notificationService.buscarDoUsuario(userId, filters);
+    return this.notificationService.buscarDoUsuario(userId, filters, req.user);
   }
 
   /**
@@ -76,7 +76,7 @@ export class NotificationController {
       ...(entityType && { entityType }),
     };
 
-    return this.notificationService.buscarDoUsuario(userId, filters);
+    return this.notificationService.buscarDoUsuario(userId, filters, req.user);
   }
 
   /**
@@ -86,7 +86,7 @@ export class NotificationController {
   @Get('unread-count')
   async contarNaoLidas(@Request() req: any) {
     const userId = req.user.id;
-    const count = await this.notificationService.contarNaoLidas(userId);
+    const count = await this.notificationService.contarNaoLidas(userId, req.user);
 
     return { count };
   }

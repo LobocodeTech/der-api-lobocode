@@ -12,6 +12,7 @@ import { WorkOrderActivityNotificationService } from './shared/work-order-activi
 import { PlanningActivityNotificationService } from './shared/planning-activity-notification.service';
 import { QueueActivityNotificationService } from './shared/queue-activity-notification.service';
 import { NotificationChannelDeliveryService } from './shared/notification-channel-delivery.service';
+import { WorkOrderNotificationScopeService } from '../../shared/regional-scope/work-order-notification-scope.service';
 
 /**
  * 🔔 MÓDULO GLOBAL DE NOTIFICAÇÕES
@@ -43,6 +44,7 @@ import { NotificationChannelDeliveryService } from './shared/notification-channe
     PlanningActivityNotificationService,
     QueueActivityNotificationService,
     NotificationChannelDeliveryService,
+    WorkOrderNotificationScopeService,
   ],
   exports: [
     NotificationService,
@@ -55,6 +57,7 @@ import { NotificationChannelDeliveryService } from './shared/notification-channe
     PlanningActivityNotificationService,
     QueueActivityNotificationService,
     NotificationChannelDeliveryService,
+    WorkOrderNotificationScopeService,
   ],
 })
 export class NotificationModule {}

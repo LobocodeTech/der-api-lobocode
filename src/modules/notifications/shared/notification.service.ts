@@ -7,6 +7,8 @@ import {
 } from './notification.types';
 import { NotificationGateway } from '../notification.gateway';
 import { NotificationChannelDeliveryService } from './notification-channel-delivery.service';
+import { WorkOrderNotificationScopeService } from '../../../shared/regional-scope/work-order-notification-scope.service';
+import { Roles, User } from '@prisma/client';
 
 @Injectable()
 export class NotificationService {
@@ -15,6 +17,7 @@ export class NotificationService {
     @Inject(forwardRef(() => NotificationGateway))
     private notificationGateway: NotificationGateway,
     private readonly notificationChannelDeliveryService: NotificationChannelDeliveryService,
+    private readonly workOrderNotificationScopeService: WorkOrderNotificationScopeService,
   ) {}
 
   // ============================================================================
@@ -94,6 +97,7 @@ export class NotificationService {
   async buscarDoUsuario(
     userId: string,
     filters: NotificationFilters = {},
+    usuario?: Pick<User, 'id' | 'role' | 'regionalId' | 'companyId'>,
   ): Promise<{ notifications: NotificationResponse[]; total: number }> {
     const page = filters.page || 1;
     const hasSearchQuery = filters.query && filters.query.trim();
@@ -101,6 +105,13 @@ export class NotificationService {
     // Se tem busca, não aplica limite. Se não tem, aplica limite de 200
     const limit = hasSearchQuery ? undefined : Math.min(filters.limit || 200, 200);
     const skip = limit ? (page - 1) * limit : 0;
+
+    const escopoOs =
+      usuario?.role === Roles.FIELD_TEAM
+        ? await this.workOrderNotificationScopeService.buscarIdsOsVisiveisParaUsuario(
+            usuario,
+          )
+        : null;
 
     // Construir where clause base
     const baseWhere: any = {
@@ -111,6 +122,11 @@ export class NotificationService {
         },
       },
       ...(filters.entityType && { entityType: filters.entityType }),
+      ...(escopoOs !== null &&
+        this.workOrderNotificationScopeService.construirWhereNotificacoesOsFieldTeam(
+          usuario!,
+          escopoOs,
+        )),
     };
 
     // Adicionar busca por termo se fornecido
@@ -175,12 +191,33 @@ export class NotificationService {
   /**
    * Contar notificações não lidas (das últimas 200)
    */
-  async contarNaoLidas(userId: string): Promise<number> {
+  async contarNaoLidas(
+    userId: string,
+    usuario?: Pick<User, 'id' | 'role' | 'regionalId' | 'companyId'>,
+  ): Promise<number> {
     const MAX_LIMIT = 200;
-    
+
+    const escopoOs =
+      usuario?.role === Roles.FIELD_TEAM
+        ? await this.workOrderNotificationScopeService.buscarIdsOsVisiveisParaUsuario(
+            usuario,
+          )
+        : null;
+
+    const filtroOs =
+      escopoOs !== null
+        ? this.workOrderNotificationScopeService.construirWhereNotificacoesOsFieldTeam(
+            usuario!,
+            escopoOs,
+          )
+        : {};
+
     // Buscar as últimas 200 notificações do usuário
     const ultimasNotificacoes = await this.prisma.notificationRecipient.findMany({
-      where: { userId },
+      where: {
+        userId,
+        notification: filtroOs,
+      },
       orderBy: { notification: { createdAt: 'desc' } },
       take: MAX_LIMIT,
       select: { isRead: true },

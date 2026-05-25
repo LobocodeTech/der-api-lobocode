@@ -1,5 +1,31 @@
-import { Roles, User } from '@prisma/client';
+import { Prisma, Roles, User } from '@prisma/client';
 import { EntityNameCasl } from '../universal/types';
+
+/**
+ * OS visível para o usuário: regional do usuário ou fila da OS na qual ele está.
+ * Mesma regra usada em `aplicarRestricoesRegionaisNaoAdmin` (CASL) e notificações de OS.
+ */
+export function construirClausulaOsVisivelParaUsuario(
+  user: Pick<User, 'id' | 'regionalId'>,
+): Prisma.WorkOrderWhereInput {
+  const membroDeFilaNaOs: Prisma.WorkOrderWhereInput = {
+    workOrderQueues: {
+      some: {
+        queue: {
+          queueUsers: { some: { userId: user.id } },
+        },
+      },
+    },
+  };
+
+  if (user.regionalId) {
+    return {
+      OR: [{ location: { regionalId: user.regionalId } }, membroDeFilaNaOs],
+    };
+  }
+
+  return membroDeFilaNaOs;
+}
 
 /** Cláusula Prisma que não casa com nenhum registro (`WHERE id IN ()`). */
 export function construirWhereImpossivel(): { id: { in: [] } } {
@@ -45,23 +71,8 @@ export function construirClausulaAndEscopoRegional(
       }
       return { location: { regionalId: user.regionalId } };
 
-    case 'WorkOrder': {
-      const membroDeFilaNaOs = {
-        workOrderQueues: {
-          some: {
-            queue: {
-              queueUsers: { some: { userId: user.id } },
-            },
-          },
-        },
-      };
-      if (user.regionalId) {
-        return {
-          OR: [{ location: { regionalId: user.regionalId } }, membroDeFilaNaOs],
-        };
-      }
-      return membroDeFilaNaOs;
-    }
+    case 'WorkOrder':
+      return construirClausulaOsVisivelParaUsuario(user);
 
     case 'User':
       if (!user.regionalId) {
