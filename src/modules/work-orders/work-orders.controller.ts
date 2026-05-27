@@ -41,7 +41,12 @@ import { MoveWorkOrderColumnDto } from './dto/move-work-order-column.dto';
   ],
   POST: [Roles.SYSTEM_ADMIN, Roles.ADMIN, Roles.FIELD_TEAM, Roles.C2C],
   PATCH: [Roles.SYSTEM_ADMIN, Roles.ADMIN, Roles.FIELD_TEAM, Roles.C2C],
-  DELETE: [Roles.SYSTEM_ADMIN, Roles.ADMIN],
+  DELETE: [
+    Roles.SYSTEM_ADMIN,
+    Roles.ADMIN,
+    Roles.FIELD_TEAM,
+    Roles.C2C,
+  ],
 })
 @Controller('work-orders')
 export class WorkOrdersController extends UniversalController<
