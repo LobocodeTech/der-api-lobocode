@@ -49,10 +49,7 @@ import {
   horasRestantesAteFimDoPrazo,
 } from './utils/work-order-due-date.util';
 import { formatAssetTypeLabel } from 'src/shared/common/utils/asset-type-label';
-import {
-  atribuirProximoNumeroSequencialWorkOrder,
-  reordenarNumerosSequenciaisWorkOrder,
-} from './utils/work-order-sequential-number.util';
+import { atribuirProximoNumeroSequencialWorkOrder } from './utils/work-order-sequential-number.util';
 
 @Injectable({ scope: Scope.REQUEST })
 export class WorkOrdersService extends UniversalService<
@@ -286,8 +283,20 @@ export class WorkOrdersService extends UniversalService<
     return this.buscarDetalhesPorId(id);
   }
 
+  private async validarFilasAssociadasParaIniciar(workOrderId: string): Promise<void> {
+    const filasNaOs = await this.prisma.workOrderQueue.count({
+      where: { workOrderId },
+    });
+    if (filasNaOs === 0) {
+      throw new BadRequestException(
+        'A ordem de serviço precisa estar associada a ao menos uma fila antes de entrar em andamento.',
+      );
+    }
+  }
+
   async iniciarTrabalho(id: string) {
     const ordem = await this.buscarOrdemPorId(id);
+    await this.validarFilasAssociadasParaIniciar(ordem.id);
     const companyId = (ordem as { companyId?: string }).companyId ?? this.obterCompanyId();
     const recipientIds =
       await this.workOrderQueueUsersService.resolveUserIdsFromWorkOrderId(
@@ -438,6 +447,9 @@ export class WorkOrdersService extends UniversalService<
     }
 
     const novoStatus = this.obterStatusPorNomeDaColuna(nomeColunaDestino);
+    if (novoStatus === WorkOrderStatus.IN_PROGRESS) {
+      await this.validarFilasAssociadasParaIniciar(ordem.id);
+    }
     const agora = new Date();
 
     await this.prisma.workOrder.update({
@@ -1275,17 +1287,30 @@ export class WorkOrdersService extends UniversalService<
     });
   }
 
+  protected async antesDeDesativar(id: string): Promise<void> {
+    const ordem = await this.buscarOrdemPorId(id);
+
+    if (
+      ordem.status === WorkOrderStatus.IN_PROGRESS ||
+      ordem.status === WorkOrderStatus.PAUSED
+    ) {
+      throw new BadRequestException(
+        'Não é possível excluir uma ordem de serviço com trabalho em andamento ou pausado.',
+      );
+    }
+  }
+
   protected async depoisDeDesativar(id: string): Promise<void> {
     const ordem = await this.prisma.workOrder.findFirst({
       where: { id },
       select: { companyId: true },
     });
 
-    if (ordem?.companyId) {
-      await this.prisma.$transaction((tx) =>
-        reordenarNumerosSequenciaisWorkOrder(tx, ordem.companyId),
-      );
-    }
+    // Mantém o número nas OS restantes; limpa na excluída para não duplicar em buscas.
+    await this.prisma.workOrder.update({
+      where: { id },
+      data: { sequentialNumber: null },
+    });
 
     const companyId = this.obterCompanyId() ?? ordem?.companyId;
     const recipientIds =
