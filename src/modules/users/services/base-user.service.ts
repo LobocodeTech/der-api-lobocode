@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { UserRepository } from '../repositories/user.repository';
 import { UserValidator } from '../validators/user.validator';
-import { UserQueryService } from './user-query.service';
+import { UserQueryService, UserSoftDeleteScope } from './user-query.service';
 import { UserPermissionService } from './user-permission.service';
 import { UpdateUserDto } from '../dto/update-user.dto';
 import { Prisma, Roles } from '@prisma/client';
@@ -31,13 +31,26 @@ export class BaseUserService {
   /**
    * Lista todos os usuários com paginação e ordenação
    */
-  async buscarTodos(page = 1, limit = 20, orderBy = 'name', orderDirection: 'asc' | 'desc' = 'asc') {
-    const whereClause = this.userQueryService.construirWhereClauseParaRead();
+  async buscarTodos(
+    page = 1,
+    limit = 20,
+    orderBy = 'name',
+    orderDirection: 'asc' | 'desc' = 'asc',
+    scope: UserSoftDeleteScope = 'active',
+  ) {
+    const resolvedOrderBy =
+      scope === 'deleted' && orderBy === 'name' ? 'deletedAt' : orderBy;
+    const resolvedOrderDirection =
+      scope === 'deleted' && orderBy === 'name' ? 'desc' : orderDirection;
+
+    const whereClause = this.userQueryService.construirWhereClauseParaRead(
+      {},
+      scope,
+    );
     const skip = (page - 1) * limit;
-    
-    // Configuração de ordenação
+
     const orderByConfig = {
-      [orderBy]: orderDirection
+      [resolvedOrderBy]: resolvedOrderDirection,
     };
     
     const [users, total] = await Promise.all([
@@ -70,8 +83,23 @@ export class BaseUserService {
   /**
    * Busca usuários com filtro de pesquisa
    */
-  async buscarUsuarios(query: string, page = 1, limit = 20, orderBy = 'name', orderDirection: 'asc' | 'desc' = 'asc') {
-    const baseWhereClause = this.userQueryService.construirWhereClauseParaRead();
+  async buscarUsuarios(
+    query: string,
+    page = 1,
+    limit = 20,
+    orderBy = 'name',
+    orderDirection: 'asc' | 'desc' = 'asc',
+    scope: UserSoftDeleteScope = 'active',
+  ) {
+    const resolvedOrderBy =
+      scope === 'deleted' && orderBy === 'name' ? 'deletedAt' : orderBy;
+    const resolvedOrderDirection =
+      scope === 'deleted' && orderBy === 'name' ? 'desc' : orderDirection;
+
+    const baseWhereClause = this.userQueryService.construirWhereClauseParaRead(
+      {},
+      scope,
+    );
     
     // Adicionar filtros de pesquisa se query fornecida
     let whereClause = baseWhereClause;
@@ -88,17 +116,16 @@ export class BaseUserService {
     }
 
     const skip = (page - 1) * limit;
-    
-    // Configuração de ordenação
+
     const orderByConfig = {
-      [orderBy]: orderDirection
+      [resolvedOrderBy]: resolvedOrderDirection,
     };
-    
+
     const [users, total] = await Promise.all([
-      this.userRepository.buscarMuitos(whereClause, { 
-        skip, 
+      this.userRepository.buscarMuitos(whereClause, {
+        skip,
         take: limit,
-        orderBy: orderByConfig
+        orderBy: orderByConfig,
       } as any),
       this.userRepository.contar(whereClause),
     ]);

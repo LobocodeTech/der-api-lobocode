@@ -36,6 +36,11 @@ import {
 } from 'src/shared/casl/decorators/casl.decorator';
 import { CaslInterceptor } from 'src/shared/casl/interceptors/casl.interceptor';
 import { CreateOthersDto } from './dto/create-others.dto';
+import { UserSoftDeleteScope } from './services/user-query.service';
+
+function parseUserSoftDeleteScope(deletedOnly?: string): UserSoftDeleteScope {
+  return deletedOnly === 'true' ? 'deleted' : 'active';
+}
 
 @UseGuards(AuthGuard, RoleGuard)
 @UseInterceptors(TenantInterceptor, CaslInterceptor) // ✅ Adicionado CaslInterceptor
@@ -54,8 +59,21 @@ export class UsersController {
   @Get('all')
   @CaslRead('User')
   @RequiredRoles(Roles.ADMIN)
-  buscarTodosMotoristas() {
-    return this.service.buscarTodos();
+  buscarTodosMotoristas(
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '20',
+    @Query('orderBy') orderBy: string = 'name',
+    @Query('orderDirection') orderDirection: 'asc' | 'desc' = 'asc',
+    @Query('deletedOnly') deletedOnly?: string,
+  ) {
+    const scope = parseUserSoftDeleteScope(deletedOnly);
+    return this.service.buscarTodos(
+      Number(page),
+      Number(limit),
+      orderBy,
+      orderDirection,
+      scope,
+    );
   }
 
   @Get('drivers')
@@ -82,8 +100,16 @@ export class UsersController {
     @Query('limit') limit: string = '20',
     @Query('orderBy') orderBy: string = 'name',
     @Query('orderDirection') orderDirection: 'asc' | 'desc' = 'asc',
+    @Query('deletedOnly') deletedOnly?: string,
   ) {
-    return this.service.buscarTodos(Number(page), Number(limit), orderBy, orderDirection);
+    const scope = parseUserSoftDeleteScope(deletedOnly);
+    return this.service.buscarTodos(
+      Number(page),
+      Number(limit),
+      orderBy,
+      orderDirection,
+      scope,
+    );
   }
 
   @Get('search')
@@ -95,8 +121,17 @@ export class UsersController {
     @Query('limit') limit: string = '20',
     @Query('orderBy') orderBy: string = 'name',
     @Query('orderDirection') orderDirection: 'asc' | 'desc' = 'asc',
+    @Query('deletedOnly') deletedOnly?: string,
   ) {
-    return this.service.buscarUsuarios(query, Number(page), Number(limit), orderBy, orderDirection);
+    const scope = parseUserSoftDeleteScope(deletedOnly);
+    return this.service.buscarUsuarios(
+      query,
+      Number(page),
+      Number(limit),
+      orderBy,
+      orderDirection,
+      scope,
+    );
   }
 
   @Get('active-guards-on-shift-post/:postId')
