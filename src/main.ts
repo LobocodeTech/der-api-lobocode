@@ -38,22 +38,31 @@ async function bootstrap() {
       }),
     );
 
+    const corsAllowAll = (process.env.CORS_ALLOW_ALL ?? 'true').toLowerCase() === 'true';
+    const allowedOrigins = [
+      'https://api.departamento-estadual-rodovias.com.br',
+      'https://api.departamento-estadual-rodovias.com',
+      'https://der-api.lobocode.com.br',
+      'https://der-app.lobocode.com.br',
+      'http://31.97.166.94', // Nginx proxy
+      'https://31.97.166.94',
+      'http://localhost:4200',
+      'http://localhost:5174',
+      'http://localhost:3001',
+      'http://localhost:3002',
+      'http://localhost:3111',
+      'http://127.0.0.1:3111',
+    ];
+
     // Configurar CORS detalhado para HTTP
     app.enableCors({
-      origin: [
-        'https://api.departamento-estadual-rodovias.com.br',
-        'https://api.departamento-estadual-rodovias.com',
-        'https://der-api.lobocode.com.br',
-        'https://der-app.lobocode.com.br',
-        'http://31.97.166.94', // Nginx proxy
-        'https://31.97.166.94',
-        'http://localhost:4200',
-        'http://localhost:5174', 
-        'http://localhost:3001',
-        'http://localhost:3002',
-        'http://localhost:3111',
-        'http://127.0.0.1:3111',
-      ],
+      origin: (origin, callback) => {
+        // Chamadas server-to-server ou ferramentas locais sem Origin.
+        if (!origin) return callback(null, true);
+        if (corsAllowAll) return callback(null, true);
+        if (allowedOrigins.includes(origin)) return callback(null, true);
+        return callback(new Error('Origem não permitida por CORS'));
+      },
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       allowedHeaders: [
         'Content-Type',
@@ -61,6 +70,7 @@ async function bootstrap() {
         'Origin',
         'Accept',
         'X-Requested-With',
+        'X-Shared-Token',
       ],
       credentials: true,
       preflightContinue: false,
