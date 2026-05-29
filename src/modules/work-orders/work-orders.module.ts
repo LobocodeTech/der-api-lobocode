@@ -1,6 +1,7 @@
 import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
 import { FilesModule } from 'src/shared/files/files.module';
-import { WorkOrdersController } from './work-order-queue-users/work-orders.controller';
+import { WorkOrdersController } from './work-orders.controller';
+import { WorkOrdersQueueUsersController } from './work-order-queue-users/work-orders-queue-users.controller';
 import { WorkOrderColumnsController } from './work-order-columns/work-order-columns.controller';
 import { WorkOrderPauseHistoryController } from './work-order-pause-history/work-order-pause-history.controller';
 import { WorkOrdersService } from './work-orders.service';
@@ -18,6 +19,7 @@ import {
   imports: [FilesModule],
   controllers: [
     WorkOrdersController,
+    WorkOrdersQueueUsersController,
     WorkOrderColumnsController,
     WorkOrderPauseHistoryController,
     WorkOrdersIntegrationController,
