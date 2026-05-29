@@ -1,0 +1,497 @@
+openapi: 3.0.3
+info:
+  title: DER — API de Integração (Ordens de Serviço)
+  description: |
+    API somente leitura para consumo externo (front ou backend da cliente).
+
+    **Autenticação:** token compartilhado configurado no servidor (`SHARED_API_TOKEN_LOBOCODE_DER`).
+
+    Envie o token de uma das formas:
+    - `Authorization: Bearer <token>`
+    - `Authorization: <token>` (sem prefixo)
+    - `X-Shared-Token: <token>`
+
+    **Filtros aplicados pela API:** apenas ordens de serviço com `deletedAt` nulo (não excluídas).
+
+    **Comportamento quando não há resultado:**
+    - `GET /integration/work-orders` — retorna `404` se não existir nenhuma OS ativa.
+    - `GET /integration/work-orders/{id}` e `GET /integration/work-orders/sequential/{sequentialNumber}` — retornam `404` se a OS não for encontrada.
+
+    **Rate limit:** configurável no servidor (`INTEGRATION_RATE_LIMIT_MAX` / `INTEGRATION_RATE_LIMIT_WINDOW_MS`).
+    Respostas podem incluir os headers `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` e, ao exceder, `Retry-After`.
+  version: 1.1.0
+  contact:
+    name: Lobocode
+    email: suporte@lobocode.com.br
+  license:
+    name: Proprietary
+    url: https://lobocode.com.br
+
+servers:
+  - url: https://der-api.lobocode.com.br
+    description: Produção
+  - url: http://localhost:3000
+    description: Desenvolvimento local
+
+tags:
+  - name: work-orders-integration
+    description: Consulta de ordens de serviço para integração com sistemas externos
+
+paths:
+  /integration/work-orders:
+    get:
+      tags:
+        - work-orders-integration
+      summary: Listar ordens de serviço
+      operationId: listWorkOrdersIntegration
+      description: |
+        Retorna todas as ordens de serviço ativas (não excluídas), ordenadas por `createdAt` decrescente.
+
+        Se não houver nenhuma OS ativa, a API responde `404` (não retorna array vazio).
+      security:
+        - bearerAuth: []
+        - sharedTokenHeader: []
+      responses:
+        '200':
+          description: Lista de ordens de serviço
+          headers:
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+              description: Limite de requisições na janela atual
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Requisições restantes na janela atual
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix timestamp (segundos) do fim da janela
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkOrderIntegration'
+              example:
+                - id: clxyz123456789abcdefghij
+                  sequentialNumber: OS-42
+                  title: Verificar conexão intermitente
+                  description: Câmera offline no km 120
+                  type: CORRECTIVE
+                  status: PENDING
+                  priority: HIGH
+                  dueDate: '2026-06-15'
+                  equipmentType: CAMERA
+                  createdAt: '2026-05-20T14:30:00.000Z'
+                  updatedAt: '2026-05-21T09:00:00.000Z'
+                  deletedAt: null
+                  location:
+                    id: clloc123456789abcdefghij
+                    code: BR-101-KM120
+                    referenceKm: 120
+                    city: Vitória
+                    regional:
+                      id: clreg123456789abcdefghij
+                      cgr: CGR-01
+                      city: Vitória
+                      color: '#2563eb'
+                  column:
+                    id: clcol123456789abcdefghij
+                    name: A Fazer
+                    color: '#94a3b8'
+                  planning: null
+                  workOrderQueues: []
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Nenhuma ordem de serviço ativa encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+              example:
+                error: NOT_FOUND
+                message: Recurso não encontrado
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /integration/work-orders/sequential/{sequentialNumber}:
+    get:
+      tags:
+        - work-orders-integration
+      summary: Buscar ordem de serviço por número sequencial
+      operationId: getWorkOrderBySequentialNumber
+      description: |
+        Busca uma OS pelo código sequencial (ex.: `OS-1`, `OS-42`).
+        O valor é normalizado para maiúsculas (`os-42` → `OS-42`).
+
+        Retorna `404` se não existir OS ativa com esse número sequencial.
+      security:
+        - bearerAuth: []
+        - sharedTokenHeader: []
+      parameters:
+        - $ref: '#/components/parameters/SequentialNumber'
+      responses:
+        '200':
+          description: Ordem de serviço encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkOrderIntegrationEnvelope'
+              example:
+                data:
+                  id: clxyz123456789abcdefghij
+                  sequentialNumber: OS-42
+                  title: Verificar conexão intermitente
+                  type: CORRECTIVE
+                  status: IN_PROGRESS
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /integration/work-orders/{id}:
+    get:
+      tags:
+        - work-orders-integration
+      summary: Buscar ordem de serviço por ID
+      operationId: getWorkOrderById
+      description: Busca uma OS pelo identificador CUID.
+      security:
+        - bearerAuth: []
+        - sharedTokenHeader: []
+      parameters:
+        - $ref: '#/components/parameters/WorkOrderId'
+      responses:
+        '200':
+          description: Ordem de serviço encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkOrderIntegrationEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: SharedToken
+      description: |
+        Token compartilhado. Use `Authorization: Bearer <token>` ou apenas `Authorization: <token>`.
+    sharedTokenHeader:
+      type: apiKey
+      in: header
+      name: X-Shared-Token
+      description: Token compartilhado no header dedicado (alternativa ao Bearer).
+
+  parameters:
+    WorkOrderId:
+      name: id
+      in: path
+      required: true
+      description: Identificador CUID da ordem de serviço
+      schema:
+        type: string
+        minLength: 20
+        maxLength: 30
+      example: clxyz123456789abcdefghij
+
+    SequentialNumber:
+      name: sequentialNumber
+      in: path
+      required: true
+      description: Código sequencial da OS (formato `OS-<número>`)
+      schema:
+        type: string
+        pattern: '^OS-\d+$'
+      example: OS-42
+
+  responses:
+    Unauthorized:
+      description: Token ausente ou inválido
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            error: UNAUTHORIZED
+            message: Token inválido
+
+    NotFound:
+      description: Recurso não encontrado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            error: NOT_FOUND
+            message: Registro não encontrado
+
+    ValidationError:
+      description: Parâmetro de rota inválido
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            error: VALIDATION_ERROR
+            message: Número sequencial inválido. Use o formato OS-<número>.
+
+    TooManyRequests:
+      description: Limite de requisições excedido
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Segundos até poder tentar novamente
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            error: TOO_MANY_REQUESTS
+            message: Muitas requisições para o endpoint de integração. Tente novamente em instantes.
+
+  schemas:
+    ApiError:
+      type: object
+      properties:
+        error:
+          type: string
+          example: UNAUTHORIZED
+        message:
+          type: string
+          example: Token inválido
+
+    WorkOrderIntegrationEnvelope:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: '#/components/schemas/WorkOrderIntegration'
+      description: Resposta de consulta unitária (`buscarPorId` / `buscarPorCampo`)
+
+    WorkOrderIntegration:
+      type: object
+      description: Ordem de serviço com relacionamentos expostos pela integração
+      properties:
+        id:
+          type: string
+          description: Identificador CUID
+        sequentialNumber:
+          type: string
+          nullable: true
+          description: Código sequencial (ex. OS-42)
+          example: OS-42
+        title:
+          type: string
+          example: Verificar conexão intermitente
+        description:
+          type: string
+          nullable: true
+        type:
+          $ref: '#/components/schemas/WorkOrderType'
+        status:
+          $ref: '#/components/schemas/WorkOrderStatus'
+        priority:
+          allOf:
+            - $ref: '#/components/schemas/WorkOrderPriority'
+          nullable: true
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+          description: Prazo (somente data, AAAA-MM-DD)
+        equipmentType:
+          allOf:
+            - $ref: '#/components/schemas/AssetType'
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+        location:
+          allOf:
+            - $ref: '#/components/schemas/LocationIntegration'
+          nullable: true
+        column:
+          allOf:
+            - $ref: '#/components/schemas/ColumnIntegration'
+          nullable: true
+        planning:
+          allOf:
+            - $ref: '#/components/schemas/PlanningIntegration'
+          nullable: true
+        workOrderQueues:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkOrderQueueLinkIntegration'
+
+    WorkOrderType:
+      type: string
+      enum:
+        - PREVENTIVE
+        - CORRECTIVE
+        - GENERAL
+
+    WorkOrderStatus:
+      type: string
+      enum:
+        - PENDING
+        - ASSIGNED
+        - IN_PROGRESS
+        - PAUSED
+        - COMPLETED
+        - CANCELLED
+
+    WorkOrderPriority:
+      type: string
+      enum:
+        - CRITICAL
+        - HIGH
+        - MEDIUM
+        - LOW
+
+    AssetType:
+      type: string
+      enum:
+        - CAMERA
+        - ATDB
+        - PMV
+        - OTHER
+      description: Equipamento relacionado (Câmera, ATDB, PMV)
+
+    LocationIntegration:
+      type: object
+      properties:
+        id:
+          type: string
+        code:
+          type: string
+          nullable: true
+        referenceKm:
+          type: number
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        regional:
+          allOf:
+            - $ref: '#/components/schemas/RegionalIntegration'
+          nullable: true
+
+    RegionalIntegration:
+      type: object
+      properties:
+        id:
+          type: string
+        cgr:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        color:
+          type: string
+          nullable: true
+
+    ColumnIntegration:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        color:
+          type: string
+          nullable: true
+
+    PlanningIntegration:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        serviceType:
+          type: string
+          nullable: true
+        equipmentType:
+          allOf:
+            - $ref: '#/components/schemas/AssetType'
+          nullable: true
+        date:
+          type: string
+          format: date-time
+          nullable: true
+        km:
+          type: number
+          nullable: true
+        observation:
+          type: string
+          nullable: true
+
+    WorkOrderQueueLinkIntegration:
+      type: object
+      description: Vínculo OS ↔ fila (estrutura retornada pelo Prisma com include de queue)
+      properties:
+        queue:
+          $ref: '#/components/schemas/QueueIntegration'
+
+    QueueIntegration:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - INACTIVE
+        queueUsers:
+          type: array
+          items:
+            type: object
+            properties:
+              user:
+                $ref: '#/components/schemas/QueueUserIntegration'
+
+    QueueUserIntegration:
+      type: object
+      nullable: true
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+          nullable: true
+        profilePicture:
+          type: string
+          nullable: true
+        status:
+          type: string
+          nullable: true
