@@ -67,8 +67,9 @@ export async function reordenarNumerosSequenciaisWorkOrder(
 }
 
 /**
- * Próximo código sequencial (`OS-n`): maior índice entre OS ativas + 1.
- * Não reordena as existentes (lacunas após exclusão são esperadas).
+ * Próximo código sequencial (`OS-n`): maior índice já usado na empresa + 1.
+ * Considera OS ativas e excluídas para nunca reutilizar um número existente.
+ * Lacunas entre OS ativas após exclusão são esperadas (número permanece no histórico).
  */
 export async function atribuirProximoNumeroSequencialWorkOrder(
   tx: PrismaTx,
@@ -76,13 +77,16 @@ export async function atribuirProximoNumeroSequencialWorkOrder(
 ): Promise<string> {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`work-order-seq:${companyId}`}))`;
 
-  const ativas = await tx.workOrder.findMany({
-    where: { companyId, deletedAt: null },
+  const comNumeroSequencial = await tx.workOrder.findMany({
+    where: {
+      companyId,
+      sequentialNumber: { not: null },
+    },
     select: { sequentialNumber: true },
   });
 
   let maiorIndice = 0;
-  for (const os of ativas) {
+  for (const os of comNumeroSequencial) {
     const indice = extrairIndiceSequencialOs(os.sequentialNumber);
     if (indice != null && indice > maiorIndice) {
       maiorIndice = indice;

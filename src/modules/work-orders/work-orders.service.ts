@@ -1306,12 +1306,6 @@ export class WorkOrdersService extends UniversalService<
       select: { companyId: true },
     });
 
-    // Mantém o número nas OS restantes; limpa na excluída para não duplicar em buscas.
-    await this.prisma.workOrder.update({
-      where: { id },
-      data: { sequentialNumber: null },
-    });
-
     const companyId = this.obterCompanyId() ?? ordem?.companyId;
     const recipientIds =
       await this.workOrderQueueUsersService.resolveUserIdsFromWorkOrderId(

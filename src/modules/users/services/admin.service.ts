@@ -31,8 +31,7 @@ export class AdminService extends BaseUserService {
     // ✅ Validação de role hierárquico RESTAURADA
     this.userPermissionService.validarCriacaoDeUserComRole(Roles.ADMIN);
 
-    // Validações comuns
-    await this.validarSeEmailEhUnico(dto.email);
+    await this.validarUnicidadeParaCriacao(dto.email, dto.login);
     if (dto.companyId) await this.validarSeCompanyExiste(dto.companyId);
     if (dto.phone) await this.validarSePhoneEhUnico(dto.phone);
 

@@ -7,6 +7,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { BaseExceptionFilter } from './base-exception.filter';
 import { MessagesService } from '../messages/messages.service';
+import { VALIDATION_MESSAGES } from '../messages/messages.constants';
 
 /**
  * Filtro para capturar e tratar erros específicos do Prisma
@@ -177,13 +178,22 @@ export class PrismaErrorFilter
           message: 'Registro não encontrado',
         };
 
-      case 'P2002':
-        const target = meta?.target ? ` (${meta.target.join(', ')})` : '';
+      case 'P2002': {
+        const fields = Array.isArray(meta?.target)
+          ? (meta.target as string[])
+          : [];
+        let message = VALIDATION_MESSAGES.UNIQUENESS.FIELD_EXISTS;
+        if (fields.includes('email')) {
+          message = VALIDATION_MESSAGES.UNIQUENESS.EMAIL_EXISTS;
+        } else if (fields.includes('login')) {
+          message = VALIDATION_MESSAGES.UNIQUENESS.LOGIN_EXISTS;
+        }
         return {
           status: HttpStatus.CONFLICT,
           errorCode: 'UNIQUE_CONSTRAINT_VIOLATION',
-          message: `Valor já existe${target}`,
+          message,
         };
+      }
 
       case 'P2003':
         return {

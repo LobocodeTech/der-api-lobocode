@@ -6,6 +6,7 @@ import {
   NotFoundError,
   ValidationError,
 } from '../../../shared/common/errors';
+import { VALIDATION_MESSAGES } from '../../../shared/common/messages';
 
 @Injectable()
 export class UserValidator {
@@ -15,9 +16,26 @@ export class UserValidator {
   ) {}
 
   async validarSeEmailEhUnico(email: string, excludeUserId?: string) {
-    const user = await this.userRepository.buscarUnico({ email });
-    if (user && user.id !== excludeUserId) {
-      throw new ConflictError('Email já está em uso');
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await this.userRepository.buscarPrimeiro({
+      email: normalizedEmail,
+      ...(excludeUserId ? { id: { not: excludeUserId } } : {}),
+    });
+    if (user) {
+      throw new ConflictError(VALIDATION_MESSAGES.UNIQUENESS.EMAIL_EXISTS);
+    }
+  }
+
+  async validarSeLoginEhUnico(login: string, excludeUserId?: string) {
+    if (!login?.trim()) return;
+
+    const normalizedLogin = login.trim().toLowerCase();
+    const user = await this.userRepository.buscarPrimeiro({
+      login: normalizedLogin,
+      ...(excludeUserId ? { id: { not: excludeUserId } } : {}),
+    });
+    if (user) {
+      throw new ConflictError(VALIDATION_MESSAGES.UNIQUENESS.LOGIN_EXISTS);
     }
   }
 

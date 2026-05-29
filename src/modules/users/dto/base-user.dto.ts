@@ -4,7 +4,7 @@ import {
   MinLength,
   IsOptional,
   IsEnum,
-  IsArray,
+  ValidateIf,
 } from 'class-validator';
 import {
   IsCUID,
@@ -28,6 +28,10 @@ export class BaseUserDto {
 
   @IsString({ message: VALIDATION_MESSAGES.REQUIRED.LOGIN })
   @MinLength(3, { message: VALIDATION_MESSAGES.LENGTH.LOGIN_MIN })
+  @ValidateIf(
+    (dto: BaseUserDto) =>
+      dto.login?.trim().toLowerCase() !== dto.email?.trim().toLowerCase(),
+  )
   @IsUniqueLogin({ message: VALIDATION_MESSAGES.UNIQUENESS.LOGIN_EXISTS })
   login: string;
 

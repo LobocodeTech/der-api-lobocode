@@ -31,8 +31,7 @@ export class SystemAdminService extends BaseUserService {
     // ✅ Validação de role hierárquico RESTAURADA
     this.userPermissionService.validarCriacaoDeUserComRole(Roles.SYSTEM_ADMIN);
  
-    // Valida se email é único
-    await this.validarSeEmailEhUnico(dto.email); 
+    await this.validarUnicidadeParaCriacao(dto.email, dto.login);
     // Criação do usuário
     const userData = this.userFactory.criarSystemAdmin(dto);
     const user = await this.userRepository.criar(userData);

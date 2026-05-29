@@ -5,36 +5,32 @@ import { VALIDATION_MESSAGES } from '../common/messages';
 export function IsUniqueLogin(validationOptions?: ValidationOptions) {
   return function (object: Object, propertyName: string) {
     registerDecorator({
-      name: 'isUniqueLoginPerCompany',
+      name: 'isUniqueLogin',
       target: object.constructor,
       propertyName: propertyName,
       options: validationOptions,
       validator: {
-        async validate(value: any, args: ValidationArguments) {
-          if (!value) return false; // Login é obrigatório
-          
+        async validate(value: unknown) {
+          if (typeof value !== 'string' || !value.trim()) return false;
+
+          const login = value.trim().toLowerCase();
           const prismaService = new PrismaService();
-          
-          try { 
-            // Busca por login na empresa atual
+
+          try {
             const existingUser = await prismaService.user.findFirst({
-              where: {
-                login: value,
-                deletedAt: null, // Não considerar usuários deletados
-              },
+              where: { login },
             });
-            // Se não encontrou, login é único
             return !existingUser;
-          } catch (error) {
-            // Em caso de erro, permite a validação passar
-            // (será validado novamente no service)
-            return true;
+          } catch {
+            return false;
+          } finally {
+            await prismaService.$disconnect();
           }
         },
-        defaultMessage(args: ValidationArguments) {
-          return VALIDATION_MESSAGES.UNIQUENESS.EMAIL_EXISTS;
-        }
-      }
+        defaultMessage(_args: ValidationArguments) {
+          return VALIDATION_MESSAGES.UNIQUENESS.LOGIN_EXISTS;
+        },
+      },
     });
   };
-} 
+}

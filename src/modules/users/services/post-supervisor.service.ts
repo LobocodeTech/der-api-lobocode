@@ -29,15 +29,12 @@ export class PostSupervisorService extends BaseUserService {
   async criarNovoPostSupervisor(dto: CreatePostSupervisorDto) {
     this.userPermissionService.validarCriacaoDeUserComRole(Roles.C2C);
 
-    // Valida se email é único
-    await this.validarSeEmailEhUnico(dto.email);
+    await this.validarUnicidadeParaCriacao(dto.email, dto.login);
 
-    // Valida se telefone é único (se fornecido)
     if (dto.phone) {
       await this.validarSePhoneEhUnico(dto.phone);
     }
 
-    // Criação do usuário
     const userData = this.userFactory.criarPostSupervisor(dto);
     const user = await this.userRepository.criar(userData);
 
@@ -49,10 +46,8 @@ export class PostSupervisorService extends BaseUserService {
    * Usado para auto-cadastro via link de registro
    */
   async criarPostSupervisorPublico(dto: CreatePostSupervisorDto) {
-    // Valida se email é único
-    await this.validarSeEmailEhUnico(dto.email);
+    await this.validarUnicidadeParaCriacao(dto.email, dto.login);
 
-    // Valida se telefone é único (se fornecido)
     if (dto.phone) {
       await this.validarSePhoneEhUnico(dto.phone);
     }

@@ -72,7 +72,7 @@ export abstract class BaseExceptionFilter {
     // Resposta minimalista padronizada
     const errorResponse = {
       error: errorCode,
-      message: exception.message|| message ,
+      message: message || exception.message,
     };
 
     response.status(status).json(errorResponse);

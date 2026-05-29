@@ -30,8 +30,7 @@ export class SupervisorService extends BaseUserService {
   async criarNovoSupervisor(dto: CreateSupervisorDto) {
     this.userPermissionService.validarCriacaoDeUserComRole(Roles.C2C);
 
-    // Valida se email é único
-    await this.validarSeEmailEhUnico(dto.email);
+    await this.validarUnicidadeParaCriacao(dto.email, dto.login);
 
     // Criação do usuário
     const userData = this.userFactory.criarSupervisor(dto);

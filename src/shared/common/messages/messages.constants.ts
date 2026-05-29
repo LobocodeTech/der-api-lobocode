@@ -50,8 +50,10 @@ export const VALIDATION_MESSAGES = {
   // Validações de unicidade
   UNIQUENESS: {
     FIELD_EXISTS: 'Este valor já está cadastrado',
-    EMAIL_EXISTS: 'Este email já está cadastrado no sistema',
-    LOGIN_EXISTS: 'Este login já está cadastrado no sistema',
+    EMAIL_EXISTS:
+      'Não foi possível criar o usuário: o e-mail informado já está cadastrado.',
+    LOGIN_EXISTS:
+      'Não foi possível criar o usuário: o login informado já está cadastrado.',
     CPF_EXISTS: 'Este CPF já está cadastrado no sistema',
     CNPJ_EXISTS: 'Este CNPJ já está cadastrado',
   },

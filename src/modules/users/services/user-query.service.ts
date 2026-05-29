@@ -6,6 +6,8 @@ import { Prisma } from '@prisma/client';
 import { CrudAction } from '../../../shared/common/types';
 import { construirClausulaAndEscopoRegional } from '../../../shared/regional-scope/regional-scope.helper';
 
+export type UserSoftDeleteScope = 'active' | 'deleted';
+
 @Injectable({ scope: Scope.REQUEST })
 export class UserQueryService {
   constructor(
@@ -22,8 +24,15 @@ export class UserQueryService {
    */
   construirWhereClauseParaRead(
     baseWhere: Prisma.UserWhereInput = {},
+    scope: UserSoftDeleteScope = 'active',
   ): Prisma.UserWhereInput {
-    return this.construirWhereClauseBase('read', baseWhere);
+    return this.construirWhereClauseBase('read', baseWhere, scope);
+  }
+
+  construirWhereClauseParaReadDeletados(
+    baseWhere: Prisma.UserWhereInput = {},
+  ): Prisma.UserWhereInput {
+    return this.construirWhereClauseParaRead(baseWhere, 'deleted');
   }
 
   /**
@@ -59,6 +68,7 @@ export class UserQueryService {
   private construirWhereClauseBase(
     action: CrudAction,
     additionalWhere: Prisma.UserWhereInput = {},
+    scope: UserSoftDeleteScope = 'active',
   ): Prisma.UserWhereInput {
     const ability = this.abilityService.ability;
     const tenant = this.tenantService.getTenant();
@@ -70,10 +80,13 @@ export class UserQueryService {
       andParts.push(escopoRegional as Prisma.UserWhereInput);
     }
 
+    const deletedAtFilter: Prisma.UserWhereInput['deletedAt'] =
+      scope === 'deleted' ? { not: null } : null;
+
     const whereClause: Prisma.UserWhereInput = {
       ...additionalWhere,
       AND: andParts,
-      deletedAt: null,
+      deletedAt: deletedAtFilter,
     };
 
     // Se não for tenant global, filtra por companyId

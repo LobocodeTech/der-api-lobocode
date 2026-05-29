@@ -1,13 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { UserRepository } from '../repositories/user.repository';
 import { UserValidator } from '../validators/user.validator';
-import { UserQueryService } from './user-query.service';
+import { UserQueryService, UserSoftDeleteScope } from './user-query.service';
 import { UserPermissionService } from './user-permission.service';
 import { UpdateUserDto } from '../dto/update-user.dto';
 import { Prisma, Roles } from '@prisma/client';
 import { CrudAction } from '../../../shared/common/types';
 import { NotFoundError, ConflictError } from '../../../shared/common/errors';
-import { SUCCESS_MESSAGES } from '../../../shared/common/messages';
+import {
+  SUCCESS_MESSAGES,
+  VALIDATION_MESSAGES,
+} from '../../../shared/common/messages';
 import { CreateOthersDto } from '../dto/create-others.dto';
 import bcrypt from 'bcrypt';
 
@@ -28,13 +31,26 @@ export class BaseUserService {
   /**
    * Lista todos os usuários com paginação e ordenação
    */
-  async buscarTodos(page = 1, limit = 20, orderBy = 'name', orderDirection: 'asc' | 'desc' = 'asc') {
-    const whereClause = this.userQueryService.construirWhereClauseParaRead();
+  async buscarTodos(
+    page = 1,
+    limit = 20,
+    orderBy = 'name',
+    orderDirection: 'asc' | 'desc' = 'asc',
+    scope: UserSoftDeleteScope = 'active',
+  ) {
+    const resolvedOrderBy =
+      scope === 'deleted' && orderBy === 'name' ? 'deletedAt' : orderBy;
+    const resolvedOrderDirection =
+      scope === 'deleted' && orderBy === 'name' ? 'desc' : orderDirection;
+
+    const whereClause = this.userQueryService.construirWhereClauseParaRead(
+      {},
+      scope,
+    );
     const skip = (page - 1) * limit;
-    
-    // Configuração de ordenação
+
     const orderByConfig = {
-      [orderBy]: orderDirection
+      [resolvedOrderBy]: resolvedOrderDirection,
     };
     
     const [users, total] = await Promise.all([
@@ -67,8 +83,23 @@ export class BaseUserService {
   /**
    * Busca usuários com filtro de pesquisa
    */
-  async buscarUsuarios(query: string, page = 1, limit = 20, orderBy = 'name', orderDirection: 'asc' | 'desc' = 'asc') {
-    const baseWhereClause = this.userQueryService.construirWhereClauseParaRead();
+  async buscarUsuarios(
+    query: string,
+    page = 1,
+    limit = 20,
+    orderBy = 'name',
+    orderDirection: 'asc' | 'desc' = 'asc',
+    scope: UserSoftDeleteScope = 'active',
+  ) {
+    const resolvedOrderBy =
+      scope === 'deleted' && orderBy === 'name' ? 'deletedAt' : orderBy;
+    const resolvedOrderDirection =
+      scope === 'deleted' && orderBy === 'name' ? 'desc' : orderDirection;
+
+    const baseWhereClause = this.userQueryService.construirWhereClauseParaRead(
+      {},
+      scope,
+    );
     
     // Adicionar filtros de pesquisa se query fornecida
     let whereClause = baseWhereClause;
@@ -85,17 +116,16 @@ export class BaseUserService {
     }
 
     const skip = (page - 1) * limit;
-    
-    // Configuração de ordenação
+
     const orderByConfig = {
-      [orderBy]: orderDirection
+      [resolvedOrderBy]: resolvedOrderDirection,
     };
-    
+
     const [users, total] = await Promise.all([
-      this.userRepository.buscarMuitos(whereClause, { 
-        skip, 
+      this.userRepository.buscarMuitos(whereClause, {
+        skip,
         take: limit,
-        orderBy: orderByConfig
+        orderBy: orderByConfig,
       } as any),
       this.userRepository.contar(whereClause),
     ]);
@@ -314,6 +344,20 @@ export class BaseUserService {
   }
 
   /**
+   * Valida email e login antes de criar usuário (evita P2002 do Prisma).
+   */
+  protected async validarUnicidadeParaCriacao(email: string, login?: string) {
+    const emailNormalizado = email.trim().toLowerCase();
+    const loginNormalizado = (login ?? email).trim().toLowerCase();
+
+    await this.validarSeEmailEhUnico(emailNormalizado);
+
+    if (loginNormalizado !== emailNormalizado) {
+      await this.validarSeLoginEhUnico(loginNormalizado);
+    }
+  }
+
+  /**
    * Valida se email é único
    */
   protected async validarSeEmailEhUnico(email: string, excludeUserId?: string) {
@@ -324,7 +368,7 @@ export class BaseUserService {
     });
 
     if (existingUser) {
-      throw new ConflictError('Email já está em uso');
+      throw new ConflictError(VALIDATION_MESSAGES.UNIQUENESS.EMAIL_EXISTS);
     }
   }
 
@@ -333,15 +377,15 @@ export class BaseUserService {
    */
   protected async validarSeLoginEhUnico(login: string, excludeUserId?: string) {
     if (!login) return;
-    
+
     const normalizedLogin = login.trim().toLowerCase();
     const existingUser = await this.userRepository.buscarPrimeiro({
       login: normalizedLogin,
       ...(excludeUserId ? { id: { not: excludeUserId } } : {}),
     });
-    
+
     if (existingUser) {
-      throw new ConflictError('Este login já está cadastrado no sistema');
+      throw new ConflictError(VALIDATION_MESSAGES.UNIQUENESS.LOGIN_EXISTS);
     }
   }
 

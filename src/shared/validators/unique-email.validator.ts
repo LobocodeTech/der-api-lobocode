@@ -5,37 +5,32 @@ import { VALIDATION_MESSAGES } from '../common/messages';
 export function IsUniqueEmail(validationOptions?: ValidationOptions) {
   return function (object: Object, propertyName: string) {
     registerDecorator({
-      name: 'isUniqueEmailPerCompany',
+      name: 'isUniqueEmail',
       target: object.constructor,
       propertyName: propertyName,
       options: validationOptions,
       validator: {
-        async validate(value: any, args: ValidationArguments) {
-          if (!value) return false; // Email é obrigatório
-          
+        async validate(value: unknown) {
+          if (typeof value !== 'string' || !value.trim()) return false;
+
+          const email = value.trim().toLowerCase();
           const prismaService = new PrismaService();
-          
+
           try {
-            console.log('IsUniqueEmail email:', value);
-            // Busca por email na empresa atual
             const existingUser = await prismaService.user.findFirst({
-              where: {
-                email: value,
-                deletedAt: null, // Não considerar usuários deletados
-              },
+              where: { email },
             });
-            // Se não encontrou, email é único
             return !existingUser;
-          } catch (error) {
-            // Em caso de erro, permite a validação passar
-            // (será validado novamente no service)
-            return true;
+          } catch {
+            return false;
+          } finally {
+            await prismaService.$disconnect();
           }
         },
-        defaultMessage(args: ValidationArguments) {
+        defaultMessage(_args: ValidationArguments) {
           return VALIDATION_MESSAGES.UNIQUENESS.EMAIL_EXISTS;
-        }
-      }
+        },
+      },
     });
   };
-} 
+}

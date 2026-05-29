@@ -15,7 +15,8 @@ export class ConflictErrorFilter extends BaseExceptionFilter implements Exceptio
       host,
       HttpStatus.CONFLICT,
       'CONFLICT',
-      this.messagesService.getErrorMessage('RESOURCE', 'ALREADY_EXISTS'),
+      exception.message ||
+        this.messagesService.getErrorMessage('RESOURCE', 'ALREADY_EXISTS'),
     );
   }
 } 

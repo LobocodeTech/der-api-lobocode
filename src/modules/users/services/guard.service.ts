@@ -30,8 +30,7 @@ export class GuardService extends BaseUserService {
   async criarNovoGuard(dto: CreateGuardDto) {
     this.userPermissionService.validarCriacaoDeUserComRole(Roles.FIELD_TEAM);
 
-    // Valida se email é único
-    await this.validarSeEmailEhUnico(dto.email);
+    await this.validarUnicidadeParaCriacao(dto.email, dto.login);
 
     // Criação do usuário
     const userData = this.userFactory.criarGuard(dto);

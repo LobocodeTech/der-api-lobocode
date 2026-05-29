@@ -30,8 +30,7 @@ export class HRService extends BaseUserService {
   async criarNovoHR(dto: CreateHRDto) {
     this.userPermissionService.validarCriacaoDeUserComRole(Roles.ADMIN);
 
-    // Validações comuns
-    await this.validarSeEmailEhUnico(dto.email);
+    await this.validarUnicidadeParaCriacao(dto.email, dto.login);
 
     // Criação do usuário
     const userData = this.userFactory.criarHR(dto);
