@@ -559,9 +559,18 @@ export class WorkOrdersService extends UniversalService<
       throw new NotFoundException('Item de checklist não encontrado.');
     }
 
+    if (dto.isDone === undefined && dto.label === undefined) {
+      throw new BadRequestException(
+        'Informe ao menos um campo para atualizar o item do checklist.',
+      );
+    }
+
     await this.prisma.workOrderChecklistItem.update({
       where: { id: item.id },
-      data: { isDone: dto.isDone },
+      data: {
+        ...(dto.isDone !== undefined ? { isDone: dto.isDone } : {}),
+        ...(dto.label !== undefined ? { label: dto.label.trim() } : {}),
+      },
     });
 
     return this.buscarDetalhesPorId(id);
