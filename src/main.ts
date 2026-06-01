@@ -1,5 +1,4 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { CustomLoggerService } from './shared/common/logger/logger.service';
 import { MetricsInterceptor } from './shared/common/interceptors/metrics.interceptor';
@@ -76,19 +75,6 @@ async function bootstrap() {
       preflightContinue: false,
       optionsSuccessStatus: 204,
     });
-
-    app.useGlobalPipes(
-      new ValidationPipe({
-        errorHttpStatusCode: 422,
-        transform: true,
-        transformOptions: {
-          enableImplicitConversion: true,
-        },
-        whitelist: true,
-        forbidNonWhitelisted: true,
-        disableErrorMessages: false,
-      }),
-    );
 
     app.useGlobalInterceptors(new MetricsInterceptor());
 

@@ -159,10 +159,10 @@ async function seedWorkOrderColumns(companyId: string) {
   }
 }
 
-runSeed()
-  .then(() => prisma.$disconnect())
-  .catch((e) => {
-    console.error(e);
-    prisma.$disconnect();
-    process.exit(1);
-  });
+// runSeed()
+//   .then(() => prisma.$disconnect())
+//   .catch((e) => {
+//     console.error(e);
+//     prisma.$disconnect();
+//     process.exit(1);
+//   });

@@ -1,9 +1,4 @@
-import {
-  Module,
-  NestModule,
-  MiddlewareConsumer,
-  ValidationPipe,
-} from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_INTERCEPTOR, APP_PIPE, APP_FILTER } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -21,6 +16,7 @@ import { CompaniesModule } from './modules/companies/companies.module';
 // import { ReportsModule } from './modules/reports/reports.module';
 
 import { RateLimitMiddleware } from './shared/common/middleware/rate-limit.middleware';
+import { GlobalValidationPipe } from './shared/common/pipes/global-validation.pipe';
 
 // modules globais
 import { PrometheusModule } from '@willsoto/nestjs-prometheus';
@@ -93,15 +89,7 @@ import { GlobalSearchModule } from './modules/global-search/global-search.module
     AppService,
     {
       provide: APP_PIPE,
-      useFactory: () =>
-        new ValidationPipe({
-          whitelist: true,
-          forbidNonWhitelisted: true,
-          transform: true,
-          transformOptions: {
-            enableImplicitConversion: true,
-          },
-        }),
+      useClass: GlobalValidationPipe,
     },
     {
       provide: APP_INTERCEPTOR,
