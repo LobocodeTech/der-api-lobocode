@@ -14,6 +14,7 @@ RUN apk add --no-cache \
 
 # Copiar arquivos de dependências
 COPY package*.json ./
+COPY tsconfig.json tsconfig.build.json nest-cli.json ./
 COPY prisma ./prisma/
 
 # Build precisa de devDependencies (TypeScript, nest build, etc.)

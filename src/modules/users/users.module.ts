@@ -6,7 +6,6 @@ import { UserValidator } from './validators/user.validator';
 import { UserFactory } from './factories/user.factory';
 import { CompaniesModule } from 'src/modules/companies/companies.module'; 
 import { PrismaService } from '../../shared/prisma/prisma.service';
-
 //  Novos services específicos
 
 import {
@@ -31,7 +30,6 @@ import {
     UserPermissionService,
     UserFactory,
     PrismaService,
-
     //  Novos services específicos
     SystemAdminService,
     AdminService,

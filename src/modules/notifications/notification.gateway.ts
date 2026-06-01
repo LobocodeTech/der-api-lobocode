@@ -18,6 +18,8 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { NotificationService } from './shared/notification.service';
 import { AuthGuard } from '../../shared/auth/guards/auth.guard';
+import { PrismaService } from '../../shared/prisma/prisma.service';
+import { UserStatus } from '@prisma/client';
 
 // ============================================================================
 // 🔔 GATEWAY DE NOTIFICAÇÕES EM TEMPO REAL
@@ -62,6 +64,7 @@ export class NotificationGateway
     private readonly jwtService: JwtService,
     @Inject(forwardRef(() => NotificationService))
     private readonly notificationService: NotificationService,
+    private readonly prismaService: PrismaService,
   ) {}
 
   // ============================================================================
@@ -97,6 +100,23 @@ export class NotificationGateway
       if (!userId) {
         this.logger.warn(
           `Conexão rejeitada: UserId não encontrado - Socket: ${client.id}`,
+        );
+        client.disconnect();
+        return;
+      }
+
+      const user = await this.prismaService.user.findUnique({
+        where: { id: userId },
+        select: { status: true, deletedAt: true },
+      });
+
+      if (
+        !user ||
+        user.status !== UserStatus.ACTIVE ||
+        user.deletedAt !== null
+      ) {
+        this.logger.warn(
+          `Conexão rejeitada: Usuário inativo ou removido - ${userId}`,
         );
         client.disconnect();
         return;
@@ -208,6 +228,40 @@ export class NotificationGateway
   // ============================================================================
   // 📤 MÉTODOS PÚBLICOS PARA ENVIO DE NOTIFICAÇÕES
   // ============================================================================
+
+  /**
+   * Revoga a sessão de um usuário conectado via WebSocket
+   */
+  revogarSessaoUsuario(userId: string, reason = 'USER_DISABLED'): boolean {
+    const socketId = this.connectedUsers.get(userId);
+
+    if (!socketId) {
+      this.logger.log(
+        `Usuário ${userId} não está conectado — revogação via WebSocket ignorada`,
+      );
+      return false;
+    }
+
+    if (!this.server) {
+      this.logger.warn(
+        `WebSocket indisponível — revogação ignorada para usuário ${userId}`,
+      );
+      this.connectedUsers.delete(userId);
+      return false;
+    }
+
+    this.server.to(socketId).emit('session_revoked', {
+      reason,
+      message: 'Sua sessão foi encerrada. Faça login novamente.',
+    });
+
+    this.server.in(socketId).disconnectSockets(true);
+
+    this.connectedUsers.delete(userId);
+    this.logger.log(`Sessão revogada via WebSocket para usuário: ${userId}`);
+
+    return true;
+  }
 
   /**
    * Enviar notificação para usuário específico

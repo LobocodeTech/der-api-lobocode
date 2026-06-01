@@ -12,6 +12,11 @@ import { CaslAbilityService } from '../../casl/casl-ability/casl-ability.service
 import { ITokenPayload } from '../interfaces';
 import { AUTH_MESSAGES } from '../constants';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import { Roles } from '@prisma/client';
+import {
+  isOperationalMapQuery,
+  OPERATIONAL_MAP_SCOPE_KEY,
+} from '../../regional-scope/regional-scope.helper';
 @Injectable()
 export class AuthGuard implements CanActivate {
   constructor(
@@ -99,13 +104,29 @@ export class AuthGuard implements CanActivate {
       throw new UnauthorizedException(AUTH_MESSAGES.ERROR.USER_NOT_FOUND);
     }
 
+    if (user.status !== 'ACTIVE') {
+      throw new UnauthorizedException(AUTH_MESSAGES.ERROR.USER_INACTIVE);
+    }
+
+    if (user.deletedAt !== null) {
+      throw new UnauthorizedException(AUTH_MESSAGES.ERROR.USER_NOT_FOUND);
+    }
+
     return user;
   }
 
   // Configurar contexto do usuário
   private setupUserContext(request: Request, user: any): void {
+    if (
+      user.role === Roles.FIELD_TEAM &&
+      isOperationalMapQuery(request.query as Record<string, unknown>)
+    ) {
+      (request as unknown as Record<string, unknown>)[OPERATIONAL_MAP_SCOPE_KEY] =
+        true;
+    }
+
     request.user = user;
-    this.abilityService.createForUser(user); // RBAC e ABAC
+    this.abilityService.createForUser(user);
   }
 
   // Tratar erros de autenticação

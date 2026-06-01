@@ -107,6 +107,14 @@ export class WorkOrdersController extends UniversalController<
   }
 
   @Post(':id/checklist-items')
+  @RoleByMethod({
+    POST: [
+      Roles.SYSTEM_ADMIN,
+      Roles.ADMIN,
+      Roles.FIELD_TEAM,
+      Roles.C2C,
+    ],
+  })
   async criarItemDoChecklist(
     @Param('id') id: string,
     @Body() body: CreateWorkOrderCheckListDto,
@@ -115,6 +123,14 @@ export class WorkOrdersController extends UniversalController<
   }
 
   @Post(':id/comments')
+  @RoleByMethod({
+    POST: [
+      Roles.SYSTEM_ADMIN,
+      Roles.ADMIN,
+      Roles.FIELD_TEAM,
+      Roles.C2C,
+    ],
+  })
   async criarComentario(
     @Param('id') id: string,
     @Body() body: CreateWorkOrderCommentDto,
@@ -123,6 +139,14 @@ export class WorkOrdersController extends UniversalController<
   }
 
   @Post(':id/evidences')
+  @RoleByMethod({
+    POST: [
+      Roles.SYSTEM_ADMIN,
+      Roles.ADMIN,
+      Roles.FIELD_TEAM,
+      Roles.C2C,
+    ],
+  })
   @UseInterceptors(
     FileInterceptor('file', {
       limits: {

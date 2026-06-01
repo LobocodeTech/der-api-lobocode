@@ -1,4 +1,6 @@
-import { Injectable, Scope } from '@nestjs/common';
+import { Injectable, Scope, Inject, Optional } from '@nestjs/common';
+import { REQUEST } from '@nestjs/core';
+import { Request } from 'express';
 import { CaslAbilityService } from '../../casl/casl-ability/casl-ability.service';
 import { TenantService } from '../../tenant/tenant.service';
 import { accessibleBy } from '@casl/prisma';
@@ -6,7 +8,10 @@ import { CrudAction } from '../../common/types';
 import { EntityNameCasl } from '../types';
 import { ForbiddenError } from '../../common/errors';
 import { ERROR_MESSAGES } from 'src/shared/common/messages';
-import { construirClausulaAndEscopoRegional } from '../../regional-scope/regional-scope.helper';
+import {
+  construirClausulaAndEscopoRegional,
+  deveIgnorarEscopoRegionalNaLeituraDaEntidade,
+} from '../../regional-scope/regional-scope.helper';
 
 /** Entidades que não possuem companyId no schema (ex.: sub-módulos de Employee). */
 const ENTITIES_WITHOUT_COMPANY: EntityNameCasl[] = [];
@@ -31,6 +36,7 @@ export class UniversalQueryService {
   constructor(
     private abilityService: CaslAbilityService,
     private tenantService: TenantService,
+    @Optional() @Inject(REQUEST) private readonly request?: Request,
   ) {}
 
   // ============================================================================
@@ -99,12 +105,22 @@ export class UniversalQueryService {
 
       const usuario = this.abilityService.obterUsuarioAtivo();
       if (usuario) {
-        const escopoRegional = construirClausulaAndEscopoRegional(
-          entityName,
-          usuario,
-        );
-        if (escopoRegional) {
-          whereClause.AND.push(escopoRegional);
+        const ignorarEscopoRegional =
+          action === 'read' &&
+          deveIgnorarEscopoRegionalNaLeituraDaEntidade(
+            entityName,
+            usuario,
+            this.request as Record<string, unknown> | undefined,
+          );
+
+        if (!ignorarEscopoRegional) {
+          const escopoRegional = construirClausulaAndEscopoRegional(
+            entityName,
+            usuario,
+          );
+          if (escopoRegional) {
+            whereClause.AND.push(escopoRegional);
+          }
         }
       }
 
