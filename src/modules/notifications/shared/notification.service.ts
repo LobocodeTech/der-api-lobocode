@@ -381,4 +381,8 @@ export class NotificationService {
   ): Promise<void> {
     await this.notificationGateway.enviarParaSala(room, notification);
   }
+
+  revogarSessaoUsuario(userId: string): boolean {
+    return this.notificationGateway.revogarSessaoUsuario(userId);
+  }
 }

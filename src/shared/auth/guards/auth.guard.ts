@@ -99,6 +99,14 @@ export class AuthGuard implements CanActivate {
       throw new UnauthorizedException(AUTH_MESSAGES.ERROR.USER_NOT_FOUND);
     }
 
+    if (user.status !== 'ACTIVE') {
+      throw new UnauthorizedException(AUTH_MESSAGES.ERROR.USER_INACTIVE);
+    }
+
+    if (user.deletedAt !== null) {
+      throw new UnauthorizedException(AUTH_MESSAGES.ERROR.USER_NOT_FOUND);
+    }
+
     return user;
   }
 

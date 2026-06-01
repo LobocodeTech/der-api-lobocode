@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, forwardRef } from '@nestjs/common';
 import { CreateSystemAdminDto } from './dto/create-system-admin.dto';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import { CreateGuardDto } from './dto/create-guard.dto';
@@ -25,6 +25,8 @@ import { Prisma, Roles, UserStatus } from '@prisma/client';
 import { UserFactory } from './factories/user.factory';
 import { PrismaService } from '../../shared/prisma/prisma.service';
 import { TenantService } from '../../shared/tenant/tenant.service';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { NotificationService } from 'src/modules/notifications/shared/notification.service';
 
 function montarRotuloResponsavelOs(
   name: string,
@@ -55,6 +57,8 @@ export class UsersService extends BaseUserService {
     private postSupervisorService: PostSupervisorService,
     private postResidentService: PostResidentService,
     private userFactory: UserFactory,
+    @Inject(forwardRef(() => NotificationService))
+    private readonly notificationService: NotificationService,
   ) {
     super(
       userRepository,
@@ -278,5 +282,39 @@ export class UsersService extends BaseUserService {
         regionalColor: regional?.color ?? null,
       };
     });
+  }
+
+  async atualizar(id: string, updateUserDto: UpdateUserDto) {
+    const whereClause =
+      this.userQueryService.construirWhereClauseParaUpdate(id);
+    const userBefore = await this.userRepository.buscarPrimeiro(whereClause);
+    const result = await super.atualizar(id, updateUserDto);
+
+    const desativouConta =
+      userBefore?.status === UserStatus.ACTIVE &&
+      updateUserDto.status === UserStatus.INACTIVE;
+
+    if (desativouConta) {
+      this.notificationService.revogarSessaoUsuario(id);
+    }
+
+    return result;
+  }
+
+  async desativar(id: string) {
+    const whereClause =
+      this.userQueryService.construirWhereClauseParaDelete(id);
+    const userBefore = await this.userRepository.buscarPrimeiro(whereClause);
+    const result = await super.desativar(id);
+
+    const eraAtivo =
+      userBefore?.status === UserStatus.ACTIVE &&
+      userBefore.deletedAt === null;
+
+    if (eraAtivo) {
+      this.notificationService.revogarSessaoUsuario(id);
+    }
+
+    return result;
   }
 }
