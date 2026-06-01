@@ -1,6 +1,48 @@
 import { Prisma, Roles, User } from '@prisma/client';
 import { EntityNameCasl } from '../universal/types';
 
+export const OPERATIONAL_MAP_SCOPE_KEY = 'operationalMapScope';
+
+export function isOperationalMapQuery(
+  query: Record<string, unknown> | undefined,
+): boolean {
+  if (!query) return false;
+  const raw = query.operationalMap ?? query.operationalMapScope;
+  if (raw === true) return true;
+  if (typeof raw === 'string') {
+    return raw === 'true' || raw === '1';
+  }
+  return false;
+}
+
+export function deveIgnorarEscopoRegionalNaLeitura(
+  user: Pick<User, 'role'>,
+  request?: Record<string, unknown>,
+): boolean {
+  return (
+    user.role === Roles.FIELD_TEAM &&
+    request?.[OPERATIONAL_MAP_SCOPE_KEY] === true
+  );
+}
+
+const ENTIDADES_ESCOPO_MAPA_OPERACIONAL: EntityNameCasl[] = [
+  'Regional',
+  'Location',
+  'Asset',
+  'WorkOrder',
+];
+
+export function deveIgnorarEscopoRegionalNaLeituraDaEntidade(
+  entityName: EntityNameCasl,
+  user: Pick<User, 'role'>,
+  request?: Record<string, unknown>,
+): boolean {
+  if (!deveIgnorarEscopoRegionalNaLeitura(user, request)) {
+    return false;
+  }
+  return ENTIDADES_ESCOPO_MAPA_OPERACIONAL.includes(entityName);
+}
+
 /**
  * OS visível para o usuário: regional do usuário ou fila da OS na qual ele está.
  * Mesma regra usada em `aplicarRestricoesRegionaisNaoAdmin` (CASL) e notificações de OS.

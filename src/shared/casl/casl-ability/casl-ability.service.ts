@@ -1,10 +1,13 @@
-import { Injectable, Scope } from '@nestjs/common';
+import { Injectable, Scope, Inject, Optional } from '@nestjs/common';
+import { REQUEST } from '@nestjs/core';
+import { Request } from 'express';
 import { AbilityBuilder, PureAbility } from '@casl/ability';
 import { createPrismaAbility, PrismaQuery, Subjects } from '@casl/prisma';
 import { Roles, User, WorkOrderType } from '@prisma/client';
 import {
   construirClausulaOsVisivelParaUsuario,
   isUsuarioAdministradorEmpresaOuSistema,
+  deveIgnorarEscopoRegionalNaLeitura,
 } from '../../regional-scope/regional-scope.helper';
 
 export type PermActions =
@@ -215,18 +218,26 @@ function aplicarRestricaoGestaoEquipeC2c(user: User, { can, cannot }: any) {
  * WorkOrder; o escopo (regional + fila associada) é aplicado em
  * WorkOrderNotificationScopeService e NotificationService.
  */
-function aplicarRestricoesRegionaisNaoAdmin(user: User, { cannot }: any) {
+function aplicarRestricoesRegionaisNaoAdmin(
+  user: User,
+  { cannot }: any,
+  options?: { ignorarEscopoRegionalLeitura?: boolean },
+) {
   if (isUsuarioAdministradorEmpresaOuSistema(user)) {
     return;
   }
 
   const c = user.companyId;
+  const ignorarLeitura = options?.ignorarEscopoRegionalLeitura === true;
 
   if (!user.regionalId) {
-    cannot('read', 'Regional', { companyId: c });
-    cannot('read', 'Location', { companyId: c });
-    cannot('read', 'Asset', { companyId: c });
-    cannot('read', 'WorkOrder', { companyId: c });
+    if (!ignorarLeitura) {
+      cannot('read', 'Regional', { companyId: c });
+      cannot('read', 'Location', { companyId: c });
+      cannot('read', 'Asset', { companyId: c });
+      cannot('read', 'WorkOrder', { companyId: c });
+      cannot('read', 'User', { companyId: c, NOT: { id: user.id } });
+    }
     for (const action of ['create', 'update', 'delete'] as const) {
       cannot(action, 'Regional', { companyId: c });
       cannot(action, 'Queue', { companyId: c });
@@ -234,9 +245,20 @@ function aplicarRestricoesRegionaisNaoAdmin(user: User, { cannot }: any) {
       cannot(action, 'Asset', { companyId: c });
       cannot(action, 'WorkOrder', { companyId: c });
     }
-    cannot('read', 'User', { companyId: c, NOT: { id: user.id } });
-    for (const action of ['create', 'update', 'delete'] as const) {
-      cannot(action, 'User', { companyId: c, NOT: { id: user.id } });
+    if (!ignorarLeitura) {
+      for (const action of ['create', 'update', 'delete'] as const) {
+        cannot(action, 'User', { companyId: c, NOT: { id: user.id } });
+      }
+    } else {
+      cannot('create', 'User', { companyId: c });
+      cannot('update', 'User', {
+        companyId: c,
+        NOT: { id: user.id },
+      });
+      cannot('delete', 'User', {
+        companyId: c,
+        NOT: { id: user.id },
+      });
     }
     return;
   }
@@ -245,16 +267,23 @@ function aplicarRestricoesRegionaisNaoAdmin(user: User, { cannot }: any) {
   const workOrderPermitidoForaRegional =
     construirClausulaOsVisivelParaUsuario(user);
 
-  cannot('read', 'Regional', { companyId: c, NOT: { id: r } });
-  cannot('read', 'Location', { companyId: c, NOT: { regionalId: r } });
-  cannot('read', 'Asset', {
-    companyId: c,
-    NOT: { location: { regionalId: r } },
-  });
-  cannot('read', 'WorkOrder', {
-    companyId: c,
-    NOT: workOrderPermitidoForaRegional,
-  });
+  if (!ignorarLeitura) {
+    cannot('read', 'Regional', { companyId: c, NOT: { id: r } });
+    cannot('read', 'Location', { companyId: c, NOT: { regionalId: r } });
+    cannot('read', 'Asset', {
+      companyId: c,
+      NOT: { location: { regionalId: r } },
+    });
+    cannot('read', 'WorkOrder', {
+      companyId: c,
+      NOT: workOrderPermitidoForaRegional,
+    });
+    cannot('read', 'User', {
+      companyId: c,
+      NOT: { OR: [{ id: user.id }, { regionalId: r }] },
+    });
+  }
+
   cannot(['create', 'update', 'delete'], 'Queue', { companyId: c });
 
   for (const action of ['create', 'update', 'delete'] as const) {
@@ -272,14 +301,22 @@ function aplicarRestricoesRegionaisNaoAdmin(user: User, { cannot }: any) {
     }
   }
 
-  cannot('read', 'User', {
-    companyId: c,
-    NOT: { OR: [{ id: user.id }, { regionalId: r }] },
-  });
-  for (const action of ['create', 'update', 'delete'] as const) {
-    cannot(action, 'User', {
+  if (!ignorarLeitura) {
+    for (const action of ['create', 'update', 'delete'] as const) {
+      cannot(action, 'User', {
+        companyId: c,
+        NOT: { OR: [{ id: user.id }, { regionalId: r }] },
+      });
+    }
+  } else {
+    cannot('create', 'User', { companyId: c });
+    cannot('update', 'User', {
       companyId: c,
-      NOT: { OR: [{ id: user.id }, { regionalId: r }] },
+      NOT: { id: user.id },
+    });
+    cannot('delete', 'User', {
+      companyId: c,
+      NOT: { id: user.id },
     });
   }
 }
@@ -443,6 +480,10 @@ export class CaslAbilityService {
   /** Usuário da requisição (para filtros adicionais fora do CASL). */
   private usuarioAtivo!: User;
 
+  constructor(
+    @Optional() @Inject(REQUEST) private readonly request?: Request,
+  ) {}
+
   createForUser(user: User) {
     const builder = new AbilityBuilder<AppAbility>(createPrismaAbility);
     this.usuarioAtivo = user;
@@ -453,7 +494,14 @@ export class CaslAbilityService {
       aplicarRestricoesPerfilC2c(user, builder);
     }
 
-    aplicarRestricoesRegionaisNaoAdmin(user, builder);
+    const ignorarEscopoRegionalLeitura = deveIgnorarEscopoRegionalNaLeitura(
+      user,
+      this.request as Record<string, unknown> | undefined,
+    );
+
+    aplicarRestricoesRegionaisNaoAdmin(user, builder, {
+      ignorarEscopoRegionalLeitura,
+    });
     aplicarRestricoesSoftDeleteEmCascata(builder);
 
     this.ability = builder.build();
