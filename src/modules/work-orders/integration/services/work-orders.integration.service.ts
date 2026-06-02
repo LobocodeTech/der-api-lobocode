@@ -11,6 +11,7 @@ import {
 import { CreateWorkOrderDto } from '../../dto/create-work-order.dto';
 import { UpdateWorkOrderDto } from '../../dto/update-work-order.dto';
 import { WORK_ORDER_QUEUE_INCLUDE } from '../../work-order-queue-users/work-order-queue-users.service';
+import { WORK_ORDER_AUDIT_USER_INCLUDE } from '../../dto/work-order-audit.fields';
 
 @Injectable({ scope: Scope.REQUEST })
 export class WorkOrdersIntegrationService extends UniversalService<
@@ -27,6 +28,10 @@ export class WorkOrdersIntegrationService extends UniversalService<
     'status',
     'priority',
     'dueDate',
+    'createdBy',
+    'updatedBy',
+    'createdByUser',
+    'updatedByUser',
     'equipmentType',
     'createdAt',
     'updatedAt',
@@ -99,6 +104,7 @@ export class WorkOrdersIntegrationService extends UniversalService<
         workOrderQueues: {
           include: WORK_ORDER_QUEUE_INCLUDE,
         },
+        ...WORK_ORDER_AUDIT_USER_INCLUDE,
       },
       where: {
         deletedAt: null,

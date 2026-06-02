@@ -4,7 +4,7 @@ import {
   AssetStatus,
   Prisma,
   Roles,
-  WorkOrderSlaStatus,
+  WorkOrderCorrectiveSlaStatus,
   WorkOrderStatus,
   WorkOrderPriority,
   WorkOrderType,
@@ -52,6 +52,8 @@ export class OperationalDashboardService {
       mttrRecords,
       monitoredEquipmentPairs,
       lastPreventiveByPair,
+      monitoredGeneralLocations,
+      lastGeneralByLocation,
     ] = await this.prisma.$transaction([
       this.prisma.asset.count({ where: assetWhere }),
       this.prisma.asset.count({
@@ -77,10 +79,24 @@ export class OperationalDashboardService {
         where: { ...workOrderWhere, status: WorkOrderStatus.COMPLETED },
       }),
       this.prisma.workOrder.count({
-        where: { ...workOrderWhere, slaStatus: WorkOrderSlaStatus.WARNING },
+        where: {
+          ...workOrderWhere,
+          type: WorkOrderType.CORRECTIVE,
+          status: {
+            notIn: [WorkOrderStatus.COMPLETED, WorkOrderStatus.CANCELLED],
+          },
+          slaStatusExtended: WorkOrderCorrectiveSlaStatus.NEAR_BREACH,
+        },
       }),
       this.prisma.workOrder.count({
-        where: { ...workOrderWhere, slaStatus: WorkOrderSlaStatus.OVERDUE },
+        where: {
+          ...workOrderWhere,
+          type: WorkOrderType.CORRECTIVE,
+          status: {
+            notIn: [WorkOrderStatus.COMPLETED, WorkOrderStatus.CANCELLED],
+          },
+          slaStatusExtended: WorkOrderCorrectiveSlaStatus.BREACHED,
+        },
       }),
       this.prisma.workOrder.findMany({
         where: {
@@ -102,21 +118,28 @@ export class OperationalDashboardService {
       this.prisma.workOrder.findMany({
         where: {
           ...workOrderWhere,
+          type: WorkOrderType.CORRECTIVE,
           status: {
             notIn: [WorkOrderStatus.COMPLETED, WorkOrderStatus.CANCELLED],
           },
-          slaStatus: {
-            in: [WorkOrderSlaStatus.WARNING, WorkOrderSlaStatus.OVERDUE],
+          slaStatusExtended: {
+            in: [
+              WorkOrderCorrectiveSlaStatus.NEAR_BREACH,
+              WorkOrderCorrectiveSlaStatus.BREACHED,
+            ],
           },
         },
         select: {
           id: true,
+          sequentialNumber: true,
           title: true,
           priority: true,
           status: true,
-          dueDate: true,
+          type: true,
+          slaStatusExtended: true,
+          slaRemainingSeconds: true,
         },
-        orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
+        orderBy: [{ createdAt: 'desc' }],
         take: 5,
       }),
       this.prisma.workOrder.findMany({
@@ -192,6 +215,39 @@ export class OperationalDashboardService {
           updatedAt: true,
         },
       }),
+      this.prisma.workOrder.findMany({
+        where: workOrderWhere,
+        distinct: ['locationId'],
+        select: {
+          locationId: true,
+          location: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+              regional: {
+                select: {
+                  id: true,
+                  city: true,
+                  cgr: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+      this.prisma.workOrder.groupBy({
+        where: {
+          ...workOrderWhere,
+          type: WorkOrderType.GENERAL,
+          status: WorkOrderStatus.COMPLETED,
+        },
+        by: ['locationId'],
+        orderBy: [{ locationId: 'asc' }],
+        _max: {
+          completedAt: true,
+        },
+      }),
     ]);
 
     const availabilityRate =
@@ -216,10 +272,13 @@ export class OperationalDashboardService {
     const mttrTrend = this.construirSerieDeMttr(mttrRecords, 7);
     const pendingWorkOrders = pendingSlaWorkOrders.map((order) => ({
       id: order.id,
+      sequentialNumber: order.sequentialNumber,
       title: order.title,
       priority: order.priority,
       status: order.status,
-      dueDate: order.dueDate?.toISOString() ?? null,
+      type: order.type,
+      slaStatusExtended: order.slaStatusExtended,
+      slaRemainingSeconds: order.slaRemainingSeconds,
     }));
     const preventiveMap = new Map(
       lastPreventiveByPair.map((item) => [
@@ -253,6 +312,36 @@ export class OperationalDashboardService {
       })
       .slice(0, 8);
 
+    const generalMap = new Map(
+      lastGeneralByLocation.map((item) => [
+        item.locationId,
+        item._max?.completedAt ?? null,
+      ]),
+    );
+    const generalAgingByLocation = monitoredGeneralLocations
+      .map((row) => {
+        const locationId = row.locationId;
+        const generalAt = generalMap.get(locationId) ?? null;
+        const daysSinceLastGeneral = generalAt
+          ? this.calcularDiasDesde(generalAt)
+          : null;
+
+        return {
+          locationId,
+          locationName: row.location?.name ?? 'Localidade',
+          locationCode: row.location?.code ?? null,
+          regionalName: row.location?.regional?.city ?? null,
+          lastGeneralAt: generalAt?.toISOString() ?? null,
+          daysSinceLastGeneral,
+        };
+      })
+      .sort((a, b) => {
+        const left = a.daysSinceLastGeneral ?? Number.MAX_SAFE_INTEGER;
+        const right = b.daysSinceLastGeneral ?? Number.MAX_SAFE_INTEGER;
+        return right - left;
+      })
+      .slice(0, 8);
+
     return {
       assets: {
         total: totalAssets,
@@ -275,6 +364,7 @@ export class OperationalDashboardService {
       workOrdersTrend,
       mttrTrend,
       preventiveAgingByLocationEquipment,
+      generalAgingByLocation,
     };
   }
 

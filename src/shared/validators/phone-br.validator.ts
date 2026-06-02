@@ -13,8 +13,9 @@ export function IsPhoneNumberBR(validationOptions?: ValidationOptions) {
       propertyName: propertyName,
       options: validationOptions,
       validator: {
-        validate(value: any, args: ValidationArguments) {
-          if (!value) return true; // Telefone é opcional
+        validate(value: unknown) {
+          if (value == null || value === '') return true;
+          if (typeof value !== 'string') return false;
 
           return validatePhoneNumberBR(value);
         },
@@ -27,23 +28,25 @@ export function IsPhoneNumberBR(validationOptions?: ValidationOptions) {
   };
 }
 
-function validatePhoneNumberBR(phone: string): boolean {
-  // Remove caracteres especiais
+/** Exportado para testes unitários. */
+export function validatePhoneNumberBR(phone: string): boolean {
+  if (typeof phone !== 'string' || !phone.trim()) return true;
+
   const cleanPhone = phone.replace(/[^\d]/g, '');
 
-  // Verifica se tem 10 ou 11 dígitos (com DDD)
   if (cleanPhone.length < 10 || cleanPhone.length > 11) return false;
 
-  // Verifica se começa com DDD válido (11-99)
-  const ddd = parseInt(cleanPhone.substring(0, 2));
+  const ddd = parseInt(cleanPhone.substring(0, 2), 10);
   if (ddd < 11 || ddd > 99) return false;
 
-  // Verifica se o número não é composto apenas por zeros
-  const number = cleanPhone.substring(2);
-  if (/^0+$/.test(number)) return false;
+  const subscriber = cleanPhone.substring(2);
+  if (/^0+$/.test(subscriber)) return false;
 
-  // Verifica se o número não é composto apenas por números iguais
-  if (/^(\d)\1+$/.test(number)) return false;
+  // Rejeita só quando os 10/11 dígitos são idênticos (ex.: 11111111111).
+  // Não rejeita (11) 99999-9999: após o DDD o 9 repetido é máscara comum.
+  if (/^(\d)\1+$/.test(cleanPhone)) return false;
+
+  if (cleanPhone.length === 11 && subscriber[0] !== '9') return false;
 
   return true;
 }

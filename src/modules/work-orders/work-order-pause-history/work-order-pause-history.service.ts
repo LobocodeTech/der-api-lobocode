@@ -10,7 +10,7 @@ import { REQUEST } from '@nestjs/core';
 import {
   WorkOrderPauseHistoryEventType,
   WorkOrderStatus,
-  WorkOrderSlaStatus,
+  WorkOrderType,
 } from '@prisma/client';
 import { PrismaService } from 'src/shared/prisma/prisma.service';
 import { CreateWorkOrderPauseHistoryDto } from '../dto/create-work-order-pause-history.dto';
@@ -19,10 +19,12 @@ import {
   isWorkOrderPausePresetReason,
   isWorkOrderResumePresetReason,
 } from './work-order-pause-preset.constants';
-import { horasRestantesAteFimDoPrazo } from '../utils/work-order-due-date.util';
 import { WorkOrderActivityNotificationService } from '../../notifications/shared/work-order-activity-notification.service';
 import { WorkOrderQueueUsersService } from '../work-order-queue-users/work-order-queue-users.service';
 import { WorkOrdersService } from '../work-orders.service';
+import { WorkOrderSlaService } from '../services/work-order-sla.service';
+import { normalizarConfigSlaEmpresa } from '../utils/work-order-corrective-sla.util';
+import { WorkOrderSlaStatus } from '@prisma/client';
 
 @Injectable({ scope: Scope.REQUEST })
 export class WorkOrderPauseHistoryService {
@@ -31,6 +33,7 @@ export class WorkOrderPauseHistoryService {
     @Inject(WorkOrdersService) private readonly workOrdersService: WorkOrdersService,
     private readonly workOrderQueueUsersService: WorkOrderQueueUsersService,
     private readonly workOrderActivityNotificationService: WorkOrderActivityNotificationService,
+    private readonly workOrderSlaService: WorkOrderSlaService,
     @Optional() @Inject(REQUEST) private readonly request?: any,
   ) {}
 
@@ -76,6 +79,9 @@ export class WorkOrderPauseHistoryService {
       dto.customReason,
     );
 
+    const agora = new Date();
+    const slaPayload = await this.buildPauseSlaUpdate(workOrder, agora);
+
     await this.prisma.$transaction(async (tx) => {
       await tx.workOrderPauseHistory.create({
         data: {
@@ -83,6 +89,10 @@ export class WorkOrderPauseHistoryService {
           pausedByUserId,
           reason,
           eventType: WorkOrderPauseHistoryEventType.PAUSE,
+          effectiveSlaConsumedSeconds:
+            slaPayload?.slaConsumedSeconds ?? undefined,
+          slaStatusExtendedAtEvent:
+            slaPayload?.slaStatusExtended ?? undefined,
         },
       });
 
@@ -90,13 +100,14 @@ export class WorkOrderPauseHistoryService {
         where: { id: workOrder.id },
         data: {
           status: WorkOrderStatus.PAUSED,
-          updatedBy: pausedByUserId,
-          slaStatus: this.calculateSlaStatus(workOrder.dueDate),
+          updatedByUser: { connect: { id: pausedByUserId } },
+          ...(slaPayload ?? {}),
         },
       });
     });
 
     await this.notificarMembrosDasFilas(workOrder.id, 'paused');
+    await this.processarNotificacoesSla(workOrder.id);
 
     return this.workOrdersService.buscarDetalhesPorId(workOrder.id);
   }
@@ -125,6 +136,9 @@ export class WorkOrderPauseHistoryService {
       dto.customReason,
     );
 
+    const agora = new Date();
+    const slaPayload = await this.buildResumeSlaUpdate(workOrder, agora);
+
     await this.prisma.$transaction(async (tx) => {
       await tx.workOrderPauseHistory.create({
         data: {
@@ -132,6 +146,10 @@ export class WorkOrderPauseHistoryService {
           pausedByUserId: userId,
           reason,
           eventType: WorkOrderPauseHistoryEventType.RESUME,
+          effectiveSlaConsumedSeconds:
+            slaPayload?.slaConsumedSeconds ?? undefined,
+          slaStatusExtendedAtEvent:
+            slaPayload?.slaStatusExtended ?? undefined,
         },
       });
 
@@ -139,15 +157,123 @@ export class WorkOrderPauseHistoryService {
         where: { id: workOrder.id },
         data: {
           status: WorkOrderStatus.IN_PROGRESS,
-          updatedBy: userId,
-          slaStatus: this.calculateSlaStatus(workOrder.dueDate),
+          updatedByUser: { connect: { id: userId } },
+          ...(slaPayload ?? {}),
         },
       });
     });
 
     await this.notificarMembrosDasFilas(workOrder.id, 'resumed');
+    await this.processarNotificacoesSla(workOrder.id);
 
     return this.workOrdersService.buscarDetalhesPorId(workOrder.id);
+  }
+
+  private async buildPauseSlaUpdate(
+    workOrder: Awaited<ReturnType<typeof this.findScopedWorkOrder>>,
+    agora: Date,
+  ) {
+    if (workOrder.type !== WorkOrderType.CORRECTIVE) {
+      return null;
+    }
+    const config = normalizarConfigSlaEmpresa(workOrder.company ?? undefined);
+    const estado = this.mapSlaState(workOrder);
+    const payload = this.workOrderSlaService.aoPausar(estado, config, agora);
+    if (!payload) return null;
+    return { ...payload, slaStatus: WorkOrderSlaStatus.OK };
+  }
+
+  private async buildResumeSlaUpdate(
+    workOrder: Awaited<ReturnType<typeof this.findScopedWorkOrder>>,
+    agora: Date,
+  ) {
+    if (workOrder.type !== WorkOrderType.CORRECTIVE) {
+      return null;
+    }
+    const config = normalizarConfigSlaEmpresa(workOrder.company ?? undefined);
+    const estado = this.mapSlaState(workOrder);
+    const payload = this.workOrderSlaService.aoRetomar(estado, config, agora);
+    if (!payload) return null;
+    return { ...payload, slaStatus: WorkOrderSlaStatus.OK };
+  }
+
+  private mapSlaState(
+    workOrder: Awaited<ReturnType<typeof this.findScopedWorkOrder>>,
+  ) {
+    return {
+      type: workOrder.type,
+      status: workOrder.status,
+      slaStartAt: workOrder.slaStartAt,
+      slaPausedAt: workOrder.slaPausedAt,
+      slaResumedAt: workOrder.slaResumedAt,
+      slaConsumedSeconds: workOrder.slaConsumedSeconds,
+      slaDeadlineAt: workOrder.slaDeadlineAt,
+      slaStatusExtended: workOrder.slaStatusExtended,
+      slaExceededAt: workOrder.slaExceededAt,
+      completedAt: workOrder.completedAt,
+    };
+  }
+
+  private async processarNotificacoesSla(workOrderId: string): Promise<void> {
+    const ordem = await this.prisma.workOrder.findFirst({
+      where: { id: workOrderId, deletedAt: null },
+      select: {
+        id: true,
+        title: true,
+        companyId: true,
+        type: true,
+        status: true,
+        slaStartAt: true,
+        slaPausedAt: true,
+        slaResumedAt: true,
+        slaConsumedSeconds: true,
+        slaDeadlineAt: true,
+        slaStatusExtended: true,
+        slaExceededAt: true,
+        completedAt: true,
+        slaNearBreachNotifiedAt: true,
+        slaOneHourLeftNotifiedAt: true,
+        slaBreachedNotifiedAt: true,
+        company: {
+          select: {
+            correctiveSlaDefaultSeconds: true,
+            correctiveSlaWindowStart: true,
+            correctiveSlaWindowEnd: true,
+          },
+        },
+      },
+    });
+    if (!ordem || ordem.type !== WorkOrderType.CORRECTIVE) return;
+
+    const config = normalizarConfigSlaEmpresa(ordem.company ?? undefined);
+    const snapshot = this.workOrderSlaService.calcularSnapshot(
+      {
+        type: ordem.type,
+        status: ordem.status,
+        slaStartAt: ordem.slaStartAt,
+        slaPausedAt: ordem.slaPausedAt,
+        slaResumedAt: ordem.slaResumedAt,
+        slaConsumedSeconds: ordem.slaConsumedSeconds,
+        slaDeadlineAt: ordem.slaDeadlineAt,
+        slaStatusExtended: ordem.slaStatusExtended,
+        slaExceededAt: ordem.slaExceededAt,
+        completedAt: ordem.completedAt,
+      },
+      config,
+    );
+    if (!snapshot) return;
+
+    await this.workOrdersService.notificarLimaresSlaCorretiva(
+      ordem.id,
+      ordem.companyId,
+      ordem.title?.trim() || `OS ${ordem.id}`,
+      snapshot,
+      {
+        slaNearBreachNotifiedAt: ordem.slaNearBreachNotifiedAt,
+        slaOneHourLeftNotifiedAt: ordem.slaOneHourLeftNotifiedAt,
+        slaBreachedNotifiedAt: ordem.slaBreachedNotifiedAt,
+      },
+    );
   }
 
   private async notificarMembrosDasFilas(
@@ -190,8 +316,26 @@ export class WorkOrderPauseHistoryService {
       },
       select: {
         id: true,
+        type: true,
         dueDate: true,
         status: true,
+        companyId: true,
+        title: true,
+        slaStartAt: true,
+        slaPausedAt: true,
+        slaResumedAt: true,
+        slaConsumedSeconds: true,
+        slaDeadlineAt: true,
+        slaStatusExtended: true,
+        slaExceededAt: true,
+        completedAt: true,
+        company: {
+          select: {
+            correctiveSlaDefaultSeconds: true,
+            correctiveSlaWindowStart: true,
+            correctiveSlaWindowEnd: true,
+          },
+        },
       },
     });
 
@@ -206,24 +350,4 @@ export class WorkOrderPauseHistoryService {
     return this.request?.user?.id as string | undefined;
   }
 
-  private calculateSlaStatus(dueDate?: Date | null): WorkOrderSlaStatus {
-    if (!dueDate) {
-      return WorkOrderSlaStatus.OK;
-    }
-
-    const hoursRemaining = horasRestantesAteFimDoPrazo(dueDate);
-    if (hoursRemaining == null) {
-      return WorkOrderSlaStatus.OK;
-    }
-
-    if (hoursRemaining <= 0) {
-      return WorkOrderSlaStatus.OVERDUE;
-    }
-
-    if (hoursRemaining <= 6) {
-      return WorkOrderSlaStatus.WARNING;
-    }
-
-    return WorkOrderSlaStatus.OK;
-  }
 }

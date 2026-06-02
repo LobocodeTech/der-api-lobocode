@@ -19,7 +19,7 @@ info:
 
     **Rate limit:** configurável no servidor (`INTEGRATION_RATE_LIMIT_MAX` / `INTEGRATION_RATE_LIMIT_WINDOW_MS`).
     Respostas podem incluir os headers `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` e, ao exceder, `Retry-After`.
-  version: 1.1.0
+  version: 1.2.0
   contact:
     name: Lobocode
     email: suporte@lobocode.com.br
@@ -346,6 +346,61 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/WorkOrderQueueLinkIntegration'
+        slaStartAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: |
+            Início efetivo da contagem de SLA por tempo útil.
+            Presente apenas para ordens `CORRECTIVE` após migração do core de SLA corretiva.
+        slaPausedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Instantâneo da última pausa (SLA corretiva).
+        slaResumedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Último retorno após pausa (SLA corretiva).
+        slaConsumedSeconds:
+          type: integer
+          nullable: true
+          description: Segundos de tempo útil já consumidos (janela operacional da empresa).
+        slaRemainingSeconds:
+          type: integer
+          nullable: true
+          description: Segundos úteis restantes (derivado on-read).
+        slaDeadlineAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Deadline projetado em tempo útil.
+        slaStatusExtended:
+          allOf:
+            - $ref: '#/components/schemas/WorkOrderCorrectiveSlaStatus'
+          nullable: true
+          description: Status estendido de SLA corretiva.
+        slaExceededAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Momento em que o SLA foi ultrapassado.
+        correctiveSlaTotalSeconds:
+          type: integer
+          nullable: true
+          description: Orçamento total de SLA em segundos (configuração da empresa).
+
+    WorkOrderCorrectiveSlaStatus:
+      type: string
+      enum:
+        - IN_PROGRESS
+        - PAUSED
+        - NEAR_BREACH
+        - BREACHED
+        - COMPLETED_ON_TIME
+        - COMPLETED_LATE
+      description: Status de SLA para ordens corretivas (tempo útil acumulado).
 
     WorkOrderType:
       type: string

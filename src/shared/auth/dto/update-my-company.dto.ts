@@ -4,6 +4,10 @@ import {
   IsEmail,
   IsOptional,
   MinLength,
+  IsInt,
+  Min,
+  Max,
+  Matches,
 } from 'class-validator';
 import { IsCNPJ, IsPhoneNumberBR } from '../../validators';
 import { VALIDATION_MESSAGES } from '../../common/messages';
@@ -49,4 +53,24 @@ export class UpdateMyCompanyDto {
   @IsString({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
   @IsPhoneNumberBR({ message: VALIDATION_MESSAGES.FORMAT.PHONE_INVALID })
   contactPhone?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(168)
+  correctiveSlaDefaultHours?: number;
+
+  @IsOptional()
+  @Transform(trimOrUndefined)
+  @Matches(/^\d{1,2}:\d{2}$/, {
+    message: 'Horário inválido. Use HH:mm.',
+  })
+  correctiveSlaWindowStart?: string;
+
+  @IsOptional()
+  @Transform(trimOrUndefined)
+  @Matches(/^\d{1,2}:\d{2}$/, {
+    message: 'Horário inválido. Use HH:mm.',
+  })
+  correctiveSlaWindowEnd?: string;
 }

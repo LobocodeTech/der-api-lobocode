@@ -1,5 +1,6 @@
 import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
 import { FilesModule } from 'src/shared/files/files.module';
+import { NotificationModule } from '../notifications/notification.module';
 import { WorkOrdersController } from './work-orders.controller';
 import { WorkOrdersQueueUsersController } from './work-order-queue-users/work-orders-queue-users.controller';
 import { WorkOrderColumnsController } from './work-order-columns/work-order-columns.controller';
@@ -14,9 +15,11 @@ import {
   WorkOrdersIntegrationRateLimitGuard,
   WorkOrdersIntegrationService,
 } from './integration';
+import { WorkOrderSlaService } from './services/work-order-sla.service';
+import { WorkOrderCorrectiveSlaNotificationService } from './services/work-order-corrective-sla-notification.service';
 
 @Module({
-  imports: [FilesModule],
+  imports: [FilesModule, NotificationModule],
   controllers: [
     WorkOrdersController,
     WorkOrdersQueueUsersController,
@@ -31,9 +34,12 @@ import {
     WorkOrderQueueUsersService,
     WorkOrdersIntegrationService,
     WorkOrdersIntegrationRateLimitGuard,
+    WorkOrderSlaService,
+    WorkOrderCorrectiveSlaNotificationService,
   ],
   exports: [
     WorkOrdersService,
+    WorkOrderSlaService,
     WorkOrderColumnsService,
     WorkOrderPauseHistoryService,
     WorkOrderQueueUsersService,

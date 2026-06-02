@@ -94,6 +94,16 @@ enum WorkOrderSlaStatus {
   OVERDUE
 }
 
+/// SLA de tempo útil acumulado — exclusivo para OS corretiva.
+enum WorkOrderCorrectiveSlaStatus {
+  IN_PROGRESS
+  PAUSED
+  NEAR_BREACH
+  BREACHED
+  COMPLETED_ON_TIME
+  COMPLETED_LATE
+}
+
 enum QueueStatus {
   ACTIVE
   INACTIVE
@@ -151,6 +161,11 @@ model Company {
   contactEmail String?
   contactPhone String?
 
+  /// SLA corretiva: total em segundos (padrão 6h = 21600).
+  correctiveSlaDefaultSeconds Int    @default(21600)
+  correctiveSlaWindowStart    String @default("06:00")
+  correctiveSlaWindowEnd      String @default("18:00")
+
   users            User[]
   assets           Asset[]
   locations        Location[]
@@ -207,8 +222,11 @@ model User {
   pushSubscriptions       PushSubscription[]        @relation("UserPushSubscriptions")
   workOrderComments       WorkOrderComment[]        @relation("WorkOrderCommentsAuthor")
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  workOrdersCreated WorkOrder[] @relation("WorkOrdersCreatedBy")
+  workOrdersUpdated WorkOrder[] @relation("WorkOrdersUpdatedBy")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   deletedAt DateTime?
 
   @@index([companyId])
@@ -397,19 +415,31 @@ model WorkOrderQueue {
 // ===============================================
 
 model WorkOrder {
-  id               String              @id @default(cuid())
-  sequentialNumber String?
-  title            String
-  description      String?
-  priority         WorkOrderPriority?
-  status           WorkOrderStatus     @default(PENDING)
-  type             WorkOrderType
-  dueDate          DateTime?           @db.Date
-  startedAt        DateTime?
-  completedAt      DateTime?
-  slaDeadlineHours Int?
-  slaStatus        WorkOrderSlaStatus? @default(OK)
-  equipmentType    AssetType?
+  id                       String                        @id @default(cuid())
+  sequentialNumber         String?
+  title                    String
+  description              String?
+  priority                 WorkOrderPriority?
+  status                   WorkOrderStatus               @default(PENDING)
+  type                     WorkOrderType
+  dueDate                  DateTime?                     @db.Date
+  startedAt                DateTime?
+  completedAt              DateTime?
+  slaDeadlineHours         Int?
+  slaStatus                WorkOrderSlaStatus?           @default(OK)
+  /// SLA corretiva (tempo útil acumulado).
+  slaStartAt               DateTime?
+  slaPausedAt              DateTime?
+  slaResumedAt             DateTime?
+  slaConsumedSeconds       Int?                          @default(0)
+  slaRemainingSeconds      Int?
+  slaDeadlineAt            DateTime?
+  slaStatusExtended        WorkOrderCorrectiveSlaStatus?
+  slaExceededAt            DateTime?
+  slaNearBreachNotifiedAt  DateTime?
+  slaOneHourLeftNotifiedAt DateTime?
+  slaBreachedNotifiedAt    DateTime?
+  equipmentType            AssetType?
 
   planningId String?   @unique
   planning   Planning? @relation(fields: [planningId], references: [id], onDelete: SetNull)
@@ -425,17 +455,20 @@ model WorkOrder {
 
   workOrderQueues WorkOrderQueue[] @relation("WorkOrderQueues")
 
-  checklistItems WorkOrderChecklistItem[]
-  comments       WorkOrderComment[]
-  evidences      WorkOrderEvidence[]
+  checklistItems          WorkOrderChecklistItem[]
+  comments                WorkOrderComment[]
+  evidences               WorkOrderEvidence[]
+  workOrderPauseHistories WorkOrderPauseHistory[]
+
+  createdBy     String?
+  createdByUser User?   @relation("WorkOrdersCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+
+  updatedBy     String?
+  updatedByUser User?   @relation("WorkOrdersUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
-
-  createdBy               String?
-  updatedBy               String?
-  workOrderPauseHistories WorkOrderPauseHistory[]
 
   @@index([companyId])
   @@index([sequentialNumber])
@@ -446,6 +479,8 @@ model WorkOrder {
   @@index([startedAt])
   @@index([completedAt])
   @@index([deletedAt])
+  @@index([slaStatusExtended])
+  @@index([type, slaStatusExtended])
 }
 
 model WorkOrderChecklistItem {
@@ -504,6 +539,9 @@ model WorkOrderPauseHistory {
   reason String @db.Text
 
   eventType WorkOrderPauseHistoryEventType @default(PAUSE)
+
+  effectiveSlaConsumedSeconds Int?
+  slaStatusExtendedAtEvent    WorkOrderCorrectiveSlaStatus?
 
   workOrderId String
   workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)

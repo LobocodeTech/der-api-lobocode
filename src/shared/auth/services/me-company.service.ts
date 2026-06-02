@@ -5,6 +5,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { ConflictError, ForbiddenError } from '../../common/errors';
 import { UpdateMyCompanyDto } from '../dto/update-my-company.dto';
 import { PublicCompany, toPublicCompany } from '../auth-me.mapper';
+import { normalizarConfigSlaEmpresa } from 'src/modules/work-orders/utils/work-order-corrective-sla.util';
 
 @Injectable()
 export class MeCompanyService {
@@ -61,6 +62,35 @@ export class MeCompanyService {
     if (dto.contactPhone !== undefined) {
       const v = dto.contactPhone.trim();
       data.contactPhone = v.length ? v : null;
+    }
+
+    if (
+      dto.correctiveSlaDefaultHours !== undefined ||
+      dto.correctiveSlaWindowStart !== undefined ||
+      dto.correctiveSlaWindowEnd !== undefined
+    ) {
+      const current = await this.prisma.company.findUnique({
+        where: { id: user.companyId },
+        select: {
+          correctiveSlaDefaultSeconds: true,
+          correctiveSlaWindowStart: true,
+          correctiveSlaWindowEnd: true,
+        },
+      });
+      const normalized = normalizarConfigSlaEmpresa({
+        correctiveSlaDefaultSeconds:
+          dto.correctiveSlaDefaultHours !== undefined
+            ? dto.correctiveSlaDefaultHours * 3600
+            : current?.correctiveSlaDefaultSeconds,
+        correctiveSlaWindowStart:
+          dto.correctiveSlaWindowStart ?? current?.correctiveSlaWindowStart,
+        correctiveSlaWindowEnd:
+          dto.correctiveSlaWindowEnd ?? current?.correctiveSlaWindowEnd,
+      });
+      data.correctiveSlaDefaultSeconds =
+        normalized.correctiveSlaDefaultSeconds;
+      data.correctiveSlaWindowStart = normalized.correctiveSlaWindowStart;
+      data.correctiveSlaWindowEnd = normalized.correctiveSlaWindowEnd;
     }
 
     if (Object.keys(data).length === 0) {

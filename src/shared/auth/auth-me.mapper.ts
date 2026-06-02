@@ -8,6 +8,9 @@ export type PublicCompany = {
   contactName: string | null;
   contactEmail: string | null;
   contactPhone: string | null;
+  correctiveSlaDefaultSeconds: number;
+  correctiveSlaWindowStart: string;
+  correctiveSlaWindowEnd: string;
 };
 
 /** Alinhado ao JSON `activitiesNotification` do User no Prisma. */
@@ -77,6 +80,9 @@ export function toPublicCompany(
     contactName: company.contactName ?? null,
     contactEmail: company.contactEmail ?? null,
     contactPhone: company.contactPhone ?? null,
+    correctiveSlaDefaultSeconds: company.correctiveSlaDefaultSeconds,
+    correctiveSlaWindowStart: company.correctiveSlaWindowStart,
+    correctiveSlaWindowEnd: company.correctiveSlaWindowEnd,
   };
 }
 

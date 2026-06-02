@@ -14,6 +14,7 @@ import {
   PlanningExecutionStatus,
   Prisma,
   Roles,
+  WorkOrderCorrectiveSlaStatus,
   WorkOrderSlaStatus,
   WorkOrderStatus,
   WorkOrderType,
@@ -43,13 +44,19 @@ import {
   WORK_ORDER_QUEUES_ON_WORK_ORDER_INCLUDE,
   WorkOrderQueueUsersService,
 } from './work-order-queue-users/work-order-queue-users.service';
+import { formatAssetTypeLabel } from 'src/shared/common/utils/asset-type-label';
+import { atribuirProximoNumeroSequencialWorkOrder } from './utils/work-order-sequential-number.util';
+import { WorkOrderSlaService } from './services/work-order-sla.service';
+import { WorkOrderCorrectiveSlaNotificationService } from './services/work-order-corrective-sla-notification.service';
+import {
+  normalizarConfigSlaEmpresa,
+  type CorrectiveSlaCompanyConfig,
+} from './utils/work-order-corrective-sla.util';
 import {
   diaCivilParaDatePostgres,
   extrairDiaCivilDoPrazo,
-  horasRestantesAteFimDoPrazo,
 } from './utils/work-order-due-date.util';
-import { formatAssetTypeLabel } from 'src/shared/common/utils/asset-type-label';
-import { atribuirProximoNumeroSequencialWorkOrder } from './utils/work-order-sequential-number.util';
+import { WORK_ORDER_AUDIT_USER_INCLUDE } from './dto/work-order-audit.fields';
 
 @Injectable({ scope: Scope.REQUEST })
 export class WorkOrdersService extends UniversalService<
@@ -62,6 +69,7 @@ export class WorkOrdersService extends UniversalService<
   private pendingPreviousQueueIds: string[] | null = null;
   private pendingLifecycleEvent: WorkOrderLifecycleEventKind | null = null;
   private pendingLifecycleWorkOrderId: string | null = null;
+  private cachedCompanySlaConfig: CorrectiveSlaCompanyConfig | null = null;
 
   private readonly detalhesInclude: any = {
     column: {
@@ -139,6 +147,7 @@ export class WorkOrdersService extends UniversalService<
         observation: true,
       },
     },
+    ...WORK_ORDER_AUDIT_USER_INCLUDE,
   };
 
   constructor(
@@ -151,6 +160,8 @@ export class WorkOrdersService extends UniversalService<
     @Inject(WorkOrderActivityNotificationService)
     private readonly workOrderActivityNotificationService: WorkOrderActivityNotificationService,
     private readonly workOrderQueueUsersService: WorkOrderQueueUsersService,
+    private readonly workOrderSlaService: WorkOrderSlaService,
+    private readonly workOrderCorrectiveSlaNotificationService: WorkOrderCorrectiveSlaNotificationService,
     @Optional() @Inject(REQUEST) request: any,
   ) {
     const { model, casl } = WorkOrdersService.entityConfig;
@@ -206,6 +217,7 @@ export class WorkOrdersService extends UniversalService<
             observation: true,
           },
         },
+        ...WORK_ORDER_AUDIT_USER_INCLUDE,
       },
       where: {
         deletedAt: null,
@@ -215,7 +227,15 @@ export class WorkOrdersService extends UniversalService<
     };
   }
 
+  private async preloadCompanySlaConfig(): Promise<void> {
+    const companyId = this.obterCompanyId();
+    if (companyId) {
+      await this.obterConfigSlaEmpresa(companyId);
+    }
+  }
+
   async buscarPorId(id: string, include?: Prisma.WorkOrderInclude) {
+    await this.preloadCompanySlaConfig();
     const ordem = await super.buscarPorId(id, include ?? this.detalhesInclude);
     const normalizada = this.normalizarDetalhesDaOrdem(ordem);
     return this.mapWorkOrderResponse(normalizada);
@@ -226,11 +246,13 @@ export class WorkOrdersService extends UniversalService<
   }
 
   async buscarTodos() {
+    await this.preloadCompanySlaConfig();
     const resultado = await super.buscarTodos();
     return this.mapWorkOrderResponse(resultado);
   }
 
   async buscarComPaginacao(page = 1, limit = 20, include?: any) {
+    await this.preloadCompanySlaConfig();
     const resultado = await super.buscarComPaginacao(page, limit, include);
     return this.mapWorkOrderResponse(resultado);
   }
@@ -325,18 +347,40 @@ export class WorkOrdersService extends UniversalService<
       );
     }
 
+    const updateData: Prisma.WorkOrderUpdateInput = {
+      status: WorkOrderStatus.IN_PROGRESS,
+      startedAt: ordem.startedAt ?? new Date(),
+      completedAt: null,
+      ...this.dadosAuditoriaAtualizacaoPrisma(this.obterUsuarioLogadoId()),
+    };
+
+    if (ordem.type === WorkOrderType.CORRECTIVE) {
+      const config = await this.obterConfigSlaEmpresa(ordem.companyId);
+      const estado = this.mapearEstadoSlaCorretiva(ordem);
+      if (!estado.slaStartAt) {
+        const init = this.workOrderSlaService.inicializarSlaNaCriacao(
+          ordem.createdAt ?? new Date(),
+          config,
+        );
+        Object.assign(updateData, init);
+      } else {
+        const snapshot = this.workOrderSlaService.calcularSnapshot(
+          { ...estado, status: WorkOrderStatus.IN_PROGRESS },
+          config,
+        );
+        if (snapshot) {
+          Object.assign(
+            updateData,
+            this.workOrderSlaService.snapshotParaPersistencia(snapshot),
+          );
+        }
+      }
+      updateData.slaStatus = WorkOrderSlaStatus.OK;
+    }
+
     await this.prisma.workOrder.update({
       where: { id: ordem.id },
-      data: {
-        status: WorkOrderStatus.IN_PROGRESS,
-        startedAt: ordem.startedAt ?? new Date(),
-        completedAt: null,
-        updatedBy: this.obterUsuarioLogadoId() ?? undefined,
-        slaStatus: this.calcularSlaStatus(
-          ordem.dueDate,
-          WorkOrderStatus.IN_PROGRESS,
-        ),
-      },
+      data: updateData,
     });
 
     await this.registrarComentarioAutomatico(
@@ -356,14 +400,33 @@ export class WorkOrdersService extends UniversalService<
       throw new BadRequestException('A ordem de serviço já foi concluída.');
     }
 
+    const completedAt = new Date();
+    const updateData: Prisma.WorkOrderUpdateInput = {
+      status: WorkOrderStatus.COMPLETED,
+      completedAt,
+      ...this.dadosAuditoriaAtualizacaoPrisma(this.obterUsuarioLogadoId()),
+    };
+
+    if (ordem.type === WorkOrderType.CORRECTIVE) {
+      const config = await this.obterConfigSlaEmpresa(ordem.companyId);
+      const payload = this.workOrderSlaService.aoConcluir(
+        {
+          ...this.mapearEstadoSlaCorretiva(ordem),
+          status: WorkOrderStatus.COMPLETED,
+          completedAt,
+        },
+        config,
+        completedAt,
+      );
+      if (payload) {
+        Object.assign(updateData, payload);
+      }
+      updateData.slaStatus = WorkOrderSlaStatus.OK;
+    }
+
     await this.prisma.workOrder.update({
       where: { id: ordem.id },
-      data: {
-        status: WorkOrderStatus.COMPLETED,
-        completedAt: new Date(),
-        updatedBy: this.obterUsuarioLogadoId() ?? undefined,
-        slaStatus: WorkOrderSlaStatus.OK,
-      },
+      data: updateData,
     });
 
     await this.registrarComentarioAutomatico(
@@ -470,8 +533,10 @@ export class WorkOrdersService extends UniversalService<
             : ordem.status === WorkOrderStatus.COMPLETED
               ? null
               : undefined,
-        slaStatus: this.calcularSlaStatus(ordem.dueDate ?? null, novoStatus),
-        updatedBy: this.obterUsuarioLogadoId() ?? undefined,
+        ...(ordem.type === WorkOrderType.CORRECTIVE
+          ? { slaStatus: WorkOrderSlaStatus.OK }
+          : {}),
+        ...this.dadosAuditoriaAtualizacaoUnchecked(this.obterUsuarioLogadoId()),
       },
     });
 
@@ -690,6 +755,7 @@ export class WorkOrdersService extends UniversalService<
   }
 
   protected async antesDeCriar(data: CreateWorkOrderDto): Promise<void> {
+    this.removerAuditoriaDoPayloadCliente(data);
     const location = await this.buscarLocalidadeValida(data.locationId);
     await this.validarBloqueioPorOsAberta(
       data.locationId,
@@ -734,33 +800,22 @@ export class WorkOrdersService extends UniversalService<
       }
     }
 
-    if (data.dueDate) {
-      const dia = extrairDiaCivilDoPrazo(String(data.dueDate));
-      if (dia) {
-        const dbDate = diaCivilParaDatePostgres(dia);
-        (data as { dueDate?: Date }).dueDate = dbDate;
-      } else {
-        delete (data as { dueDate?: unknown }).dueDate;
-      }
-    } else {
-      delete (data as { dueDate?: unknown }).dueDate;
-    }
-
-    if (!data.slaDeadlineHours && (data as { dueDate?: Date }).dueDate) {
-      const horas = horasRestantesAteFimDoPrazo(
-        (data as { dueDate?: Date }).dueDate,
-      );
-      if (horas != null) {
-        data.slaDeadlineHours = horas;
-      }
-    }
-
-    data.slaStatus = this.calcularSlaStatus(
-      (data as { dueDate?: Date }).dueDate ?? null,
-      data.status,
-    );
-
     const empresaId = data.companyId ?? companyId;
+
+    if (data.type === WorkOrderType.CORRECTIVE) {
+      this.removerCamposSlaLegadoCompletoDoPayload(data);
+      const config = await this.obterConfigSlaEmpresa(empresaId!);
+      const slaInit = this.workOrderSlaService.inicializarSlaNaCriacao(
+        new Date(),
+        config,
+      );
+      Object.assign(data, slaInit);
+      data.slaStatus = WorkOrderSlaStatus.OK;
+    } else {
+      this.removerCamposSlaCalculadoLegadoDoPayload(data);
+      this.normalizarPrazoMarcadorNoPayload(data);
+    }
+
     if (!empresaId) {
       throw new BadRequestException(
         'Empresa não identificada para gerar o número sequencial da OS.',
@@ -772,6 +827,8 @@ export class WorkOrdersService extends UniversalService<
     );
     (data as CreateWorkOrderDto & { sequentialNumber: string }).sequentialNumber =
       proximoNumero;
+
+    this.aplicarAuditoriaCriacao(data);
   }
 
   private async validarBloqueioPorOsAberta(
@@ -820,6 +877,7 @@ export class WorkOrdersService extends UniversalService<
     _id: string,
     data: UpdateWorkOrderDto,
   ): Promise<void> {
+    this.removerAuditoriaDoPayloadCliente(data);
     delete (data as { sequentialNumber?: unknown }).sequentialNumber;
     this.pendingUpdateQueueIds = null;
     this.pendingPreviousQueueIds = null;
@@ -936,7 +994,15 @@ export class WorkOrdersService extends UniversalService<
 
     if (data.status === WorkOrderStatus.COMPLETED) {
       (data as any).completedAt = new Date();
-      data.slaStatus = WorkOrderSlaStatus.OK;
+      const tipoAoConcluir =
+        data.type !== undefined ? data.type : ordemAtual.type;
+      if (tipoAoConcluir === WorkOrderType.CORRECTIVE) {
+        data.slaStatus = WorkOrderSlaStatus.OK;
+      } else {
+        this.removerCamposSlaCalculadoLegadoDoPayload(data);
+        this.normalizarPrazoMarcadorNoPayload(data);
+      }
+      this.aplicarAuditoriaAtualizacao(data);
       return;
     }
 
@@ -956,42 +1022,18 @@ export class WorkOrdersService extends UniversalService<
       (data as any).completedAt = null;
     }
 
-    const dueDateNoPayload = Object.prototype.hasOwnProperty.call(
-      data as object,
-      'dueDate',
-    );
+    const tipoEfetivoAtualizacao =
+      data.type !== undefined ? data.type : ordemAtual.type;
 
-    if (dueDateNoPayload) {
-      if (data.dueDate === null || data.dueDate === '') {
-        (data as { dueDate: Date | null }).dueDate = null;
-        (data as { slaDeadlineHours?: number | null }).slaDeadlineHours = null;
-      } else if (typeof data.dueDate === 'string') {
-        const dia = extrairDiaCivilDoPrazo(data.dueDate);
-        const dbDate = dia ? diaCivilParaDatePostgres(dia) : null;
-        (data as { dueDate: Date | null }).dueDate = dbDate;
-        if (!dbDate) {
-          (data as { slaDeadlineHours?: number | null }).slaDeadlineHours = null;
-        }
-      }
-
-      if ((data as { dueDate?: Date | null }).dueDate) {
-        const horas = horasRestantesAteFimDoPrazo(
-          (data as { dueDate?: Date | null }).dueDate,
-        );
-        if (horas != null) {
-          (data as { slaDeadlineHours?: number }).slaDeadlineHours = horas;
-        }
-      }
+    if (tipoEfetivoAtualizacao === WorkOrderType.CORRECTIVE) {
+      this.removerCamposSlaLegadoCompletoDoPayload(data);
+      data.slaStatus = WorkOrderSlaStatus.OK;
+    } else {
+      this.removerCamposSlaCalculadoLegadoDoPayload(data);
+      this.normalizarPrazoMarcadorNoPayload(data);
     }
 
-    if (dueDateNoPayload || data.status !== undefined) {
-      const effectiveDue = dueDateNoPayload
-        ? ((data as { dueDate?: Date | null }).dueDate ?? null)
-        : ((ordemAtual as { dueDate?: Date | null }).dueDate ?? null);
-      const effectiveStatus =
-        data.status !== undefined ? data.status : ordemAtual.status;
-      data.slaStatus = this.calcularSlaStatus(effectiveDue, effectiveStatus);
-    }
+    this.aplicarAuditoriaAtualizacao(data);
   }
 
   protected async depoisDeAtualizar(
@@ -1376,11 +1418,23 @@ export class WorkOrdersService extends UniversalService<
       this.workOrderQueueUsersService.mapAssigneesPrismaShape(users);
 
     const { workOrderQueues: _removed, ...rest } = record;
-    return {
+    let mapped: Record<string, unknown> = {
       ...rest,
       queues,
       assignees,
     };
+
+    if (
+      mapped.type === WorkOrderType.CORRECTIVE &&
+      this.cachedCompanySlaConfig
+    ) {
+      mapped = this.enriquecerRegistroComSlaCorretiva(
+        mapped,
+        this.cachedCompanySlaConfig,
+      );
+    }
+
+    return mapped;
   }
 
   private async registrarComentarioAutomatico(
@@ -1394,6 +1448,7 @@ export class WorkOrdersService extends UniversalService<
     }
 
     await this.repository.atualizar('workOrder', { id: workOrderId }, {
+      ...this.dadosAuditoriaAtualizacaoPrisma(autorId),
       comments: {
         create: {
           author: { connect: { id: autorId } },
@@ -1433,35 +1488,211 @@ export class WorkOrdersService extends UniversalService<
     };
   }
 
-  private calcularSlaStatus(
-    dueDate?: Date | null,
-    status?: WorkOrderStatus,
-  ): WorkOrderSlaStatus {
+  private async obterConfigSlaEmpresa(
+    companyId: string,
+  ): Promise<CorrectiveSlaCompanyConfig> {
     if (
-      status === WorkOrderStatus.COMPLETED ||
-      status === WorkOrderStatus.CANCELLED
+      this.cachedCompanySlaConfig &&
+      this.obterCompanyId() === companyId
     ) {
-      return WorkOrderSlaStatus.OK;
+      return this.cachedCompanySlaConfig;
     }
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: {
+        correctiveSlaDefaultSeconds: true,
+        correctiveSlaWindowStart: true,
+        correctiveSlaWindowEnd: true,
+      },
+    });
+    const config = normalizarConfigSlaEmpresa(company ?? undefined);
+    this.cachedCompanySlaConfig = config;
+    return config;
+  }
 
-    if (!dueDate) {
-      return WorkOrderSlaStatus.OK;
+  private mapearEstadoSlaCorretiva(ordem: {
+    type: WorkOrderType;
+    status: WorkOrderStatus;
+    slaStartAt?: Date | null;
+    slaPausedAt?: Date | null;
+    slaResumedAt?: Date | null;
+    slaConsumedSeconds?: number | null;
+    slaDeadlineAt?: Date | null;
+    slaStatusExtended?: WorkOrderCorrectiveSlaStatus | null;
+    slaExceededAt?: Date | null;
+    completedAt?: Date | null;
+  }) {
+    return {
+      type: ordem.type,
+      status: ordem.status,
+      slaStartAt: ordem.slaStartAt ?? null,
+      slaPausedAt: ordem.slaPausedAt ?? null,
+      slaResumedAt: ordem.slaResumedAt ?? null,
+      slaConsumedSeconds: ordem.slaConsumedSeconds ?? 0,
+      slaDeadlineAt: ordem.slaDeadlineAt ?? null,
+      slaStatusExtended: ordem.slaStatusExtended ?? null,
+      slaExceededAt: ordem.slaExceededAt ?? null,
+      completedAt: ordem.completedAt ?? null,
+    };
+  }
+
+  private enriquecerRegistroComSlaCorretiva(
+    record: Record<string, unknown>,
+    companyConfig: CorrectiveSlaCompanyConfig,
+  ): Record<string, unknown> {
+    if (record.type !== WorkOrderType.CORRECTIVE) {
+      return record;
     }
-
-    const horasRestantes = horasRestantesAteFimDoPrazo(dueDate);
-    if (horasRestantes == null) {
-      return WorkOrderSlaStatus.OK;
+    const snapshot = this.workOrderSlaService.calcularSnapshot(
+      {
+        type: WorkOrderType.CORRECTIVE,
+        status: record.status as WorkOrderStatus,
+        slaStartAt: (record.slaStartAt as Date | null) ?? null,
+        slaPausedAt: (record.slaPausedAt as Date | null) ?? null,
+        slaResumedAt: (record.slaResumedAt as Date | null) ?? null,
+        slaConsumedSeconds: (record.slaConsumedSeconds as number | null) ?? 0,
+        slaDeadlineAt: (record.slaDeadlineAt as Date | null) ?? null,
+        slaStatusExtended:
+          (record.slaStatusExtended as WorkOrderCorrectiveSlaStatus | null) ??
+          null,
+        slaExceededAt: (record.slaExceededAt as Date | null) ?? null,
+        completedAt: (record.completedAt as Date | null) ?? null,
+      },
+      companyConfig,
+    );
+    if (!snapshot) {
+      return record;
     }
+    return {
+      ...record,
+      slaStartAt: snapshot.slaStartAt,
+      slaPausedAt: snapshot.slaPausedAt,
+      slaResumedAt: snapshot.slaResumedAt,
+      slaConsumedSeconds: snapshot.slaConsumedSeconds,
+      slaRemainingSeconds: snapshot.slaRemainingSeconds,
+      slaDeadlineAt: snapshot.slaDeadlineAt,
+      slaStatusExtended: snapshot.slaStatusExtended,
+      slaExceededAt: snapshot.slaExceededAt,
+      correctiveSlaTotalSeconds: snapshot.totalBudgetSeconds,
+    };
+  }
 
-    if (horasRestantes <= 0) {
-      return WorkOrderSlaStatus.OVERDUE;
+  async notificarLimaresSlaCorretiva(
+    workOrderId: string,
+    companyId: string,
+    title: string,
+    snapshot: NonNullable<
+      ReturnType<WorkOrderSlaService['calcularSnapshot']>
+    >,
+    flags: {
+      slaNearBreachNotifiedAt: Date | null;
+      slaOneHourLeftNotifiedAt: Date | null;
+      slaBreachedNotifiedAt: Date | null;
+    },
+  ): Promise<void> {
+    await this.workOrderCorrectiveSlaNotificationService.processarAposSnapshot(
+      {
+        workOrderId,
+        companyId,
+        workOrderTitle: title,
+        actorUserId: this.obterUsuarioLogadoId() ?? 'system',
+        snapshot,
+        ...flags,
+      },
+    );
+  }
+
+  private dadosAuditoriaAtualizacaoPrisma(
+    userId?: string | null,
+  ): Prisma.WorkOrderUpdateInput {
+    if (!userId) {
+      return {};
     }
+    return {
+      updatedByUser: { connect: { id: userId } },
+    };
+  }
 
-    if (horasRestantes <= 6) {
-      return WorkOrderSlaStatus.WARNING;
+  /** Atualizações com FKs escalares (ex.: `columnId`) usam input unchecked. */
+  private dadosAuditoriaAtualizacaoUnchecked(
+    userId?: string | null,
+  ): Pick<Prisma.WorkOrderUncheckedUpdateInput, 'updatedBy'> {
+    if (!userId) {
+      return {};
     }
+    return { updatedBy: userId };
+  }
 
-    return WorkOrderSlaStatus.OK;
+  private removerAuditoriaDoPayloadCliente(
+    data: CreateWorkOrderDto | UpdateWorkOrderDto,
+  ): void {
+    delete (data as { createdBy?: unknown }).createdBy;
+    delete (data as { updatedBy?: unknown }).updatedBy;
+    delete (data as { createdByUser?: unknown }).createdByUser;
+    delete (data as { updatedByUser?: unknown }).updatedByUser;
+  }
+
+  private aplicarAuditoriaCriacao(data: CreateWorkOrderDto): void {
+    const userId = this.obterUsuarioLogadoId();
+    if (!userId) {
+      return;
+    }
+    const audit = this.dadosAuditoriaCriacaoPrisma(userId);
+    Object.assign(data as object, audit);
+  }
+
+  private aplicarAuditoriaAtualizacao(data: UpdateWorkOrderDto): void {
+    const userId = this.obterUsuarioLogadoId();
+    if (!userId) {
+      return;
+    }
+    const audit = this.dadosAuditoriaAtualizacaoPrisma(userId);
+    Object.assign(data as object, audit);
+  }
+
+  /** Create/update via repositório universal (input checked do Prisma). */
+  private dadosAuditoriaCriacaoPrisma(
+    userId: string,
+  ): Pick<Prisma.WorkOrderCreateInput, 'createdByUser' | 'updatedByUser'> {
+    const connect = { connect: { id: userId } };
+    return {
+      createdByUser: connect,
+      updatedByUser: connect,
+    };
+  }
+
+  /** Corretiva: ignora prazo marcador e SLA legado por data (usa tempo útil). */
+  private removerCamposSlaLegadoCompletoDoPayload(
+    data: CreateWorkOrderDto | UpdateWorkOrderDto,
+  ): void {
+    delete (data as { dueDate?: unknown }).dueDate;
+    this.removerCamposSlaCalculadoLegadoDoPayload(data);
+  }
+
+  /** Preventiva/Geral: ignora apenas SLA calculado por data; mantém `dueDate` como marcador. */
+  private removerCamposSlaCalculadoLegadoDoPayload(
+    data: CreateWorkOrderDto | UpdateWorkOrderDto,
+  ): void {
+    delete (data as { slaDeadlineHours?: unknown }).slaDeadlineHours;
+    delete (data as { slaStatus?: unknown }).slaStatus;
+  }
+
+  private normalizarPrazoMarcadorNoPayload(
+    data: CreateWorkOrderDto | UpdateWorkOrderDto,
+  ): void {
+    if (!Object.prototype.hasOwnProperty.call(data, 'dueDate')) {
+      return;
+    }
+    const raw = (data as { dueDate?: string | null }).dueDate;
+    if (raw === null || raw === undefined) {
+      return;
+    }
+    const dia = extrairDiaCivilDoPrazo(raw);
+    if (!dia) {
+      delete (data as { dueDate?: unknown }).dueDate;
+      return;
+    }
+    (data as Record<string, unknown>).dueDate = diaCivilParaDatePostgres(dia);
   }
 
   /** Planejamento vinculado à OS passa a COMPLETED quando a OS fica concluída. */
