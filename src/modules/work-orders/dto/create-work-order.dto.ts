@@ -14,7 +14,6 @@ import {
   WorkOrderPriority,
   WorkOrderStatus,
   WorkOrderType,
-  WorkOrderSlaStatus,
 } from '@prisma/client';
 import { IsCUID } from '../../../shared/validators';
 import { VALIDATION_MESSAGES } from '../../../shared/common/messages';
@@ -87,11 +86,5 @@ export class CreateWorkOrderDto {
   @IsOptional()
   @IsInt({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
   slaDeadlineHours?: number;
-
-  @IsOptional()
-  @IsEnum(WorkOrderSlaStatus, {
-    message: VALIDATION_MESSAGES.FORMAT.ENUM_INVALID,
-  })
-  slaStatus?: WorkOrderSlaStatus;
 }
 

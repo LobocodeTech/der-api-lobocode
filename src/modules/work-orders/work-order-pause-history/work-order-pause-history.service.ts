@@ -24,8 +24,6 @@ import { WorkOrderQueueUsersService } from '../work-order-queue-users/work-order
 import { WorkOrdersService } from '../work-orders.service';
 import { WorkOrderSlaService } from '../services/work-order-sla.service';
 import { normalizarConfigSlaEmpresa } from '../utils/work-order-corrective-sla.util';
-import { WorkOrderSlaStatus } from '@prisma/client';
-
 @Injectable({ scope: Scope.REQUEST })
 export class WorkOrderPauseHistoryService {
   constructor(
@@ -180,7 +178,7 @@ export class WorkOrderPauseHistoryService {
     const estado = this.mapSlaState(workOrder);
     const payload = this.workOrderSlaService.aoPausar(estado, config, agora);
     if (!payload) return null;
-    return { ...payload, slaStatus: WorkOrderSlaStatus.OK };
+    return payload;
   }
 
   private async buildResumeSlaUpdate(
@@ -194,7 +192,7 @@ export class WorkOrderPauseHistoryService {
     const estado = this.mapSlaState(workOrder);
     const payload = this.workOrderSlaService.aoRetomar(estado, config, agora);
     if (!payload) return null;
-    return { ...payload, slaStatus: WorkOrderSlaStatus.OK };
+    return payload;
   }
 
   private mapSlaState(

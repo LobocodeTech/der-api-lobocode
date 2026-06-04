@@ -115,14 +115,13 @@ export class WorkOrderSlaService {
 
     const consumed = this.calcularConsumidoAtual(ordem, config, agora);
     const remaining = Math.max(0, budget - consumed);
-    const slaDeadlineAt =
-      ordem.slaDeadlineAt ??
-      calcularDeadlineSla(
-        slaStartAt,
-        budget,
-        config.correctiveSlaWindowStart,
-        config.correctiveSlaWindowEnd,
-      );
+    const slaDeadlineAt = this.resolverDeadlineSla(
+      ordem,
+      slaStartAt,
+      budget,
+      remaining,
+      config,
+    );
 
     let slaExceededAt = ordem.slaExceededAt;
     if (!slaExceededAt && consumed >= budget) {
@@ -197,7 +196,7 @@ export class WorkOrderSlaService {
     return {
       slaStartAt: ordem.slaStartAt,
       slaPausedAt: agora,
-      slaResumedAt: ordem.slaResumedAt,
+      slaResumedAt: null,
       slaConsumedSeconds: consumed,
       slaRemainingSeconds: remaining,
       slaDeadlineAt,
@@ -211,6 +210,7 @@ export class WorkOrderSlaService {
     companyConfig: CorrectiveSlaCompanyConfig,
     agora: Date = new Date(),
   ): CorrectiveSlaPersistPayload | null {
+    const config = normalizarConfigSlaEmpresa(companyConfig);
     const base = ordem.slaConsumedSeconds ?? 0;
     const resumed: CorrectiveSlaWorkOrderState = {
       ...ordem,
@@ -222,10 +222,27 @@ export class WorkOrderSlaService {
     const snapshot = this.calcularSnapshot(resumed, companyConfig, agora);
     if (!snapshot) return null;
 
+    const remaining = Math.max(
+      0,
+      config.correctiveSlaDefaultSeconds - (ordem.slaConsumedSeconds ?? 0),
+    );
+    const slaDeadlineAt = calcularDeadlineSla(
+      agora,
+      remaining,
+      config.correctiveSlaWindowStart,
+      config.correctiveSlaWindowEnd,
+    );
+
     return {
-      ...this.snapshotParaPersistencia(snapshot),
+      ...this.snapshotParaPersistencia({
+        ...snapshot,
+        slaRemainingSeconds: remaining,
+        slaDeadlineAt,
+      }),
       slaPausedAt: null,
       slaResumedAt: agora,
+      slaDeadlineAt,
+      slaRemainingSeconds: remaining,
     };
   }
 
@@ -249,6 +266,8 @@ export class WorkOrderSlaService {
           ? WorkOrderCorrectiveSlaStatus.COMPLETED_ON_TIME
           : WorkOrderCorrectiveSlaStatus.COMPLETED_LATE,
       }),
+      slaPausedAt: null,
+      slaResumedAt: null,
       slaRemainingSeconds: Math.max(
         0,
         budget - snapshot.slaConsumedSeconds,
@@ -296,6 +315,44 @@ export class WorkOrderSlaService {
     );
   }
 
+  /**
+   * Prazo limite em tempo útil. Após retomada, reprojeta a partir do retorno
+   * (o vencimento não pode ficar no passado só porque a OS ficou pausada).
+   */
+  private resolverDeadlineSla(
+    ordem: CorrectiveSlaWorkOrderState,
+    slaStartAt: Date,
+    budgetSeconds: number,
+    remainingSeconds: number,
+    config: CorrectiveSlaCompanyConfig,
+  ): Date {
+    const { correctiveSlaWindowStart, correctiveSlaWindowEnd } = config;
+
+    if (
+      ordem.status === WorkOrderStatus.IN_PROGRESS &&
+      ordem.slaResumedAt &&
+      remainingSeconds > 0
+    ) {
+      return calcularDeadlineSla(
+        ordem.slaResumedAt,
+        remainingSeconds,
+        correctiveSlaWindowStart,
+        correctiveSlaWindowEnd,
+      );
+    }
+
+    if (ordem.slaDeadlineAt) {
+      return ordem.slaDeadlineAt;
+    }
+
+    return calcularDeadlineSla(
+      slaStartAt,
+      budgetSeconds,
+      correctiveSlaWindowStart,
+      correctiveSlaWindowEnd,
+    );
+  }
+
   private calcularConsumidoAtual(
     ordem: CorrectiveSlaWorkOrderState,
     config: CorrectiveSlaCompanyConfig,
@@ -307,14 +364,59 @@ export class WorkOrderSlaService {
       return base;
     }
 
-    if (ordem.status === WorkOrderStatus.PAUSED && ordem.slaPausedAt) {
+    if (ordem.status === WorkOrderStatus.PAUSED) {
+      return base;
+    }
+
+    const fim =
+      ordem.status === WorkOrderStatus.COMPLETED ||
+      ordem.status === WorkOrderStatus.CANCELLED
+        ? (ordem.completedAt ?? agora)
+        : agora;
+
+    if (
+      ordem.status === WorkOrderStatus.COMPLETED ||
+      ordem.status === WorkOrderStatus.CANCELLED
+    ) {
+      if (ordem.slaPausedAt) {
+        return base;
+      }
+      if (
+        ordem.slaStatusExtended ===
+          WorkOrderCorrectiveSlaStatus.COMPLETED_ON_TIME ||
+        ordem.slaStatusExtended ===
+          WorkOrderCorrectiveSlaStatus.COMPLETED_LATE
+      ) {
+        return base;
+      }
+      if (!ordem.slaResumedAt) {
+        if (base > 0) {
+          return base;
+        }
+        return calcularSegundosUteis(
+          slaStartAt,
+          fim,
+          config.correctiveSlaWindowStart,
+          config.correctiveSlaWindowEnd,
+        );
+      }
+      const extra = calcularSegundosUteis(
+        ordem.slaResumedAt,
+        fim,
+        config.correctiveSlaWindowStart,
+        config.correctiveSlaWindowEnd,
+      );
+      return base + extra;
+    }
+
+    if (base > 0 && !ordem.slaResumedAt) {
       return base;
     }
 
     const periodoInicio = ordem.slaResumedAt ?? slaStartAt;
     const extra = calcularSegundosUteis(
       periodoInicio,
-      agora,
+      fim,
       config.correctiveSlaWindowStart,
       config.correctiveSlaWindowEnd,
     );
@@ -328,6 +430,13 @@ export class WorkOrderSlaService {
     agora: Date,
   ): WorkOrderCorrectiveSlaStatus {
     if (ordem.status === WorkOrderStatus.COMPLETED) {
+      if (
+        ordem.slaStatusExtended ===
+          WorkOrderCorrectiveSlaStatus.COMPLETED_ON_TIME ||
+        ordem.slaStatusExtended === WorkOrderCorrectiveSlaStatus.COMPLETED_LATE
+      ) {
+        return ordem.slaStatusExtended;
+      }
       const exceeded =
         ordem.slaExceededAt != null ||
         consumed >= budget ||
@@ -349,14 +458,6 @@ export class WorkOrderSlaService {
 
     if (consumed >= budget * NEAR_BREACH_RATIO) {
       return WorkOrderCorrectiveSlaStatus.NEAR_BREACH;
-    }
-
-    if (
-      ordem.slaDeadlineAt &&
-      agora.getTime() > ordem.slaDeadlineAt.getTime() &&
-      consumed < budget
-    ) {
-      return WorkOrderCorrectiveSlaStatus.BREACHED;
     }
 
     return WorkOrderCorrectiveSlaStatus.IN_PROGRESS;

@@ -347,9 +347,10 @@ export class WorkOrdersService extends UniversalService<
       );
     }
 
+    const agoraInicio = new Date();
     const updateData: Prisma.WorkOrderUpdateInput = {
       status: WorkOrderStatus.IN_PROGRESS,
-      startedAt: ordem.startedAt ?? new Date(),
+      startedAt: ordem.startedAt ?? agoraInicio,
       completedAt: null,
       ...this.dadosAuditoriaAtualizacaoPrisma(this.obterUsuarioLogadoId()),
     };
@@ -359,7 +360,7 @@ export class WorkOrdersService extends UniversalService<
       const estado = this.mapearEstadoSlaCorretiva(ordem);
       if (!estado.slaStartAt) {
         const init = this.workOrderSlaService.inicializarSlaNaCriacao(
-          ordem.createdAt ?? new Date(),
+          ordem.createdAt ?? agoraInicio,
           config,
         );
         Object.assign(updateData, init);
@@ -367,6 +368,7 @@ export class WorkOrdersService extends UniversalService<
         const snapshot = this.workOrderSlaService.calcularSnapshot(
           { ...estado, status: WorkOrderStatus.IN_PROGRESS },
           config,
+          agoraInicio,
         );
         if (snapshot) {
           Object.assign(
@@ -375,7 +377,8 @@ export class WorkOrdersService extends UniversalService<
           );
         }
       }
-      updateData.slaStatus = WorkOrderSlaStatus.OK;
+      updateData.slaResumedAt = agoraInicio;
+      this.aplicarSlaStatusNuloParaCorretiva(updateData);
     }
 
     await this.prisma.workOrder.update({
@@ -421,7 +424,6 @@ export class WorkOrdersService extends UniversalService<
       if (payload) {
         Object.assign(updateData, payload);
       }
-      updateData.slaStatus = WorkOrderSlaStatus.OK;
     }
 
     await this.prisma.workOrder.update({
@@ -514,30 +516,47 @@ export class WorkOrdersService extends UniversalService<
       await this.validarFilasAssociadasParaIniciar(ordem.id);
     }
     const agora = new Date();
+    const updateColuna: Prisma.WorkOrderUncheckedUpdateInput = {
+      columnId,
+      status: novoStatus,
+      startedAt:
+        novoStatus === WorkOrderStatus.IN_PROGRESS &&
+        (ordem.status === WorkOrderStatus.PENDING ||
+          ordem.status === WorkOrderStatus.ASSIGNED) &&
+        !ordem.startedAt
+          ? agora
+          : undefined,
+      completedAt:
+        novoStatus === WorkOrderStatus.COMPLETED
+          ? agora
+          : ordem.status === WorkOrderStatus.COMPLETED
+            ? null
+            : undefined,
+      ...this.dadosAuditoriaAtualizacaoUnchecked(this.obterUsuarioLogadoId()),
+    };
+
+    if (
+      novoStatus === WorkOrderStatus.COMPLETED &&
+      ordem.type === WorkOrderType.CORRECTIVE
+    ) {
+      const config = await this.obterConfigSlaEmpresa(ordem.companyId);
+      const payload = this.workOrderSlaService.aoConcluir(
+        {
+          ...this.mapearEstadoSlaCorretiva(ordem),
+          status: WorkOrderStatus.COMPLETED,
+          completedAt: agora,
+        },
+        config,
+        agora,
+      );
+      if (payload) {
+        Object.assign(updateColuna, payload);
+      }
+    }
 
     await this.prisma.workOrder.update({
       where: { id: ordem.id },
-      data: {
-        columnId,
-        status: novoStatus,
-        startedAt:
-          novoStatus === WorkOrderStatus.IN_PROGRESS &&
-          (ordem.status === WorkOrderStatus.PENDING ||
-            ordem.status === WorkOrderStatus.ASSIGNED) &&
-          !ordem.startedAt
-            ? agora
-            : undefined,
-        completedAt:
-          novoStatus === WorkOrderStatus.COMPLETED
-            ? agora
-            : ordem.status === WorkOrderStatus.COMPLETED
-              ? null
-              : undefined,
-        ...(ordem.type === WorkOrderType.CORRECTIVE
-          ? { slaStatus: WorkOrderSlaStatus.OK }
-          : {}),
-        ...this.dadosAuditoriaAtualizacaoUnchecked(this.obterUsuarioLogadoId()),
-      },
+      data: updateColuna,
     });
 
     if (novoStatus === WorkOrderStatus.COMPLETED) {
@@ -810,7 +829,7 @@ export class WorkOrdersService extends UniversalService<
         config,
       );
       Object.assign(data, slaInit);
-      data.slaStatus = WorkOrderSlaStatus.OK;
+      this.aplicarSlaStatusNuloParaCorretiva(data);
     } else {
       this.removerCamposSlaCalculadoLegadoDoPayload(data);
       this.normalizarPrazoMarcadorNoPayload(data);
@@ -993,11 +1012,24 @@ export class WorkOrdersService extends UniversalService<
     }
 
     if (data.status === WorkOrderStatus.COMPLETED) {
-      (data as any).completedAt = new Date();
+      const completedAt = new Date();
+      (data as any).completedAt = completedAt;
       const tipoAoConcluir =
         data.type !== undefined ? data.type : ordemAtual.type;
       if (tipoAoConcluir === WorkOrderType.CORRECTIVE) {
-        data.slaStatus = WorkOrderSlaStatus.OK;
+        const config = await this.obterConfigSlaEmpresa(ordemAtual.companyId);
+        const payload = this.workOrderSlaService.aoConcluir(
+          {
+            ...this.mapearEstadoSlaCorretiva(ordemAtual),
+            status: WorkOrderStatus.COMPLETED,
+            completedAt,
+          },
+          config,
+          completedAt,
+        );
+        if (payload) {
+          Object.assign(data as object, payload);
+        }
       } else {
         this.removerCamposSlaCalculadoLegadoDoPayload(data);
         this.normalizarPrazoMarcadorNoPayload(data);
@@ -1027,7 +1059,6 @@ export class WorkOrdersService extends UniversalService<
 
     if (tipoEfetivoAtualizacao === WorkOrderType.CORRECTIVE) {
       this.removerCamposSlaLegadoCompletoDoPayload(data);
-      data.slaStatus = WorkOrderSlaStatus.OK;
     } else {
       this.removerCamposSlaCalculadoLegadoDoPayload(data);
       this.normalizarPrazoMarcadorNoPayload(data);
@@ -1565,6 +1596,7 @@ export class WorkOrdersService extends UniversalService<
     }
     return {
       ...record,
+      slaStatus: null,
       slaStartAt: snapshot.slaStartAt,
       slaPausedAt: snapshot.slaPausedAt,
       slaResumedAt: snapshot.slaResumedAt,
@@ -1667,6 +1699,18 @@ export class WorkOrdersService extends UniversalService<
   ): void {
     delete (data as { dueDate?: unknown }).dueDate;
     this.removerCamposSlaCalculadoLegadoDoPayload(data);
+    this.aplicarSlaStatusNuloParaCorretiva(data);
+  }
+
+  /** `slaStatus` legado não se aplica à corretiva; evita o default OK do Prisma. */
+  private aplicarSlaStatusNuloParaCorretiva(
+    data:
+      | CreateWorkOrderDto
+      | UpdateWorkOrderDto
+      | Prisma.WorkOrderUpdateInput
+      | Prisma.WorkOrderUncheckedUpdateInput,
+  ): void {
+    (data as { slaStatus?: WorkOrderSlaStatus | null }).slaStatus = null;
   }
 
   /** Preventiva/Geral: ignora apenas SLA calculado por data; mantém `dueDate` como marcador. */
