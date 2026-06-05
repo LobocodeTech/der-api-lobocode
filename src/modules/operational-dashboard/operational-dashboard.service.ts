@@ -23,9 +23,15 @@ export class OperationalDashboardService {
     const companyId = this.tenantService.getCompanyId();
     const periodStart = this.obterInicioDosUltimosDias(7);
 
+    // Mesma regra de `AssetsService.buscarTodos`: só equipamentos em localidades ACTIVE.
     const assetWhere: Prisma.AssetWhereInput = {
       deletedAt: null,
       ...(companyId && { companyId }),
+      location: {
+        status: 'ACTIVE',
+        deletedAt: null,
+        ...(companyId && { companyId }),
+      },
     };
 
     const workOrderWhere: Prisma.WorkOrderWhereInput = {
