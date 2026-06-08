@@ -8,6 +8,7 @@ import {
   IsString,
   IsArray,
   Matches,
+  ValidateIf,
 } from 'class-validator';
 import {
   AssetType,
@@ -62,7 +63,11 @@ export class CreateWorkOrderDto {
   })
   queueIds?: string[];
 
-  @IsOptional()
+  @ValidateIf(
+    (o: CreateWorkOrderDto) =>
+      o.type === WorkOrderType.GENERAL || o.type === WorkOrderType.PREVENTIVE,
+  )
+  @IsNotEmpty({ message: 'Prazo é obrigatório para OS Geral e Preventiva.' })
   @Transform(({ value }) => (value === '' || value === null ? undefined : value))
   @Matches(/^\d{4}-\d{2}-\d{2}$/, {
     message: 'Prazo inválido. Use o formato AAAA-MM-DD (somente data).',

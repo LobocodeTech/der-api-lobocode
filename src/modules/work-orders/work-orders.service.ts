@@ -47,6 +47,7 @@ import {
 import { formatAssetTypeLabel } from 'src/shared/common/utils/asset-type-label';
 import { atribuirProximoNumeroSequencialWorkOrder } from './utils/work-order-sequential-number.util';
 import { WorkOrderSlaService } from './services/work-order-sla.service';
+import { GeneralPreventiveSlaService } from './services/general-preventive-sla.service';
 import { WorkOrderCorrectiveSlaNotificationService } from './services/work-order-corrective-sla-notification.service';
 import {
   desempacotarJanelaSla,
@@ -166,6 +167,7 @@ export class WorkOrdersService extends UniversalService<
     private readonly workOrderActivityNotificationService: WorkOrderActivityNotificationService,
     private readonly workOrderQueueUsersService: WorkOrderQueueUsersService,
     private readonly workOrderSlaService: WorkOrderSlaService,
+    private readonly generalPreventiveSlaService: GeneralPreventiveSlaService,
     private readonly workOrderCorrectiveSlaNotificationService: WorkOrderCorrectiveSlaNotificationService,
     @Optional() @Inject(REQUEST) request: any,
   ) {
@@ -846,6 +848,15 @@ export class WorkOrdersService extends UniversalService<
     } else {
       this.removerCamposSlaCalculadoLegadoDoPayload(data);
       this.normalizarPrazoMarcadorNoPayload(data);
+      if (this.ehOsGeralOuPreventiva(data.type)) {
+        this.validarDueDateObrigatorioGeralPreventiva(
+          this.resolverDueDateEfetivoNoPayload(data),
+        );
+        this.aplicarSlaStatusGeralPreventiva(
+          data,
+          data.status ?? WorkOrderStatus.PENDING,
+        );
+      }
     }
 
     if (!empresaId) {
@@ -1046,6 +1057,18 @@ export class WorkOrdersService extends UniversalService<
       } else {
         this.removerCamposSlaCalculadoLegadoDoPayload(data);
         this.normalizarPrazoMarcadorNoPayload(data);
+        if (this.ehOsGeralOuPreventiva(tipoAoConcluir)) {
+          const dueDateEfetivo = this.resolverDueDateEfetivoNoPayload(
+            data,
+            ordemAtual,
+          );
+          this.aplicarSlaStatusGeralPreventiva(
+            data,
+            WorkOrderStatus.COMPLETED,
+            dueDateEfetivo,
+            (data as { completedAt?: Date }).completedAt ?? completedAt,
+          );
+        }
       }
       this.aplicarAuditoriaAtualizacao(data);
       return;
@@ -1075,6 +1098,21 @@ export class WorkOrdersService extends UniversalService<
     } else {
       this.removerCamposSlaCalculadoLegadoDoPayload(data);
       this.normalizarPrazoMarcadorNoPayload(data);
+      if (this.ehOsGeralOuPreventiva(tipoEfetivoAtualizacao)) {
+        const dueDateEfetivo = this.resolverDueDateEfetivoNoPayload(
+          data,
+          ordemAtual,
+        );
+        this.validarDueDateObrigatorioGeralPreventiva(dueDateEfetivo);
+        const statusEfetivo =
+          data.status !== undefined ? data.status : ordemAtual.status;
+        this.aplicarSlaStatusGeralPreventiva(
+          data,
+          statusEfetivo,
+          dueDateEfetivo,
+          ordemAtual.completedAt,
+        );
+      }
     }
 
     this.aplicarAuditoriaAtualizacao(data);
@@ -1489,6 +1527,10 @@ export class WorkOrdersService extends UniversalService<
       );
     }
 
+    if (this.ehOsGeralOuPreventiva(mapped.type as WorkOrderType)) {
+      mapped = this.enriquecerRegistroComSlaGeralPreventiva(mapped);
+    }
+
     return mapped;
   }
 
@@ -1647,6 +1689,89 @@ export class WorkOrdersService extends UniversalService<
       this.extrairSnapshotSlaDaOrdem(ordem),
       companyConfig,
     );
+  }
+
+  private ehOsGeralOuPreventiva(type?: WorkOrderType | null): boolean {
+    return type === WorkOrderType.GENERAL || type === WorkOrderType.PREVENTIVE;
+  }
+
+  private validarDueDateObrigatorioGeralPreventiva(
+    dueDate: Date | null | undefined,
+  ): void {
+    if (!dueDate) {
+      throw new BadRequestException(
+        'Prazo é obrigatório para OS Geral e Preventiva.',
+      );
+    }
+  }
+
+  private resolverDueDateEfetivoNoPayload(
+    data: CreateWorkOrderDto | UpdateWorkOrderDto,
+    ordemAtual?: { dueDate?: Date | null },
+  ): Date | null {
+    if (Object.prototype.hasOwnProperty.call(data, 'dueDate')) {
+      const raw = (data as { dueDate?: unknown }).dueDate;
+      if (raw === null || raw === undefined) {
+        return null;
+      }
+      if (raw instanceof Date) {
+        return raw;
+      }
+      if (typeof raw === 'string') {
+        const dia = extrairDiaCivilDoPrazo(raw);
+        return dia ? diaCivilParaDatePostgres(dia) : null;
+      }
+      return null;
+    }
+    return ordemAtual?.dueDate ?? null;
+  }
+
+  private aplicarSlaStatusGeralPreventiva(
+    data:
+      | CreateWorkOrderDto
+      | UpdateWorkOrderDto
+      | Prisma.WorkOrderUpdateInput
+      | Prisma.WorkOrderUncheckedUpdateInput,
+    status: WorkOrderStatus,
+    dueDateExplicito?: Date | null,
+    completedAtExplicito?: Date | null,
+  ): void {
+    const dueDate =
+      dueDateExplicito !== undefined
+        ? dueDateExplicito
+        : this.resolverDueDateEfetivoNoPayload(
+            data as CreateWorkOrderDto | UpdateWorkOrderDto,
+          );
+    if (!dueDate) {
+      return;
+    }
+    (data as { slaStatus?: WorkOrderSlaStatus }).slaStatus =
+      this.generalPreventiveSlaService.calcularSlaStatus(
+        dueDate,
+        status,
+        new Date(),
+        completedAtExplicito,
+      );
+  }
+
+  private enriquecerRegistroComSlaGeralPreventiva(
+    record: Record<string, unknown>,
+  ): Record<string, unknown> {
+    const dueDate = (record.dueDate as Date | null) ?? null;
+    if (!dueDate) {
+      return record;
+    }
+    const status = record.status as WorkOrderStatus;
+    const completedAt = (record.completedAt as Date | null) ?? null;
+    return {
+      ...record,
+      slaStatus: this.generalPreventiveSlaService.calcularSlaStatus(
+        dueDate,
+        status,
+        new Date(),
+        completedAt,
+      ),
+    };
   }
 
   private enriquecerRegistroComSlaCorretiva(
