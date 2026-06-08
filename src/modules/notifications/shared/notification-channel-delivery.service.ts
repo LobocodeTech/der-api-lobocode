@@ -46,6 +46,7 @@ export class NotificationChannelDeliveryService {
     notification: NotificationResponse,
     targetUserIds: string[],
     companyId?: string,
+    skipEmail = false,
   ): Promise<void> {
     // Sempre envia in-app (WebSocket + contador), independentemente das preferências de push/email.
     await this.notificationGateway.enviarParaUsuarios(targetUserIds, notification);
@@ -99,16 +100,19 @@ export class NotificationChannelDeliveryService {
       );
     }
 
-    await Promise.all(
-      emailRecipients.map((recipient) =>
-        this.emailService.sendNotificationEmail(
-          recipient.email,
-          recipient.name,
-          notification.title,
-          notification.message,
+    // TEMPORÁRIO: e-mail desabilitado na criação de OS (WebSocket e push permanecem).
+    if (!skipEmail) {
+      await Promise.all(
+        emailRecipients.map((recipient) =>
+          this.emailService.sendNotificationEmail(
+            recipient.email,
+            recipient.name,
+            notification.title,
+            notification.message,
+          ),
         ),
-      ),
-    );
+      );
+    }
 
     for (const userId of targetUserIds) {
       await this.notificationGateway.atualizarContadorNaoLidas(userId);

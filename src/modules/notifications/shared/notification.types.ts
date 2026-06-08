@@ -11,6 +11,8 @@ export interface CreateNotificationData {
   entityId?: string;      // ID da entidade
   priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'CRITICAL'; // prioridade da notificação
   recipients?: string[]; // destinatários específicos (opcional)
+  /** TEMPORÁRIO: quando true, não envia e-mail (mantém WebSocket e push). */
+  skipEmail?: boolean;
 }
 
 export interface NotificationResponse {

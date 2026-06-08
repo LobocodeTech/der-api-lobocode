@@ -200,6 +200,8 @@ export class WorkOrderActivityNotificationService {
       userId: params.actorUserId,
       companyId: params.companyId,
       recipients,
+      // TEMPORÁRIO: sem e-mail na criação de OS (WebSocket + push ativos).
+      skipEmail: true,
     });
   }
 

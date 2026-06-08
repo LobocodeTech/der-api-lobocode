@@ -79,6 +79,7 @@ export class NotificationService {
       notificationResponse,
       targetUserIds,
       data.companyId,
+      data.skipEmail,
     );
 
     return notificationResponse;
@@ -349,12 +350,14 @@ export class NotificationService {
     notification: NotificationResponse,
     targetUserIds: string[],
     companyId?: string,
+    skipEmail?: boolean,
   ): Promise<void> {
     try {
       await this.notificationChannelDeliveryService.entregar(
         notification,
         targetUserIds,
         companyId,
+        skipEmail,
       );
     } catch (error) {
       console.error('Erro ao enviar notificação em tempo real:', error);
