@@ -61,6 +61,7 @@ import {
   diaCivilParaDatePostgres,
   extrairDiaCivilDoPrazo,
 } from './utils/work-order-due-date.util';
+import { calcularSlaNegativoCorretiva } from './utils/work-order-negative-sla.util';
 import { WORK_ORDER_AUDIT_USER_INCLUDE } from './dto/work-order-audit.fields';
 
 @Injectable({ scope: Scope.REQUEST })
@@ -344,6 +345,10 @@ export class WorkOrdersService extends UniversalService<
       );
     }
 
+    if (ordem.status === WorkOrderStatus.IN_PROGRESS) {
+      return this.buscarDetalhesPorId(ordem.id);
+    }
+
     if (
       ordem.status !== WorkOrderStatus.PENDING &&
       ordem.status !== WorkOrderStatus.ASSIGNED
@@ -378,14 +383,24 @@ export class WorkOrdersService extends UniversalService<
           agoraInicio,
         );
         if (snapshot) {
-          Object.assign(
-            updateData,
-            this.workOrderSlaService.snapshotParaPersistencia(snapshot),
-          );
+          updateData.slaPausedAt = null;
+          updateData.slaResumedAt = null;
+          updateData.slaConsumedSeconds = snapshot.slaConsumedSeconds;
+          if (snapshot.slaExceededAt) {
+            updateData.slaExceededAt = snapshot.slaExceededAt;
+          }
+          if (snapshot.slaStatusExtended) {
+            updateData.slaStatusExtended = snapshot.slaStatusExtended;
+          }
+          if (snapshot.slaDeadlineAt) {
+            updateData.slaDeadlineAt = snapshot.slaDeadlineAt;
+          }
+          if (snapshot.slaRemainingSeconds != null) {
+            updateData.slaRemainingSeconds = snapshot.slaRemainingSeconds;
+          }
         }
         this.aplicarJanelaSlaEmpacotadaSeAusente(updateData, ordem, config);
       }
-      updateData.slaResumedAt = agoraInicio;
       this.aplicarSlaStatusNuloParaCorretiva(updateData);
     }
 
@@ -755,6 +770,7 @@ export class WorkOrdersService extends UniversalService<
             this.obterCompanyId() ??
             undefined,
         ),
+      skipEmail: this.omitirEmailNasNotificacoesOs,
     });
 
     return this.buscarDetalhesPorId(ordem.id);
@@ -1658,6 +1674,9 @@ export class WorkOrdersService extends UniversalService<
       slaConsumedSeconds: (record.slaConsumedSeconds as number | null) ?? null,
       slaRemainingSeconds:
         (record.slaRemainingSeconds as number | null) ?? null,
+      slaExceededAt: (record.slaExceededAt as Date | null) ?? null,
+      slaStatusExtended:
+        (record.slaStatusExtended as string | null) ?? null,
     };
   }
 
@@ -1678,6 +1697,45 @@ export class WorkOrdersService extends UniversalService<
       correctiveSlaTotalSeconds: config.correctiveSlaDefaultSeconds,
       correctiveSlaWindowStart: config.correctiveSlaWindowStart,
       correctiveSlaWindowEnd: config.correctiveSlaWindowEnd,
+    };
+  }
+
+  private montarCamposVirtuaisSlaNegativa(
+    record: Record<string, unknown>,
+    companyConfig: CorrectiveSlaCompanyConfig,
+    agora: Date = new Date(),
+  ): Pick<
+    Record<string, unknown>,
+    | 'correctiveSlaOverdueActive'
+    | 'correctiveSlaOverdueSeconds'
+    | 'correctiveSlaOverdueStatus'
+  > {
+    const config = resolverConfigSlaDaOrdem(
+      this.extrairSnapshotSlaDaOrdem(record),
+      companyConfig,
+    );
+    const budget = config.correctiveSlaDefaultSeconds;
+    const negativo = calcularSlaNegativoCorretiva(
+      {
+        status: record.status as WorkOrderStatus,
+        slaStartAt: (record.slaStartAt as Date | null) ?? null,
+        slaDeadlineAt: (record.slaDeadlineAt as Date | null) ?? null,
+        slaPausedAt: (record.slaPausedAt as Date | null) ?? null,
+        slaResumedAt: (record.slaResumedAt as Date | null) ?? null,
+        slaConsumedSeconds: (record.slaConsumedSeconds as number | null) ?? 0,
+        slaStatusExtended:
+          (record.slaStatusExtended as WorkOrderCorrectiveSlaStatus | null) ??
+          null,
+        completedAt: (record.completedAt as Date | null) ?? null,
+      },
+      config,
+      budget,
+      agora,
+    );
+    return {
+      correctiveSlaOverdueActive: negativo.isOverdue,
+      correctiveSlaOverdueSeconds: negativo.overdueSeconds,
+      correctiveSlaOverdueStatus: negativo.overdueStatus,
     };
   }
 
@@ -1782,7 +1840,13 @@ export class WorkOrdersService extends UniversalService<
       return record;
     }
 
+    const agora = new Date();
     const virtuais = this.montarCamposVirtuaisSlaCorretiva(record, companyConfig);
+    const virtuaisNegativos = this.montarCamposVirtuaisSlaNegativa(
+      record,
+      companyConfig,
+      agora,
+    );
     const status = record.status as WorkOrderStatus;
     const slaStartAt = (record.slaStartAt as Date | null) ?? null;
 
@@ -1796,6 +1860,7 @@ export class WorkOrdersService extends UniversalService<
         ...record,
         slaStatus: null,
         ...virtuais,
+        ...virtuaisNegativos,
       };
     }
 
@@ -1819,7 +1884,7 @@ export class WorkOrdersService extends UniversalService<
         completedAt: (record.completedAt as Date | null) ?? null,
       },
       config,
-      new Date(),
+      agora,
       { preservarDeadlinePersistido: true },
     );
     if (!snapshot) {
@@ -1827,11 +1892,11 @@ export class WorkOrdersService extends UniversalService<
         ...record,
         slaStatus: null,
         ...virtuais,
+        ...virtuaisNegativos,
       };
     }
-    return {
+    const recordComSnapshot = {
       ...record,
-      slaStatus: null,
       slaStartAt: snapshot.slaStartAt,
       slaPausedAt: snapshot.slaPausedAt,
       slaResumedAt: snapshot.slaResumedAt,
@@ -1843,6 +1908,16 @@ export class WorkOrdersService extends UniversalService<
       correctiveSlaTotalSeconds: snapshot.totalBudgetSeconds,
       correctiveSlaWindowStart: config.correctiveSlaWindowStart,
       correctiveSlaWindowEnd: config.correctiveSlaWindowEnd,
+    };
+    const virtuaisNegativosAtualizados = this.montarCamposVirtuaisSlaNegativa(
+      recordComSnapshot,
+      companyConfig,
+      agora,
+    );
+    return {
+      ...recordComSnapshot,
+      slaStatus: null,
+      ...virtuaisNegativosAtualizados,
     };
   }
 

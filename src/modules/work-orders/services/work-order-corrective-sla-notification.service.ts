@@ -211,6 +211,7 @@ export class WorkOrderCorrectiveSlaNotificationService {
       userId: params.actorUserId,
       companyId: params.companyId,
       recipients: escopo,
+      skipEmail: true,
     });
   }
 }

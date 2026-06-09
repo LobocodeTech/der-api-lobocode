@@ -4,6 +4,8 @@ import { BadRequestException } from '@nestjs/common';
 const BRT_OFFSET_HOURS = 3;
 
 export const DEFAULT_CORRECTIVE_SLA_SECONDS = 6 * 60 * 60;
+/** Mínimo aceito ao salvar SLA padrão da empresa (Configurações). */
+export const MIN_CORRECTIVE_SLA_SECONDS = 30 * 60;
 export const DEFAULT_WINDOW_START = '06:00';
 export const DEFAULT_WINDOW_END = '18:00';
 export const NEAR_BREACH_RATIO = 0.8;
@@ -22,6 +24,8 @@ export interface CorrectiveSlaOrderSnapshot {
   slaDeadlineAt?: Date | null;
   slaConsumedSeconds?: number | null;
   slaRemainingSeconds?: number | null;
+  slaExceededAt?: Date | null;
+  slaStatusExtended?: string | null;
 }
 
 const WINDOW_PACK_MULTIPLIER = 10000;
@@ -271,18 +275,58 @@ export function desempacotarJanelaSla(packed: number | null | undefined): {
   };
 }
 
+function ordemSlaEstaVencida(
+  ordem: Pick<
+    CorrectiveSlaOrderSnapshot,
+    'slaConsumedSeconds' | 'slaRemainingSeconds' | 'slaExceededAt' | 'slaStatusExtended'
+  >,
+  fallbackSeconds: number,
+): boolean {
+  const consumed = Math.max(0, ordem.slaConsumedSeconds ?? 0);
+  if (ordem.slaExceededAt) {
+    return true;
+  }
+  if (
+    ordem.slaStatusExtended === 'BREACHED' ||
+    ordem.slaStatusExtended === 'COMPLETED_LATE'
+  ) {
+    return true;
+  }
+  return consumed >= fallbackSeconds;
+}
+
 export function derivarBudgetSegundosDaOrdem(
   ordem: Pick<
     CorrectiveSlaOrderSnapshot,
-    'slaConsumedSeconds' | 'slaRemainingSeconds'
+    | 'slaConsumedSeconds'
+    | 'slaRemainingSeconds'
+    | 'slaExceededAt'
+    | 'slaStatusExtended'
+    | 'slaStartAt'
+    | 'slaDeadlineAt'
   >,
   fallbackSeconds: number,
 ): number {
-  const consumed = ordem.slaConsumedSeconds ?? 0;
+  const consumed = Math.max(0, ordem.slaConsumedSeconds ?? 0);
   const remaining = ordem.slaRemainingSeconds;
-  if (remaining != null && remaining >= 0) {
-    return Math.max(0, consumed + remaining);
+
+  if (remaining != null && remaining > 0) {
+    if (consumed === 0 && remaining < fallbackSeconds) {
+      return fallbackSeconds;
+    }
+    return consumed + remaining;
   }
+
+  if (remaining === 0 && consumed > 0) {
+    if (ordemSlaEstaVencida(ordem, fallbackSeconds)) {
+      return fallbackSeconds;
+    }
+    if (consumed < fallbackSeconds) {
+      return fallbackSeconds;
+    }
+    return consumed;
+  }
+
   return fallbackSeconds;
 }
 
@@ -378,8 +422,11 @@ export function resolverConfigSlaDaOrdem(
 export function normalizarConfigSlaEmpresa(
   config: Partial<CorrectiveSlaCompanyConfig> | null | undefined,
 ): CorrectiveSlaCompanyConfig {
-  const seconds =
+  let seconds =
     config?.correctiveSlaDefaultSeconds ?? DEFAULT_CORRECTIVE_SLA_SECONDS;
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    seconds = DEFAULT_CORRECTIVE_SLA_SECONDS;
+  }
   const windowStart =
     config?.correctiveSlaWindowStart?.trim() || DEFAULT_WINDOW_START;
   const windowEnd = config?.correctiveSlaWindowEnd?.trim() || DEFAULT_WINDOW_END;
@@ -390,11 +437,6 @@ export function normalizarConfigSlaEmpresa(
   if (start.hour * 60 + start.minute >= end.hour * 60 + end.minute) {
     throw new BadRequestException(
       'O horário de início da janela deve ser anterior ao de encerramento.',
-    );
-  }
-  if (seconds < 1800) {
-    throw new BadRequestException(
-      'O SLA padrão deve ser de pelo menos 30 minutos.',
     );
   }
   return {

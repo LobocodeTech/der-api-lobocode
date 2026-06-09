@@ -235,27 +235,49 @@ export class WorkOrderSlaService {
     const snapshot = this.calcularSnapshot(resumed, companyConfig, agora);
     if (!snapshot) return null;
 
-    const remaining = Math.max(
-      0,
-      config.correctiveSlaDefaultSeconds - (ordem.slaConsumedSeconds ?? 0),
-    );
-    const slaDeadlineAt = calcularDeadlineSla(
-      agora,
-      remaining,
-      config.correctiveSlaWindowStart,
-      config.correctiveSlaWindowEnd,
-    );
+    const budget = config.correctiveSlaDefaultSeconds;
+    const foiVencida =
+      base >= budget ||
+      ordem.slaExceededAt != null ||
+      ordem.slaStatusExtended === WorkOrderCorrectiveSlaStatus.BREACHED;
+    const remaining = Math.max(0, budget - base);
+    const slaDeadlineAt = foiVencida
+      ? (ordem.slaDeadlineAt ??
+        (ordem.slaStartAt
+          ? calcularDeadlineSla(
+              ordem.slaStartAt,
+              budget,
+              config.correctiveSlaWindowStart,
+              config.correctiveSlaWindowEnd,
+            )
+          : null))
+      : calcularDeadlineSla(
+          agora,
+          remaining,
+          config.correctiveSlaWindowStart,
+          config.correctiveSlaWindowEnd,
+        );
+    const slaExceededAt =
+      ordem.slaExceededAt ?? (foiVencida ? agora : snapshot.slaExceededAt);
+    const slaStatusExtended = foiVencida
+      ? WorkOrderCorrectiveSlaStatus.BREACHED
+      : snapshot.slaStatusExtended;
 
     return {
       ...this.snapshotParaPersistencia({
         ...snapshot,
         slaRemainingSeconds: remaining,
         slaDeadlineAt,
+        slaStatusExtended,
+        slaExceededAt,
       }),
       slaPausedAt: null,
       slaResumedAt: agora,
+      slaConsumedSeconds: base,
       slaDeadlineAt,
       slaRemainingSeconds: remaining,
+      slaStatusExtended,
+      slaExceededAt,
       slaDeadlineHours: empacotarJanelaSla(
         config.correctiveSlaWindowStart,
         config.correctiveSlaWindowEnd,
@@ -432,18 +454,24 @@ export class WorkOrderSlaService {
       return base + extra;
     }
 
-    if (base > 0 && !ordem.slaResumedAt) {
-      return base;
+    if (ordem.slaResumedAt) {
+      return (
+        base +
+        calcularSegundosUteis(
+          ordem.slaResumedAt,
+          fim,
+          config.correctiveSlaWindowStart,
+          config.correctiveSlaWindowEnd,
+        )
+      );
     }
 
-    const periodoInicio = ordem.slaResumedAt ?? slaStartAt;
-    const extra = calcularSegundosUteis(
-      periodoInicio,
+    return calcularSegundosUteis(
+      slaStartAt,
       fim,
       config.correctiveSlaWindowStart,
       config.correctiveSlaWindowEnd,
     );
-    return base + extra;
   }
 
   private derivarStatus(

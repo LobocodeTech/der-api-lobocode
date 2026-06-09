@@ -293,6 +293,7 @@ export class WorkOrderActivityNotificationService {
     actorUserId: string;
     companyId?: string;
     assigneeUserIds: string[];
+    skipEmail?: boolean;
   }) {
     const baseRecipients = params.assigneeUserIds.filter(
       (id) => id !== params.actorUserId,
@@ -319,6 +320,7 @@ export class WorkOrderActivityNotificationService {
       userId: params.actorUserId,
       companyId: params.companyId,
       recipients,
+      skipEmail: params.skipEmail,
     });
   }
 
