@@ -13,8 +13,9 @@ import { RegionalStatus } from '@prisma/client';
 import { IsCUID, IsReferenceKm } from '../../../shared/validators';
 import { VALIDATION_MESSAGES } from '../../../shared/common/messages';
 import { Type } from 'class-transformer';
+import { LocationEdiculeDto } from './location-edicule.dto';
 
-export class CreateLocationsDto {
+export class CreateLocationsDto extends LocationEdiculeDto {
   @IsOptional()
   @IsCUID({ message: VALIDATION_MESSAGES.FORMAT.UUID_INVALID })
   companyId?: string;
@@ -30,31 +31,6 @@ export class CreateLocationsDto {
   @IsOptional()
   @IsBoolean({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
   hasEdicule?: boolean;
-
-  @IsOptional()
-  @IsString({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
-  @MaxLength(8, { message: VALIDATION_MESSAGES.LENGTH.MAX_LENGTH })
-  ediculePostalCode?: string | null;
-
-  @IsOptional()
-  @IsString({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
-  @MaxLength(200, { message: VALIDATION_MESSAGES.LENGTH.MAX_LENGTH })
-  ediculeStreet?: string | null;
-
-  @IsOptional()
-  @IsString({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
-  @MaxLength(20, { message: VALIDATION_MESSAGES.LENGTH.MAX_LENGTH })
-  ediculeNumber?: string | null;
-
-  @IsOptional()
-  @IsString({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
-  @MaxLength(120, { message: VALIDATION_MESSAGES.LENGTH.MAX_LENGTH })
-  ediculeCity?: string | null;
-
-  @IsOptional()
-  @IsString({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
-  @MaxLength(200, { message: VALIDATION_MESSAGES.LENGTH.MAX_LENGTH })
-  ediculeLegalName?: string | null;
 
   @IsString({ message: VALIDATION_MESSAGES.REQUIRED.NAME })
   @MaxLength(120, { message: VALIDATION_MESSAGES.LENGTH.MAX_LENGTH })

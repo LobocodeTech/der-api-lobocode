@@ -184,7 +184,7 @@ model Company {
   regionals        Regional[]
   workOrderColumns WorkOrderColumn[]
   plannings        Planning[]
-  ipLocations IpLocation[]
+  ipLocations      IpLocation[]
 
   files              File[]              @relation("CompanyFiles")
   documents          Document[]          @relation("CompanyDocuments")
@@ -192,9 +192,9 @@ model Company {
   notificationGroups NotificationGroup[] @relation("CompanyNotificationGroups")
   queues             Queue[]
 
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  deletedAt   DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   @@index([cnpj])
   @@index([name])
@@ -259,9 +259,9 @@ model PasswordResetToken {
   expiresAt DateTime
   usedAt    DateTime?
   isUsed    Boolean   @default(false)
-  
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([token])
   @@index([email])
@@ -297,10 +297,10 @@ model Asset {
   id        String @id @default(cuid())
   companyId String
 
-  name         String?
-  manufacturer String?
-  model        String?
-  serialNumber String?
+  name            String?
+  manufacturer    String?
+  model           String?
+  serialNumber    String?
   ipAddresses     Json?
   type            AssetType
   direction       String?
@@ -373,12 +373,13 @@ model Location {
   latitude    Float?
   longitude   Float?
 
-  hasEdicule        Boolean @default(false)
-  ediculePostalCode String?
-  ediculeStreet     String?
-  ediculeNumber     String?
-  ediculeCity       String?
-  ediculeLegalName  String?
+  hasEdicule         Boolean @default(false)
+  ediculePostalCode  String?
+  ediculeStreet      String?
+  ediculeNumber      String?
+  ediculeCity        String?
+  ediculeLegalName   String?
+  ediculeObservation String?
 
   companyId String
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -402,9 +403,9 @@ model Location {
 }
 
 model IpLocation {
-  id            String    @id @default(cuid())
-  ip            String
-  description   String?
+  id          String  @id @default(cuid())
+  ip          String
+  description String?
 
   locationId String
   location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
