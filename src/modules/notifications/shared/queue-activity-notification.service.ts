@@ -40,6 +40,7 @@ export class QueueActivityNotificationService {
       userId: params.actorUserId,
       companyId: params.companyId,
       recipients,
+      skipEmail: true,
     });
   }
 
@@ -71,6 +72,7 @@ export class QueueActivityNotificationService {
       userId: params.actorUserId,
       companyId: params.companyId,
       recipients,
+      skipEmail: true,
     });
   }
 
@@ -102,6 +104,7 @@ export class QueueActivityNotificationService {
       userId: params.actorUserId,
       companyId: params.companyId,
       recipients,
+      skipEmail: true,
     });
   }
 }

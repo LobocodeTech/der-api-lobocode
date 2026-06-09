@@ -37,6 +37,7 @@ export type PermissionResource =
       WorkOrderChecklistItem: any;
       Planning: any;
       Queue: any;
+      IpLocation: any;
     }>
   | 'all';
 
@@ -154,6 +155,15 @@ const specificPermissions = {
   queuesRead: (user: User, { can }: any) => {
     can('read', 'Queue', { companyId: user.companyId });
   },
+  ipLocationsManage: (user: User, { can }: any) => {
+    can('manage', 'IpLocation', { companyId: user.companyId });
+  },
+  ipLocationsRead: (user: User, { can }: any) => {
+    can('read', 'IpLocation', { companyId: user.companyId });
+  },
+  ipLocationsC2cMutate: (user: User, { can }: any) => {
+    can(['create', 'update'], 'IpLocation', { companyId: user.companyId });
+  },
 };
 
 const operationalReadScopePermissions = {
@@ -161,6 +171,7 @@ const operationalReadScopePermissions = {
     can('read', 'Regional', { companyId: user.companyId });
     can('read', 'Location', { companyId: user.companyId });
     can('read', 'Asset', { companyId: user.companyId });
+    can('read', 'IpLocation', { companyId: user.companyId });
   },
 };
 
@@ -214,6 +225,9 @@ function aplicarRestricaoGestaoEquipeC2c(user: User, { can, cannot }: any) {
  * Restringe leitura e mutação de Regional, Location, Asset, WorkOrder e User (listagens)
  * ao escopo da regional do usuário. Admin / SYSTEM_ADMIN não são alterados.
  *
+ * FIELD_TEAM: leitura de IpLocation em toda a empresa (sem filtro regional), para
+ * consultar IPs em qualquer localidade durante a execução de OS.
+ *
  * Notificações de OS para FIELD_TEAM: o modelo Notification não tem relação Prisma com
  * WorkOrder; o escopo (regional + fila associada) é aplicado em
  * WorkOrderNotificationScopeService e NotificationService.
@@ -229,12 +243,16 @@ function aplicarRestricoesRegionaisNaoAdmin(
 
   const c = user.companyId;
   const ignorarLeitura = options?.ignorarEscopoRegionalLeitura === true;
+  const fieldTeamLeituraIpEmpresa = user.role === Roles.FIELD_TEAM;
 
   if (!user.regionalId) {
     if (!ignorarLeitura) {
       cannot('read', 'Regional', { companyId: c });
       cannot('read', 'Location', { companyId: c });
       cannot('read', 'Asset', { companyId: c });
+      if (!fieldTeamLeituraIpEmpresa) {
+        cannot('read', 'IpLocation', { companyId: c });
+      }
       cannot('read', 'WorkOrder', { companyId: c });
       cannot('read', 'User', { companyId: c, NOT: { id: user.id } });
     }
@@ -243,6 +261,7 @@ function aplicarRestricoesRegionaisNaoAdmin(
       cannot(action, 'Queue', { companyId: c });
       cannot(action, 'Location', { companyId: c });
       cannot(action, 'Asset', { companyId: c });
+      cannot(action, 'IpLocation', { companyId: c });
       cannot(action, 'WorkOrder', { companyId: c });
     }
     if (!ignorarLeitura) {
@@ -274,6 +293,12 @@ function aplicarRestricoesRegionaisNaoAdmin(
       companyId: c,
       NOT: { location: { regionalId: r } },
     });
+    if (!fieldTeamLeituraIpEmpresa) {
+      cannot('read', 'IpLocation', {
+        companyId: c,
+        NOT: { location: { regionalId: r } },
+      });
+    }
     cannot('read', 'WorkOrder', {
       companyId: c,
       NOT: workOrderPermitidoForaRegional,
@@ -290,6 +315,10 @@ function aplicarRestricoesRegionaisNaoAdmin(
     cannot(action, 'Regional', { companyId: c, NOT: { id: r } });
     cannot(action, 'Location', { companyId: c, NOT: { regionalId: r } });
     cannot(action, 'Asset', {
+      companyId: c,
+      NOT: { location: { regionalId: r } },
+    });
+    cannot(action, 'IpLocation', {
       companyId: c,
       NOT: { location: { regionalId: r } },
     });
@@ -420,6 +449,15 @@ function aplicarRestricoesSoftDeleteEmCascata({ cannot }: any) {
   cannot(['read', 'update', 'delete'], 'Queue', {
     OR: [{ company: { deletedAt: { not: null } } }, { deletedAt: { not: null } }],
   });
+
+  cannot(['read', 'update', 'delete'], 'IpLocation', {
+    OR: [
+      { company: { deletedAt: { not: null } } },
+      { location: { deletedAt: { not: null } } },
+      { location: { regional: { deletedAt: { not: null } } } },
+      { deletedAt: { not: null } },
+    ],
+  });
 }
 
 const rolePermissionsMap: Record<Roles, (user: User, builder: any) => void> = {
@@ -440,6 +478,7 @@ const rolePermissionsMap: Record<Roles, (user: User, builder: any) => void> = {
     specificPermissions.notifications(user, { can });
     specificPermissions.workOrdersManage(user, { can });
     specificPermissions.queuesManage(user, { can });
+    specificPermissions.ipLocationsManage(user, { can });
   },
 
   FIELD_TEAM: (user: User, { can, cannot }: any) => {
@@ -453,6 +492,9 @@ const rolePermissionsMap: Record<Roles, (user: User, builder: any) => void> = {
     aplicarRestricaoGestaoEquipe(user, { cannot });
     specificPermissions.queuesRead(user, { can });
     cannot(['create', 'update', 'delete'], 'Queue', {
+      companyId: user.companyId,
+    });
+    cannot(['create', 'update', 'delete'], 'IpLocation', {
       companyId: user.companyId,
     });
   },
@@ -470,6 +512,8 @@ const rolePermissionsMap: Record<Roles, (user: User, builder: any) => void> = {
     cannot(['create', 'update', 'delete'], 'Queue', {
       companyId: user.companyId,
     });
+    specificPermissions.ipLocationsC2cMutate(user, { can });
+    cannot('delete', 'IpLocation', { companyId: user.companyId });
   },
 };
 

@@ -65,7 +65,6 @@ export class WorkOrderColumnsService extends UniversalService<
             id: true,
             cgr: true,
             city: true,
-            radiusKm: true,
           },
         },
       },

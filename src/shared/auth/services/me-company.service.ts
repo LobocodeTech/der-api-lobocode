@@ -1,11 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { Roles } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ConflictError, ForbiddenError } from '../../common/errors';
 import { UpdateMyCompanyDto } from '../dto/update-my-company.dto';
 import { PublicCompany, toPublicCompany } from '../auth-me.mapper';
-import { normalizarConfigSlaEmpresa } from 'src/modules/work-orders/utils/work-order-corrective-sla.util';
+import {
+  MIN_CORRECTIVE_SLA_SECONDS,
+  normalizarConfigSlaEmpresa,
+} from 'src/modules/work-orders/utils/work-order-corrective-sla.util';
 
 @Injectable()
 export class MeCompanyService {
@@ -77,11 +80,20 @@ export class MeCompanyService {
           correctiveSlaWindowEnd: true,
         },
       });
+      const secondsToSave =
+        dto.correctiveSlaDefaultHours !== undefined
+          ? dto.correctiveSlaDefaultHours * 3600
+          : current?.correctiveSlaDefaultSeconds;
+      if (
+        secondsToSave != null &&
+        secondsToSave < MIN_CORRECTIVE_SLA_SECONDS
+      ) {
+        throw new BadRequestException(
+          'O SLA padrão deve ser de pelo menos 30 minutos.',
+        );
+      }
       const normalized = normalizarConfigSlaEmpresa({
-        correctiveSlaDefaultSeconds:
-          dto.correctiveSlaDefaultHours !== undefined
-            ? dto.correctiveSlaDefaultHours * 3600
-            : current?.correctiveSlaDefaultSeconds,
+        correctiveSlaDefaultSeconds: secondsToSave,
         correctiveSlaWindowStart:
           dto.correctiveSlaWindowStart ?? current?.correctiveSlaWindowStart,
         correctiveSlaWindowEnd:

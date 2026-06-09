@@ -14,7 +14,7 @@ import {
   UniversalPermissionService,
   createEntityConfig,
 } from 'src/shared/universal';
-import { aplicarCamposAssetPorTipo } from './asset-field.util';
+import { aplicarCamposAssetPorTipo } from './utils/asset-field.util';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
 

@@ -23,9 +23,15 @@ import { WorkOrderActivityNotificationService } from '../../notifications/shared
 import { WorkOrderQueueUsersService } from '../work-order-queue-users/work-order-queue-users.service';
 import { WorkOrdersService } from '../work-orders.service';
 import { WorkOrderSlaService } from '../services/work-order-sla.service';
-import { normalizarConfigSlaEmpresa } from '../utils/work-order-corrective-sla.util';
+import {
+  normalizarConfigSlaEmpresa,
+  resolverConfigSlaDaOrdem,
+} from '../utils/work-order-corrective-sla.util';
 @Injectable({ scope: Scope.REQUEST })
 export class WorkOrderPauseHistoryService {
+  /** TEMPORÁRIO: sem e-mail nas notificações de OS (WebSocket + push ativos). */
+  private readonly omitirEmailNasNotificacoesOs = true;
+
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(WorkOrdersService) private readonly workOrdersService: WorkOrdersService,
@@ -174,7 +180,10 @@ export class WorkOrderPauseHistoryService {
     if (workOrder.type !== WorkOrderType.CORRECTIVE) {
       return null;
     }
-    const config = normalizarConfigSlaEmpresa(workOrder.company ?? undefined);
+    const config = resolverConfigSlaDaOrdem(
+      workOrder,
+      normalizarConfigSlaEmpresa(workOrder.company ?? undefined),
+    );
     const estado = this.mapSlaState(workOrder);
     const payload = this.workOrderSlaService.aoPausar(estado, config, agora);
     if (!payload) return null;
@@ -188,7 +197,10 @@ export class WorkOrderPauseHistoryService {
     if (workOrder.type !== WorkOrderType.CORRECTIVE) {
       return null;
     }
-    const config = normalizarConfigSlaEmpresa(workOrder.company ?? undefined);
+    const config = resolverConfigSlaDaOrdem(
+      workOrder,
+      normalizarConfigSlaEmpresa(workOrder.company ?? undefined),
+    );
     const estado = this.mapSlaState(workOrder);
     const payload = this.workOrderSlaService.aoRetomar(estado, config, agora);
     if (!payload) return null;
@@ -232,6 +244,8 @@ export class WorkOrderPauseHistoryService {
         slaNearBreachNotifiedAt: true,
         slaOneHourLeftNotifiedAt: true,
         slaBreachedNotifiedAt: true,
+        slaDeadlineHours: true,
+        slaRemainingSeconds: true,
         company: {
           select: {
             correctiveSlaDefaultSeconds: true,
@@ -243,7 +257,10 @@ export class WorkOrderPauseHistoryService {
     });
     if (!ordem || ordem.type !== WorkOrderType.CORRECTIVE) return;
 
-    const config = normalizarConfigSlaEmpresa(ordem.company ?? undefined);
+    const config = resolverConfigSlaDaOrdem(
+      ordem,
+      normalizarConfigSlaEmpresa(ordem.company ?? undefined),
+    );
     const snapshot = this.workOrderSlaService.calcularSnapshot(
       {
         type: ordem.type,
@@ -258,6 +275,8 @@ export class WorkOrderPauseHistoryService {
         completedAt: ordem.completedAt,
       },
       config,
+      new Date(),
+      { preservarDeadlinePersistido: true },
     );
     if (!snapshot) return;
 
@@ -300,6 +319,7 @@ export class WorkOrderPauseHistoryService {
       companyId: ordem.companyId ?? companyId,
       recipientUserIds: recipientIds,
       kind,
+      skipEmail: this.omitirEmailNasNotificacoesOs,
     });
   }
 
@@ -327,6 +347,8 @@ export class WorkOrderPauseHistoryService {
         slaStatusExtended: true,
         slaExceededAt: true,
         completedAt: true,
+        slaDeadlineHours: true,
+        slaRemainingSeconds: true,
         company: {
           select: {
             correctiveSlaDefaultSeconds: true,

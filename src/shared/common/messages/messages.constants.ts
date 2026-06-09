@@ -35,6 +35,7 @@ export const VALIDATION_MESSAGES = {
     PHONE_INVALID: 'Telefone deve estar no formato brasileiro: (XX) XXXXX-XXXX',
     UUID_INVALID: 'ID inválido',
     FIELD_INVALID: 'Campo deve ser um texto',
+    IP_INVALID: 'IP inválido',
     BOOLEAN_INVALID: 'Valor deve ser um booleano',
     SLUG_INVALID: 'Slug pode conter apenas letras minúsculas, números e hífens',
     ENUM_INVALID: 'Valor inválido para o enum',

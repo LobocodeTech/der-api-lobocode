@@ -246,7 +246,7 @@ export class UsersService extends BaseUserService {
         select: { id: true, name: true, cnpj: true, address: true },
       },
       regional: {
-        select: { id: true, cgr: true, city: true, color: true, radiusKm: true },
+        select: { id: true, cgr: true, city: true, color: true },
       },
     };
 

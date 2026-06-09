@@ -4,6 +4,8 @@ import { BadRequestException } from '@nestjs/common';
 const BRT_OFFSET_HOURS = 3;
 
 export const DEFAULT_CORRECTIVE_SLA_SECONDS = 6 * 60 * 60;
+/** Mínimo aceito ao salvar SLA padrão da empresa (Configurações). */
+export const MIN_CORRECTIVE_SLA_SECONDS = 30 * 60;
 export const DEFAULT_WINDOW_START = '06:00';
 export const DEFAULT_WINDOW_END = '18:00';
 export const NEAR_BREACH_RATIO = 0.8;
@@ -14,6 +16,19 @@ export interface CorrectiveSlaCompanyConfig {
   correctiveSlaWindowStart: string;
   correctiveSlaWindowEnd: string;
 }
+
+/** Snapshot de SLA persistido na OS (sem novas colunas). */
+export interface CorrectiveSlaOrderSnapshot {
+  slaDeadlineHours?: number | null;
+  slaStartAt?: Date | null;
+  slaDeadlineAt?: Date | null;
+  slaConsumedSeconds?: number | null;
+  slaRemainingSeconds?: number | null;
+  slaExceededAt?: Date | null;
+  slaStatusExtended?: string | null;
+}
+
+const WINDOW_PACK_MULTIPLIER = 10000;
 
 export interface BrtDateParts {
   year: number;
@@ -212,11 +227,206 @@ export function calcularDeadlineSla(
   return cursor;
 }
 
+function windowTimeToMinutes(value: string): number {
+  const { hour, minute } = parseWindowTime(value);
+  return hour * 60 + minute;
+}
+
+function minutesToWindowTime(minutes: number): string {
+  const hour = Math.floor(minutes / 60);
+  const minute = minutes % 60;
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
+/**
+ * Em OS corretivas, `slaDeadlineHours` armazena a janela operacional empacotada:
+ * startMinutes * 10000 + endMinutes (minutos desde meia-noite, BRT).
+ */
+export function empacotarJanelaSla(
+  windowStart: string,
+  windowEnd: string,
+): number {
+  const startMinutes = windowTimeToMinutes(windowStart);
+  const endMinutes = windowTimeToMinutes(windowEnd);
+  return startMinutes * WINDOW_PACK_MULTIPLIER + endMinutes;
+}
+
+export function desempacotarJanelaSla(packed: number | null | undefined): {
+  windowStart: string;
+  windowEnd: string;
+} | null {
+  if (packed == null || !Number.isFinite(packed) || packed <= 0) {
+    return null;
+  }
+  const startMinutes = Math.floor(packed / WINDOW_PACK_MULTIPLIER);
+  const endMinutes = packed % WINDOW_PACK_MULTIPLIER;
+  if (
+    startMinutes < 0 ||
+    startMinutes >= 24 * 60 ||
+    endMinutes <= 0 ||
+    endMinutes >= 24 * 60 ||
+    startMinutes >= endMinutes
+  ) {
+    return null;
+  }
+  return {
+    windowStart: minutesToWindowTime(startMinutes),
+    windowEnd: minutesToWindowTime(endMinutes),
+  };
+}
+
+function ordemSlaEstaVencida(
+  ordem: Pick<
+    CorrectiveSlaOrderSnapshot,
+    'slaConsumedSeconds' | 'slaRemainingSeconds' | 'slaExceededAt' | 'slaStatusExtended'
+  >,
+  fallbackSeconds: number,
+): boolean {
+  const consumed = Math.max(0, ordem.slaConsumedSeconds ?? 0);
+  if (ordem.slaExceededAt) {
+    return true;
+  }
+  if (
+    ordem.slaStatusExtended === 'BREACHED' ||
+    ordem.slaStatusExtended === 'COMPLETED_LATE'
+  ) {
+    return true;
+  }
+  return consumed >= fallbackSeconds;
+}
+
+export function derivarBudgetSegundosDaOrdem(
+  ordem: Pick<
+    CorrectiveSlaOrderSnapshot,
+    | 'slaConsumedSeconds'
+    | 'slaRemainingSeconds'
+    | 'slaExceededAt'
+    | 'slaStatusExtended'
+    | 'slaStartAt'
+    | 'slaDeadlineAt'
+  >,
+  fallbackSeconds: number,
+): number {
+  const consumed = Math.max(0, ordem.slaConsumedSeconds ?? 0);
+  const remaining = ordem.slaRemainingSeconds;
+
+  if (remaining != null && remaining > 0) {
+    if (consumed === 0 && remaining < fallbackSeconds) {
+      return fallbackSeconds;
+    }
+    return consumed + remaining;
+  }
+
+  if (remaining === 0 && consumed > 0) {
+    if (ordemSlaEstaVencida(ordem, fallbackSeconds)) {
+      return fallbackSeconds;
+    }
+    if (consumed < fallbackSeconds) {
+      return fallbackSeconds;
+    }
+    return consumed;
+  }
+
+  return fallbackSeconds;
+}
+
+/** Candidatos para inferir janela em OS legadas sem pacote. */
+function gerarCandidatosJanelaSla(
+  companyConfig: CorrectiveSlaCompanyConfig,
+): Array<{ windowStart: string; windowEnd: string }> {
+  const empresa = normalizarConfigSlaEmpresa(companyConfig);
+  const padrao = normalizarConfigSlaEmpresa({});
+  const candidatos = [
+    {
+      windowStart: padrao.correctiveSlaWindowStart,
+      windowEnd: padrao.correctiveSlaWindowEnd,
+    },
+    {
+      windowStart: empresa.correctiveSlaWindowStart,
+      windowEnd: empresa.correctiveSlaWindowEnd,
+    },
+  ];
+  const vistos = new Set<string>();
+  return candidatos.filter((c) => {
+    const key = `${c.windowStart}|${c.windowEnd}`;
+    if (vistos.has(key)) return false;
+    vistos.add(key);
+    return true;
+  });
+}
+
+export function inferirJanelaSlaPorPrazo(params: {
+  slaStartAt: Date;
+  slaDeadlineAt: Date;
+  budgetSeconds: number;
+  companyConfig: CorrectiveSlaCompanyConfig;
+}): { windowStart: string; windowEnd: string } | null {
+  const { slaStartAt, slaDeadlineAt, budgetSeconds, companyConfig } = params;
+  if (budgetSeconds <= 0) {
+    return null;
+  }
+  for (const candidato of gerarCandidatosJanelaSla(companyConfig)) {
+    const projetado = calcularDeadlineSla(
+      slaStartAt,
+      budgetSeconds,
+      candidato.windowStart,
+      candidato.windowEnd,
+    );
+    if (projetado.getTime() === slaDeadlineAt.getTime()) {
+      return candidato;
+    }
+  }
+  return null;
+}
+
+/** Resolve config efetiva da OS (congelada), com fallback para empresa/OS legada. */
+export function resolverConfigSlaDaOrdem(
+  ordem: CorrectiveSlaOrderSnapshot,
+  companyConfig: CorrectiveSlaCompanyConfig,
+): CorrectiveSlaCompanyConfig {
+  const empresa = normalizarConfigSlaEmpresa(companyConfig);
+  const budget = derivarBudgetSegundosDaOrdem(ordem, empresa.correctiveSlaDefaultSeconds);
+
+  const empacotado = desempacotarJanelaSla(ordem.slaDeadlineHours);
+  if (empacotado) {
+    return normalizarConfigSlaEmpresa({
+      correctiveSlaDefaultSeconds: budget,
+      correctiveSlaWindowStart: empacotado.windowStart,
+      correctiveSlaWindowEnd: empacotado.windowEnd,
+    });
+  }
+
+  if (ordem.slaStartAt && ordem.slaDeadlineAt && budget > 0) {
+    const inferida = inferirJanelaSlaPorPrazo({
+      slaStartAt: ordem.slaStartAt,
+      slaDeadlineAt: ordem.slaDeadlineAt,
+      budgetSeconds: budget,
+      companyConfig: empresa,
+    });
+    if (inferida) {
+      return normalizarConfigSlaEmpresa({
+        correctiveSlaDefaultSeconds: budget,
+        correctiveSlaWindowStart: inferida.windowStart,
+        correctiveSlaWindowEnd: inferida.windowEnd,
+      });
+    }
+  }
+
+  return normalizarConfigSlaEmpresa({
+    correctiveSlaDefaultSeconds: budget,
+    correctiveSlaWindowStart: empresa.correctiveSlaWindowStart,
+    correctiveSlaWindowEnd: empresa.correctiveSlaWindowEnd,
+  });
+}
+
 export function normalizarConfigSlaEmpresa(
   config: Partial<CorrectiveSlaCompanyConfig> | null | undefined,
 ): CorrectiveSlaCompanyConfig {
-  const seconds =
+  let seconds =
     config?.correctiveSlaDefaultSeconds ?? DEFAULT_CORRECTIVE_SLA_SECONDS;
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    seconds = DEFAULT_CORRECTIVE_SLA_SECONDS;
+  }
   const windowStart =
     config?.correctiveSlaWindowStart?.trim() || DEFAULT_WINDOW_START;
   const windowEnd = config?.correctiveSlaWindowEnd?.trim() || DEFAULT_WINDOW_END;
@@ -227,11 +437,6 @@ export function normalizarConfigSlaEmpresa(
   if (start.hour * 60 + start.minute >= end.hour * 60 + end.minute) {
     throw new BadRequestException(
       'O horário de início da janela deve ser anterior ao de encerramento.',
-    );
-  }
-  if (seconds < 1800) {
-    throw new BadRequestException(
-      'O SLA padrão deve ser de pelo menos 30 minutos.',
     );
   }
   return {

@@ -1,8 +1,15 @@
 import { BadRequestException } from '@nestjs/common';
 import { AssetType } from '@prisma/client';
-import { CreateAssetDto } from './dto/create-asset.dto';
+import { normalizarIpAddressesAsset } from './asset-ip.util';
+import { CreateAssetDto } from '../dto/create-asset.dto';
 
 export function aplicarCamposAssetPorTipo(dto: CreateAssetDto): void {
+  if ('ipAddresses' in dto) {
+    dto.ipAddresses = normalizarIpAddressesAsset(
+      dto.ipAddresses,
+    ) as CreateAssetDto['ipAddresses'];
+  }
+
   if (dto.type === AssetType.CAMERA) {
     dto.name = undefined;
     const manufacturer = dto.manufacturer?.trim() ?? '';

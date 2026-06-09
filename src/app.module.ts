@@ -1,3 +1,4 @@
+import { IpLocationModule } from './modules/ip-locations/ip-location.module';
 import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_INTERCEPTOR, APP_PIPE, APP_FILTER } from '@nestjs/core';
@@ -83,6 +84,7 @@ import { GlobalSearchModule } from './modules/global-search/global-search.module
     OperationalDashboardModule,
     PlanningModule,
     GlobalSearchModule,
+    IpLocationModule,
   ],
   controllers: [AppController],
   providers: [

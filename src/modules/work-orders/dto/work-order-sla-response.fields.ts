@@ -1,4 +1,5 @@
 import { WorkOrderCorrectiveSlaStatus, WorkOrderType } from '@prisma/client';
+import type { CorrectiveSlaOverdueStatus } from '../utils/work-order-negative-sla.util';
 
 /**
  * Campos de SLA corretiva expostos nas respostas de OS (`type === CORRECTIVE`).
@@ -13,8 +14,15 @@ export interface WorkOrderCorrectiveSlaResponseFields {
   slaDeadlineAt: string | null;
   slaStatusExtended: WorkOrderCorrectiveSlaStatus | null;
   slaExceededAt: string | null;
-  /** Orçamento total em segundos (configuração da empresa no momento da leitura). */
+  /** Orçamento total em segundos (congelado na OS). */
   correctiveSlaTotalSeconds: number | null;
+  /** Janela operacional congelada na OS (campo virtual de resposta). */
+  correctiveSlaWindowStart: string | null;
+  correctiveSlaWindowEnd: string | null;
+  /** SLA negativo (atraso) — calculado em tempo real, não persistido. */
+  correctiveSlaOverdueActive: boolean;
+  correctiveSlaOverdueSeconds: number;
+  correctiveSlaOverdueStatus: CorrectiveSlaOverdueStatus | null;
 }
 
 export function isCorrectiveWorkOrderType(

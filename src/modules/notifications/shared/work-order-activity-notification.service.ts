@@ -72,6 +72,7 @@ export class WorkOrderActivityNotificationService {
     actorUserId: string;
     companyId?: string;
     assignedUserId: string;
+    skipEmail?: boolean;
   }) {
     const recipients = await this.filtrarDestinatariosOs(
       params.workOrderId,
@@ -97,6 +98,7 @@ export class WorkOrderActivityNotificationService {
       userId: params.actorUserId,
       companyId: params.companyId,
       recipients,
+      skipEmail: params.skipEmail,
     });
   }
 
@@ -107,6 +109,7 @@ export class WorkOrderActivityNotificationService {
     actorUserId: string;
     companyId?: string;
     removedUserId: string;
+    skipEmail?: boolean;
   }) {
     const recipients = await this.filtrarDestinatariosOs(
       params.workOrderId,
@@ -132,6 +135,7 @@ export class WorkOrderActivityNotificationService {
       userId: params.actorUserId,
       companyId: params.companyId,
       recipients,
+      skipEmail: params.skipEmail,
     });
   }
 
@@ -243,6 +247,7 @@ export class WorkOrderActivityNotificationService {
     companyId?: string;
     recipientUserIds: string[];
     kind: WorkOrderLifecycleEventKind;
+    skipEmail?: boolean;
   }) {
     const uniqueRecipients = Array.from(
       new Set(
@@ -278,6 +283,7 @@ export class WorkOrderActivityNotificationService {
       userId: params.actorUserId,
       companyId: params.companyId,
       recipients,
+      skipEmail: params.skipEmail,
     });
   }
 
@@ -287,6 +293,7 @@ export class WorkOrderActivityNotificationService {
     actorUserId: string;
     companyId?: string;
     assigneeUserIds: string[];
+    skipEmail?: boolean;
   }) {
     const baseRecipients = params.assigneeUserIds.filter(
       (id) => id !== params.actorUserId,
@@ -313,6 +320,7 @@ export class WorkOrderActivityNotificationService {
       userId: params.actorUserId,
       companyId: params.companyId,
       recipients,
+      skipEmail: params.skipEmail,
     });
   }
 

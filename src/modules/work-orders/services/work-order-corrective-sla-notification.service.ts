@@ -14,7 +14,10 @@ import {
   WorkOrderSlaService,
   type CorrectiveSlaSnapshot,
 } from './work-order-sla.service';
-import { normalizarConfigSlaEmpresa } from '../utils/work-order-corrective-sla.util';
+import {
+  normalizarConfigSlaEmpresa,
+  resolverConfigSlaDaOrdem,
+} from '../utils/work-order-corrective-sla.util';
 
 @Injectable()
 export class WorkOrderCorrectiveSlaNotificationService {
@@ -126,6 +129,8 @@ export class WorkOrderCorrectiveSlaNotificationService {
         slaNearBreachNotifiedAt: true,
         slaOneHourLeftNotifiedAt: true,
         slaBreachedNotifiedAt: true,
+        slaDeadlineHours: true,
+        slaRemainingSeconds: true,
         company: {
           select: {
             correctiveSlaDefaultSeconds: true,
@@ -139,10 +144,15 @@ export class WorkOrderCorrectiveSlaNotificationService {
 
     for (const ordem of ordens) {
       try {
-        const config = normalizarConfigSlaEmpresa(ordem.company ?? undefined);
+        const config = resolverConfigSlaDaOrdem(
+          ordem,
+          normalizarConfigSlaEmpresa(ordem.company ?? undefined),
+        );
         const snapshot = this.workOrderSlaService.calcularSnapshot(
           ordem,
           config,
+          new Date(),
+          { preservarDeadlinePersistido: true },
         );
         if (!snapshot) continue;
 
@@ -201,6 +211,7 @@ export class WorkOrderCorrectiveSlaNotificationService {
       userId: params.actorUserId,
       companyId: params.companyId,
       recipients: escopo,
+      skipEmail: true,
     });
   }
 }

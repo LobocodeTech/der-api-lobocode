@@ -1,7 +1,6 @@
 import {
   IsArray,
   IsEnum,
-  IsIP,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -10,6 +9,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { AssetIpAddressDto } from './asset-ip-address.dto';
 import {
   AssetCriticality,
   AssetConnectionType,
@@ -18,15 +18,6 @@ import {
 } from '@prisma/client';
 import { IsCUID } from '../../../shared/validators';
 import { VALIDATION_MESSAGES } from '../../../shared/common/messages';
-
-/**
- * Endereço IP do equipamento. O rótulo (`name`) foi removido — o IPv4 é o
- * próprio identificador único na lista.
- */
-class AssetIpAddressDto {
-  @IsIP('4', { message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
-  ip: string;
-}
 
 export class CreateAssetDto {
   @IsOptional()

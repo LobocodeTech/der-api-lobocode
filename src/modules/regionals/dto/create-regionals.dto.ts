@@ -87,13 +87,6 @@ export class CreateRegionalsDto {
   longitude?: number;
 
   @IsOptional()
-  @Type(() => Number)
-  @IsNumber({}, { message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
-  @Min(1, { message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
-  @Max(500, { message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
-  radiusKm?: number;
-
-  @IsOptional()
   @ValidateNested()
   @Type(() => RegionalAddressDto)
   address?: RegionalAddressDto;
