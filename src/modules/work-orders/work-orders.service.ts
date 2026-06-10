@@ -41,7 +41,7 @@ import {
   type WorkOrderLifecycleEventKind,
 } from '../notifications/shared/work-order-activity-notification.service';
 import {
-  WORK_ORDER_QUEUES_ON_WORK_ORDER_INCLUDE,
+  construirWorkOrderQueuesOnWorkOrderInclude,
   WorkOrderQueueUsersService,
 } from './work-order-queue-users/work-order-queue-users.service';
 import { formatAssetTypeLabel } from 'src/shared/common/utils/asset-type-label';
@@ -79,7 +79,9 @@ export class WorkOrdersService extends UniversalService<
   /** TEMPORÁRIO: sem e-mail nas notificações de OS (WebSocket + push ativos). */
   private readonly omitirEmailNasNotificacoesOs = true;
 
-  private readonly detalhesInclude: any = {
+  private construirDetalhesInclude(): Prisma.WorkOrderInclude {
+    const companyId = this.obterCompanyId();
+    return {
     column: {
       select: {
         id: true,
@@ -100,7 +102,7 @@ export class WorkOrdersService extends UniversalService<
         },
       },
     },
-    workOrderQueues: WORK_ORDER_QUEUES_ON_WORK_ORDER_INCLUDE,
+    workOrderQueues: construirWorkOrderQueuesOnWorkOrderInclude(companyId ?? undefined),
     checklistItems: {
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
     },
@@ -155,7 +157,8 @@ export class WorkOrdersService extends UniversalService<
       },
     },
     ...WORK_ORDER_AUDIT_USER_INCLUDE,
-  };
+    };
+  }
 
   constructor(
     repository: UniversalRepository<CreateWorkOrderDto, UpdateWorkOrderDto>,
@@ -212,7 +215,6 @@ export class WorkOrdersService extends UniversalService<
             },
           },
         },
-        workOrderQueues: WORK_ORDER_QUEUES_ON_WORK_ORDER_INCLUDE,
         planning: {
           select: {
             id: true,
@@ -234,6 +236,15 @@ export class WorkOrdersService extends UniversalService<
     };
   }
 
+  protected getIncludeConfig(): any {
+    const companyId = this.obterCompanyId();
+    const base = this.entityConfig.includes ?? {};
+    return {
+      ...base,
+      workOrderQueues: construirWorkOrderQueuesOnWorkOrderInclude(companyId ?? undefined),
+    };
+  }
+
   private async preloadCompanySlaConfig(): Promise<void> {
     const companyId = this.obterCompanyId();
     if (companyId) {
@@ -243,13 +254,13 @@ export class WorkOrdersService extends UniversalService<
 
   async buscarPorId(id: string, include?: Prisma.WorkOrderInclude) {
     await this.preloadCompanySlaConfig();
-    const ordem = await super.buscarPorId(id, include ?? this.detalhesInclude);
+    const ordem = await super.buscarPorId(id, include ?? this.construirDetalhesInclude());
     const normalizada = this.normalizarDetalhesDaOrdem(ordem);
     return this.mapWorkOrderResponse(normalizada);
   }
 
   async buscarDetalhesPorId(id: string) {
-    return this.buscarPorId(id, this.detalhesInclude);
+    return this.buscarPorId(id, this.construirDetalhesInclude());
   }
 
   async buscarTodos() {
@@ -1244,7 +1255,7 @@ export class WorkOrdersService extends UniversalService<
     const ordem = await this.prisma.workOrder.findFirst({
       where: whereClause,
       include: {
-        workOrderQueues: WORK_ORDER_QUEUES_ON_WORK_ORDER_INCLUDE,
+        workOrderQueues: construirWorkOrderQueuesOnWorkOrderInclude(companyId ?? undefined),
       },
     });
 

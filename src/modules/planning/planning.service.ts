@@ -16,7 +16,9 @@ import {
   UniversalRepository,
   UniversalService,
   createEntityConfig,
+  IncludeConfig,
 } from 'src/shared/universal';
+import { construirWherePlanningResponsibleLegivel } from 'src/shared/casl/casl-ability/casl-ability.service';
 import { PlanningActivityNotificationService } from '../notifications/shared/planning-activity-notification.service';
 import { CreatePlanningDto } from './dto/create-planning.dto';
 import { UpdatePlanningDto } from './dto/update-planning.dto';
@@ -120,52 +122,57 @@ export class PlanningService extends UniversalService<
         deletedAt: null,
         ...(companyId && { companyId }),
       },
-      includes: {
-        location: {
-          select: {
-            id: true,
-            code: true,
-            name: true,
-            referenceKm: true,
-            regional: {
-              select: {
-                id: true,
-                cgr: true,
-                city: true,
-                color: true,
-              },
+      orderBy: { date: 'asc' },
+    };
+  }
+
+  protected getIncludeConfig(): IncludeConfig | undefined {
+    const companyId = this.obterCompanyId();
+    return {
+      location: {
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          referenceKm: true,
+          regional: {
+            select: {
+              id: true,
+              cgr: true,
+              city: true,
+              color: true,
             },
           },
         },
-        responsibles: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                role: true,
-                regionalId: true,
-                regional: {
-                  select: {
-                    id: true,
-                    color: true,
-                  },
+      },
+      responsibles: {
+        where: construirWherePlanningResponsibleLegivel(companyId ?? undefined),
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              role: true,
+              regionalId: true,
+              regional: {
+                select: {
+                  id: true,
+                  color: true,
                 },
               },
             },
           },
         },
-        workOrder: {
-          select: {
-            id: true,
-            title: true,
-            status: true,
-            type: true,
-          },
+      },
+      workOrder: {
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          type: true,
         },
       },
-      orderBy: { date: 'asc' },
-    };
+    } as unknown as IncludeConfig;
   }
 
   protected async antesDeCriar(data: CreatePlanningDto): Promise<void> {

@@ -1,4 +1,10 @@
-import { Inject, Injectable, Optional, Scope } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Optional,
+  Scope,
+} from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 import {
   UniversalService,
@@ -71,6 +77,38 @@ export class LocationsService extends UniversalService<
         exclude: ['companyId', 'regionalId'],
       },
     };
+  }
+
+  protected async antesDeDesativar(id: string): Promise<void> {
+    const companyId = this.obterUsuarioLogado()?.companyId;
+    const filtroFilhos = {
+      locationId: id,
+      deletedAt: null,
+      ...(companyId ? { companyId } : {}),
+    };
+
+    const [totalWorkOrders, totalAssets, totalIpLocations] = await Promise.all([
+      this.repository.contarTodos('workOrder', filtroFilhos),
+      this.repository.contarTodos('asset', filtroFilhos),
+      this.repository.contarTodos('ipLocation', filtroFilhos),
+    ]);
+
+    const bloqueios: string[] = [];
+    if (totalWorkOrders > 0) {
+      bloqueios.push('ordens de serviço');
+    }
+    if (totalAssets > 0) {
+      bloqueios.push('ativos');
+    }
+    if (totalIpLocations > 0) {
+      bloqueios.push('localidades IP');
+    }
+
+    if (bloqueios.length > 0) {
+      throw new BadRequestException(
+        `Não é possível excluir a localidade porque existem ${bloqueios.join(', ')} vinculados.`,
+      );
+    }
   }
 }
 

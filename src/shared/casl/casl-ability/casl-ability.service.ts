@@ -3,7 +3,7 @@ import { REQUEST } from '@nestjs/core';
 import { Request } from 'express';
 import { AbilityBuilder, PureAbility } from '@casl/ability';
 import { createPrismaAbility, PrismaQuery, Subjects } from '@casl/prisma';
-import { Roles, User, WorkOrderType } from '@prisma/client';
+import { Prisma, Roles, User, WorkOrderType } from '@prisma/client';
 import {
   construirClausulaOsVisivelParaUsuario,
   isUsuarioAdministradorEmpresaOuSistema,
@@ -37,6 +37,9 @@ export type PermissionResource =
       WorkOrderChecklistItem: any;
       Planning: any;
       Queue: any;
+      QueueUser: any;
+      WorkOrderQueue: any;
+      PlanningResponsible: any;
       IpLocation: any;
     }>
   | 'all';
@@ -450,6 +453,33 @@ function aplicarRestricoesSoftDeleteEmCascata({ cannot }: any) {
     OR: [{ company: { deletedAt: { not: null } } }, { deletedAt: { not: null } }],
   });
 
+  cannot(['read', 'update', 'delete'], 'QueueUser', {
+    OR: [
+      { user: { deletedAt: { not: null } } },
+      { user: { company: { deletedAt: { not: null } } } },
+      { queue: { deletedAt: { not: null } } },
+      { queue: { company: { deletedAt: { not: null } } } },
+    ],
+  });
+
+  cannot(['read', 'update', 'delete'], 'PlanningResponsible', {
+    OR: [
+      { user: { deletedAt: { not: null } } },
+      { user: { company: { deletedAt: { not: null } } } },
+      { planning: { deletedAt: { not: null } } },
+      { planning: { company: { deletedAt: { not: null } } } },
+    ],
+  });
+
+  cannot(['read', 'update', 'delete'], 'WorkOrderQueue', {
+    OR: [
+      { workOrder: { deletedAt: { not: null } } },
+      { workOrder: { company: { deletedAt: { not: null } } } },
+      { queue: { deletedAt: { not: null } } },
+      { queue: { company: { deletedAt: { not: null } } } },
+    ],
+  });
+
   cannot(['read', 'update', 'delete'], 'IpLocation', {
     OR: [
       { company: { deletedAt: { not: null } } },
@@ -458,6 +488,116 @@ function aplicarRestricoesSoftDeleteEmCascata({ cannot }: any) {
       { deletedAt: { not: null } },
     ],
   });
+}
+
+/**
+ * Permissões base de QueueUser (vínculo fila ↔ usuário).
+ * A ocultação de usuários excluídos é aplicada em `aplicarRestricoesSoftDeleteEmCascata`.
+ */
+function aplicarPermissoesQueueUser(user: User, { can }: any) {
+  if (user.role === Roles.SYSTEM_ADMIN) {
+    return;
+  }
+
+  can('read', 'QueueUser', {
+    queue: { companyId: user.companyId },
+  });
+
+  if (user.role === Roles.ADMIN) {
+    can(['create', 'update', 'delete'], 'QueueUser', {
+      queue: { companyId: user.companyId },
+    });
+  }
+}
+
+function aplicarPermissoesPlanningResponsible(user: User, { can }: any) {
+  if (user.role === Roles.SYSTEM_ADMIN) {
+    return;
+  }
+
+  can('read', 'PlanningResponsible', {
+    planning: { companyId: user.companyId },
+  });
+
+  if (user.role === Roles.ADMIN) {
+    can(['create', 'update', 'delete'], 'PlanningResponsible', {
+      planning: { companyId: user.companyId },
+    });
+  }
+}
+
+function aplicarPermissoesWorkOrderQueue(user: User, { can }: any) {
+  if (user.role === Roles.SYSTEM_ADMIN) {
+    return;
+  }
+
+  can('read', 'WorkOrderQueue', {
+    workOrder: { companyId: user.companyId },
+  });
+
+  if (user.role === Roles.ADMIN) {
+    can(['create', 'update', 'delete'], 'WorkOrderQueue', {
+      workOrder: { companyId: user.companyId },
+    });
+  }
+}
+
+/**
+ * Where Prisma para incluir apenas QueueUser legíveis em includes aninhados.
+ * Não usa `accessibleBy` porque regras `read all` (ADMIN) injetam `companyId`
+ * direto em QueueUser, campo que não existe no modelo e quebra o Prisma.
+ */
+export function construirWhereQueueUserLegivel(
+  companyId?: string,
+): Prisma.QueueUserWhereInput {
+  return {
+    user: {
+      deletedAt: null,
+      company: { deletedAt: null },
+      ...(companyId ? { companyId } : {}),
+    },
+    queue: {
+      deletedAt: null,
+      company: { deletedAt: null },
+      ...(companyId ? { companyId } : {}),
+    },
+  };
+}
+
+/** Where Prisma para includes de responsáveis ativos em planejamentos. */
+export function construirWherePlanningResponsibleLegivel(
+  companyId?: string,
+): Prisma.PlanningResponsibleWhereInput {
+  return {
+    user: {
+      deletedAt: null,
+      company: { deletedAt: null },
+      ...(companyId ? { companyId } : {}),
+    },
+    planning: {
+      deletedAt: null,
+      company: { deletedAt: null },
+      ...(companyId ? { companyId } : {}),
+    },
+  };
+}
+
+/** Where Prisma para vínculos OS↔fila ativos em includes aninhados. */
+export function construirWhereWorkOrderQueueLegivel(
+  companyId?: string,
+): Prisma.WorkOrderQueueWhereInput {
+  return {
+    workOrder: {
+      deletedAt: null,
+      company: { deletedAt: null },
+      ...(companyId ? { companyId } : {}),
+    },
+    queue: {
+      deletedAt: null,
+      company: { deletedAt: null },
+      ...(companyId ? { companyId } : {}),
+    },
+  };
 }
 
 const rolePermissionsMap: Record<Roles, (user: User, builder: any) => void> = {
@@ -552,6 +692,9 @@ export class CaslAbilityService {
     aplicarRestricoesRegionaisNaoAdmin(user, builder, {
       ignorarEscopoRegionalLeitura,
     });
+    aplicarPermissoesQueueUser(user, builder);
+    aplicarPermissoesPlanningResponsible(user, builder);
+    aplicarPermissoesWorkOrderQueue(user, builder);
     aplicarRestricoesSoftDeleteEmCascata(builder);
 
     this.ability = builder.build();

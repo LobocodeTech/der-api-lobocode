@@ -10,7 +10,7 @@ import {
 } from 'src/shared/universal';
 import { CreateWorkOrderDto } from '../../dto/create-work-order.dto';
 import { UpdateWorkOrderDto } from '../../dto/update-work-order.dto';
-import { WORK_ORDER_QUEUE_INCLUDE } from '../../work-order-queue-users/work-order-queue-users.service';
+import { construirWorkOrderQueuesOnWorkOrderInclude } from '../../work-order-queue-users/work-order-queue-users.service';
 import { WORK_ORDER_AUDIT_USER_INCLUDE } from '../../dto/work-order-audit.fields';
 
 @Injectable({ scope: Scope.REQUEST })
@@ -101,9 +101,6 @@ export class WorkOrdersIntegrationService extends UniversalService<
             observation: true,
           },
         },
-        workOrderQueues: {
-          include: WORK_ORDER_QUEUE_INCLUDE,
-        },
         ...WORK_ORDER_AUDIT_USER_INCLUDE,
       },
       where: {
@@ -123,6 +120,17 @@ export class WorkOrdersIntegrationService extends UniversalService<
           return Array.isArray(data) ? data.map(pick) : pick(data);
         },
       },
+    };
+  }
+
+  protected getIncludeConfig(): any {
+    const companyId = this.obterUsuarioLogado()?.companyId;
+    const base = this.entityConfig.includes ?? {};
+    return {
+      ...base,
+      workOrderQueues: construirWorkOrderQueuesOnWorkOrderInclude(
+        companyId ?? undefined,
+      ),
     };
   }
 

@@ -1,34 +1,47 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, QueueStatus, Roles, UserStatus } from '@prisma/client';
+import {
+  construirWhereQueueUserLegivel,
+  construirWhereWorkOrderQueueLegivel,
+} from 'src/shared/casl/casl-ability/casl-ability.service';
 import { PrismaService } from 'src/shared/prisma/prisma.service';
 
-export const WORK_ORDER_QUEUE_INCLUDE = {
-  queue: {
-    select: {
-      id: true,
-      title: true,
-      status: true,
-      queueUsers: {
-        select: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              role: true,
-              profilePicture: true,
-              status: true,
+export function construirWorkOrderQueueInclude(
+  companyId?: string,
+): Prisma.WorkOrderQueueInclude {
+  return {
+    queue: {
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        queueUsers: {
+          where: construirWhereQueueUserLegivel(companyId),
+          select: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                role: true,
+                profilePicture: true,
+                status: true,
+              },
             },
           },
         },
       },
     },
-  },
-} satisfies Prisma.WorkOrderQueueInclude;
+  };
+}
 
-/** Include de `workOrder.workOrderQueues` no Prisma (precisa do wrapper `include`). */
-export const WORK_ORDER_QUEUES_ON_WORK_ORDER_INCLUDE = {
-  include: WORK_ORDER_QUEUE_INCLUDE,
-} satisfies Prisma.WorkOrder$workOrderQueuesArgs;
+export function construirWorkOrderQueuesOnWorkOrderInclude(
+  companyId?: string,
+): Prisma.WorkOrder$workOrderQueuesArgs {
+  return {
+    where: construirWhereWorkOrderQueueLegivel(companyId),
+    include: construirWorkOrderQueueInclude(companyId),
+  };
+}
 
 export type WorkOrderQueueWithUsers = {
   id: string;
@@ -102,16 +115,7 @@ export class WorkOrderQueueUsersService {
     const rows = await this.prisma.queueUser.findMany({
       where: {
         queueId: { in: ids },
-        queue: {
-          deletedAt: null,
-          ...(companyId ? { companyId } : {}),
-        },
-        user: {
-          status: UserStatus.ACTIVE,
-          deletedAt: null,
-          role: { in: ELIGIBLE_ROLES },
-          ...(companyId ? { companyId } : {}),
-        },
+        ...construirWhereQueueUserLegivel(companyId),
       },
       select: {
         user: {
@@ -139,7 +143,10 @@ export class WorkOrderQueueUsersService {
 
   async resolveQueueIdsFromWorkOrderId(workOrderId: string): Promise<string[]> {
     const links = await this.prisma.workOrderQueue.findMany({
-      where: { workOrderId },
+      where: {
+        workOrderId,
+        ...construirWhereWorkOrderQueueLegivel(),
+      },
       select: { queueId: true },
     });
     return links.map((link) => link.queueId);

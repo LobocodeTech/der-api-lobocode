@@ -15,8 +15,10 @@ import {
   UniversalQueryService,
   UniversalPermissionService,
   createEntityConfig,
+  IncludeConfig,
 } from '../../shared/universal';
 import { ConflictError, NotFoundError } from '../../shared/common/errors';
+import { construirWhereQueueUserLegivel } from '../../shared/casl/casl-ability/casl-ability.service';
 import { QueueActivityNotificationService } from '../notifications/shared/queue-activity-notification.service';
 import { CreateQueuesDto } from './dto/create-queues.dto';
 import { UpdateQueuesDto } from './dto/update-queues.dto';
@@ -28,21 +30,6 @@ function normalizarChaveTituloFila(title: string): string {
     .toLocaleLowerCase('pt-BR')
     .replace(/\s+/g, ' ');
 }
-
-const QUEUE_INCLUDE = {
-  queueUsers: {
-    select: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          profilePicture: true,
-        },
-      },
-    },
-  },
-} satisfies Prisma.QueueInclude;
 
 @Injectable({ scope: Scope.REQUEST })
 export class QueuesService extends UniversalService<
@@ -83,7 +70,6 @@ export class QueuesService extends UniversalService<
         deletedAt: null,
         ...(companyId && { companyId }),
       },
-      includes: QUEUE_INCLUDE,
       transform: {
         exclude: [
           'queueUsers',
@@ -96,6 +82,29 @@ export class QueuesService extends UniversalService<
           this.mapQueueToResponse(entity),
       },
       orderBy: { title: 'asc' },
+    };
+  }
+
+  protected getIncludeConfig(): IncludeConfig | undefined {
+    return this.construirQueueInclude() as unknown as IncludeConfig;
+  }
+
+  private construirQueueInclude(): Prisma.QueueInclude {
+    const companyId = this.obterUsuarioLogado()?.companyId;
+    return {
+      queueUsers: {
+        where: construirWhereQueueUserLegivel(companyId),
+        select: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              profilePicture: true,
+            },
+          },
+        },
+      },
     };
   }
 
@@ -210,7 +219,7 @@ export class QueuesService extends UniversalService<
         deletedAt: null,
         companyId,
       },
-      include: QUEUE_INCLUDE,
+      include: this.construirQueueInclude(),
     });
 
     if (!fila) {
@@ -353,7 +362,7 @@ export class QueuesService extends UniversalService<
 
       return tx.queue.findFirst({
         where: { id: queue.id },
-        include: QUEUE_INCLUDE,
+        include: this.construirQueueInclude(),
       });
     });
 
@@ -418,7 +427,7 @@ export class QueuesService extends UniversalService<
 
       return tx.queue.findFirst({
         where: { id, deletedAt: null, companyId },
-        include: QUEUE_INCLUDE,
+        include: this.construirQueueInclude(),
       });
     });
 
