@@ -32,11 +32,31 @@ const ENTIDADES_ESCOPO_MAPA_OPERACIONAL: EntityNameCasl[] = [
   'WorkOrder',
 ];
 
+/** FIELD_TEAM: leitura de cadastro operacional em toda a empresa (somente consulta). */
+const ENTIDADES_LEITURA_EMPRESA_FIELD_TEAM: EntityNameCasl[] = [
+  'Location',
+  'Asset',
+  'IpLocation',
+];
+
+export function fieldTeamLeituraCadastroOperacionalEmpresa(
+  entityName: EntityNameCasl,
+  user: Pick<User, 'role'>,
+): boolean {
+  return (
+    user.role === Roles.FIELD_TEAM &&
+    ENTIDADES_LEITURA_EMPRESA_FIELD_TEAM.includes(entityName)
+  );
+}
+
 export function deveIgnorarEscopoRegionalNaLeituraDaEntidade(
   entityName: EntityNameCasl,
   user: Pick<User, 'role'>,
   request?: Record<string, unknown>,
 ): boolean {
+  if (fieldTeamLeituraCadastroOperacionalEmpresa(entityName, user)) {
+    return true;
+  }
   if (!deveIgnorarEscopoRegionalNaLeitura(user, request)) {
     return false;
   }
@@ -102,12 +122,18 @@ export function construirClausulaAndEscopoRegional(
       return { id: user.regionalId };
 
     case 'Location':
+      if (user.role === Roles.FIELD_TEAM) {
+        return null;
+      }
       if (!user.regionalId) {
         return construirWhereImpossivel();
       }
       return { regionalId: user.regionalId };
 
     case 'Asset':
+      if (user.role === Roles.FIELD_TEAM) {
+        return null;
+      }
       if (!user.regionalId) {
         return construirWhereImpossivel();
       }

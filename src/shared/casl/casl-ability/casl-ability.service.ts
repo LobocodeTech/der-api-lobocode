@@ -225,8 +225,8 @@ function aplicarRestricaoGestaoEquipeC2c(user: User, { can, cannot }: any) {
  * Restringe leitura e mutação de Regional, Location, Asset, WorkOrder e User (listagens)
  * ao escopo da regional do usuário. Admin / SYSTEM_ADMIN não são alterados.
  *
- * FIELD_TEAM: leitura de IpLocation em toda a empresa (sem filtro regional), para
- * consultar IPs em qualquer localidade durante a execução de OS.
+ * FIELD_TEAM: leitura de Location, Asset e IpLocation em toda a empresa (sem filtro
+ * regional), para consultar cadastro operacional em modo somente leitura.
  *
  * Notificações de OS para FIELD_TEAM: o modelo Notification não tem relação Prisma com
  * WorkOrder; o escopo (regional + fila associada) é aplicado em
@@ -243,14 +243,14 @@ function aplicarRestricoesRegionaisNaoAdmin(
 
   const c = user.companyId;
   const ignorarLeitura = options?.ignorarEscopoRegionalLeitura === true;
-  const fieldTeamLeituraIpEmpresa = user.role === Roles.FIELD_TEAM;
+  const fieldTeamLeituraCadastroEmpresa = user.role === Roles.FIELD_TEAM;
 
   if (!user.regionalId) {
     if (!ignorarLeitura) {
       cannot('read', 'Regional', { companyId: c });
-      cannot('read', 'Location', { companyId: c });
-      cannot('read', 'Asset', { companyId: c });
-      if (!fieldTeamLeituraIpEmpresa) {
+      if (!fieldTeamLeituraCadastroEmpresa) {
+        cannot('read', 'Location', { companyId: c });
+        cannot('read', 'Asset', { companyId: c });
         cannot('read', 'IpLocation', { companyId: c });
       }
       cannot('read', 'WorkOrder', { companyId: c });
@@ -288,12 +288,12 @@ function aplicarRestricoesRegionaisNaoAdmin(
 
   if (!ignorarLeitura) {
     cannot('read', 'Regional', { companyId: c, NOT: { id: r } });
-    cannot('read', 'Location', { companyId: c, NOT: { regionalId: r } });
-    cannot('read', 'Asset', {
-      companyId: c,
-      NOT: { location: { regionalId: r } },
-    });
-    if (!fieldTeamLeituraIpEmpresa) {
+    if (!fieldTeamLeituraCadastroEmpresa) {
+      cannot('read', 'Location', { companyId: c, NOT: { regionalId: r } });
+      cannot('read', 'Asset', {
+        companyId: c,
+        NOT: { location: { regionalId: r } },
+      });
       cannot('read', 'IpLocation', {
         companyId: c,
         NOT: { location: { regionalId: r } },
@@ -492,6 +492,12 @@ const rolePermissionsMap: Record<Roles, (user: User, builder: any) => void> = {
     aplicarRestricaoGestaoEquipe(user, { cannot });
     specificPermissions.queuesRead(user, { can });
     cannot(['create', 'update', 'delete'], 'Queue', {
+      companyId: user.companyId,
+    });
+    cannot(['create', 'update', 'delete'], 'Location', {
+      companyId: user.companyId,
+    });
+    cannot(['create', 'update', 'delete'], 'Asset', {
       companyId: user.companyId,
     });
     cannot(['create', 'update', 'delete'], 'IpLocation', {
