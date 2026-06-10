@@ -3,7 +3,14 @@ import { REQUEST } from '@nestjs/core';
 import { Request } from 'express';
 import { AbilityBuilder, PureAbility } from '@casl/ability';
 import { createPrismaAbility, PrismaQuery, Subjects } from '@casl/prisma';
-import { Prisma, Roles, User, WorkOrderType } from '@prisma/client';
+import {
+  Prisma,
+  QueueStatus,
+  Roles,
+  User,
+  UserStatus,
+  WorkOrderType,
+} from '@prisma/client';
 import {
   construirClausulaOsVisivelParaUsuario,
   isUsuarioAdministradorEmpresaOuSistema,
@@ -543,7 +550,9 @@ function aplicarPermissoesWorkOrderQueue(user: User, { can }: any) {
 }
 
 /**
- * Where Prisma para incluir apenas QueueUser legíveis em includes aninhados.
+ * Where Prisma para incluir apenas QueueUser legíveis em includes aninhados
+ * (não excluídos e usuário ativo). Status da fila não é filtrado aqui para
+ * permitir gestão de filas inativas; em OS use `construirWhereWorkOrderQueueLegivel`.
  * Não usa `accessibleBy` porque regras `read all` (ADMIN) injetam `companyId`
  * direto em QueueUser, campo que não existe no modelo e quebra o Prisma.
  */
@@ -553,6 +562,7 @@ export function construirWhereQueueUserLegivel(
   return {
     user: {
       deletedAt: null,
+      status: UserStatus.ACTIVE,
       company: { deletedAt: null },
       ...(companyId ? { companyId } : {}),
     },
@@ -564,13 +574,14 @@ export function construirWhereQueueUserLegivel(
   };
 }
 
-/** Where Prisma para includes de responsáveis ativos em planejamentos. */
+/** Where Prisma para includes de responsáveis legíveis em planejamentos (não excluídos e ativos). */
 export function construirWherePlanningResponsibleLegivel(
   companyId?: string,
 ): Prisma.PlanningResponsibleWhereInput {
   return {
     user: {
       deletedAt: null,
+      status: UserStatus.ACTIVE,
       company: { deletedAt: null },
       ...(companyId ? { companyId } : {}),
     },
@@ -582,7 +593,7 @@ export function construirWherePlanningResponsibleLegivel(
   };
 }
 
-/** Where Prisma para vínculos OS↔fila ativos em includes aninhados. */
+/** Where Prisma para vínculos OS↔fila legíveis em includes aninhados (fila não excluída e ativa). */
 export function construirWhereWorkOrderQueueLegivel(
   companyId?: string,
 ): Prisma.WorkOrderQueueWhereInput {
@@ -594,6 +605,7 @@ export function construirWhereWorkOrderQueueLegivel(
     },
     queue: {
       deletedAt: null,
+      status: QueueStatus.ACTIVE,
       company: { deletedAt: null },
       ...(companyId ? { companyId } : {}),
     },

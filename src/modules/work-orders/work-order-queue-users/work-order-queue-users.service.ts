@@ -202,6 +202,7 @@ export class WorkOrderQueueUsersService {
       .map((row) => {
         const queue = row.queue;
         if (!queue) return null;
+        if (queue.status && queue.status !== QueueStatus.ACTIVE) return null;
 
         const seen = new Set<string>();
         const users: WorkOrderQueueWithUsers['users'] = [];
