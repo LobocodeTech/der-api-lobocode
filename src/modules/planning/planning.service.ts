@@ -607,7 +607,7 @@ export class PlanningService extends UniversalService<
     const kmNorm = PlanningService.normalizarKmPlanejamento(km);
     if (localidade.locationId && !kmNorm) {
       throw new BadRequestException(
-        'Informe o KM de referência para a localidade cadastrada.',
+        'Informe o KM para a localidade cadastrada.',
       );
     }
   }
