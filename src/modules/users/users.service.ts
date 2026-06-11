@@ -284,6 +284,34 @@ export class UsersService extends BaseUserService {
     });
   }
 
+  /**
+   * Criadores elegíveis para filtro de OS (exclui equipe de campo — não cria OS).
+   */
+  async buscarTodosCriadoresPorOrdensDeServico() {
+    const companyId = this.tenantService.getCompanyId();
+
+    const whereClause: Prisma.UserWhereInput = {
+      role: { not: Roles.FIELD_TEAM },
+      status: UserStatus.ACTIVE,
+      deletedAt: null,
+      ...(companyId ? { companyId } : {}),
+    };
+
+    const users = await this.userRepository.buscarMuitos(whereClause);
+
+    return [...users]
+      .sort((a, b) =>
+        a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' }),
+      )
+      .map((u) => ({
+        id: u.id,
+        name: u.name,
+        role: u.role,
+        email: u.email,
+        login: u.login,
+      }));
+  }
+
   async atualizar(id: string, updateUserDto: UpdateUserDto) {
     const whereClause =
       this.userQueryService.construirWhereClauseParaUpdate(id);
