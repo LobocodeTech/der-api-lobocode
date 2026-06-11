@@ -92,6 +92,13 @@ export class UsersController {
     return this.service.buscarTodosResponsaveisPorOrdensDeServico(locationId);
   }
 
+  @Get('all-work-order-creators')
+  @CaslRead('User')
+  @RequiredRoles(Roles.ADMIN, Roles.FIELD_TEAM, Roles.C2C)
+  buscarTodosCriadoresPorOrdensDeServico() {
+    return this.service.buscarTodosCriadoresPorOrdensDeServico();
+  }
+
   @Get()
   @CaslRead('User')
   @RequiredRoles(Roles.ADMIN, Roles.FIELD_TEAM, Roles.C2C)
