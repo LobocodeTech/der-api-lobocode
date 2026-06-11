@@ -14,7 +14,7 @@ import { CompaniesModule } from './modules/companies/companies.module';
 // import { ShiftsModule } from './modules/shifts/shifts.module';
 // import { PostsModule } from './modules/posts/posts.module';
 // import { PatrolsModule } from './modules/patrols/patrols.module';
-// import { ReportsModule } from './modules/reports/reports.module';
+import { WorkOrderReportsModule } from './modules/reports/work-order-reports.module';
 
 import { RateLimitMiddleware } from './shared/common/middleware/rate-limit.middleware';
 import { GlobalValidationPipe } from './shared/common/pipes/global-validation.pipe';
@@ -84,6 +84,7 @@ import { GlobalSearchModule } from './modules/global-search/global-search.module
     OperationalDashboardModule,
     PlanningModule,
     GlobalSearchModule,
+    WorkOrderReportsModule,
     IpLocationModule,
   ],
   controllers: [AppController],

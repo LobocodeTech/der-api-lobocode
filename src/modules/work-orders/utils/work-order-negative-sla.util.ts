@@ -81,7 +81,10 @@ export function calcularConsumidoEfetivoCorretiva(
     return base;
   }
 
-  if (ordem.status === WorkOrderStatus.PAUSED) {
+  if (
+    ordem.status === WorkOrderStatus.PAUSED ||
+    (ordem.slaPausedAt && !ordem.slaResumedAt)
+  ) {
     return base;
   }
 
