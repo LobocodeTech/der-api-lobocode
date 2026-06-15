@@ -72,5 +72,6 @@ echo "Stack da aplicação iniciada."
 echo "Domínio roteado: ${APP_HOST}"
 if [ -n "${MINIO_BUCKET_NAME:-}" ]; then
   echo "MinIO (URLs públicas de objeto): https://${APP_HOST}/files/${MINIO_BUCKET_NAME}/<caminho-do-objeto>"
+  echo "MinIO Console local na VPS: http://127.0.0.1:${MINIO_CONSOLE_HOST_PORT:-3312} (túnel SSH) ou https://${MINIO_CONSOLE_HOST} se MINIO_CONSOLE_HOST estiver no .env"
 fi
 echo "Verifique: docker compose --env-file \"${ENV_FILE}\" -p ${COMPOSE_VPS_STACK_NAME} -f ${COMPOSE_FILE} ps"

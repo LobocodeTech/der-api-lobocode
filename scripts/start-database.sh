@@ -13,8 +13,8 @@ if [ -f "${ENV_FILE}" ]; then
 fi
 
 COMPOSE_FILE="${COMPOSE_FILE:-docker/docker-compose.database.yml}"
-# Na VPS (Traefik): exporte COMPOSE_FILE_EXTRA=docker/docker-compose.minio-traefik.yml
-# para servir arquivos em https://APP_HOST/files/<bucket>/...
+# Na VPS (Traefik): exporte COMPOSE_FILE_EXTRA com um ou mais overlays (separados por espaço), ex.:
+#   COMPOSE_FILE_EXTRA="docker/docker-compose.minio-traefik.yml docker/docker-compose.minio-console-traefik.yml"
 COMPOSE_FILE_EXTRA="${COMPOSE_FILE_EXTRA:-}"
 WAIT_TIMEOUT_SECONDS="${WAIT_TIMEOUT_SECONDS:-90}"
 
@@ -41,7 +41,9 @@ require_var MINIO_CONSOLE_HOST_PORT
 
 DOCKER_COMPOSE_ARGS=( -p "${COMPOSE_DATABASE_PROJECT_NAME}" -f "${COMPOSE_FILE}" )
 if [ -n "${COMPOSE_FILE_EXTRA}" ]; then
-  DOCKER_COMPOSE_ARGS+=( -f "${COMPOSE_FILE_EXTRA}" )
+  for extra in ${COMPOSE_FILE_EXTRA}; do
+    DOCKER_COMPOSE_ARGS+=( -f "${extra}" )
+  done
 fi
 
 if [ "$#" -gt 0 ]; then
@@ -109,6 +111,9 @@ if [ -n "${COMPOSE_FILE_EXTRA}" ]; then
   require_var APP_HOST
   require_var MINIO_BUCKET_NAME
   require_var TRAEFIK_CERT_RESOLVER
+  if echo "${COMPOSE_FILE_EXTRA}" | grep -q 'minio-console-traefik'; then
+    require_var MINIO_CONSOLE_HOST
+  fi
   if ! docker network ls --format '{{.Name}}' | grep -Fxq "${TRAEFIK_NETWORK}"; then
     echo "Rede Traefik '${TRAEFIK_NETWORK}' não existe. Suba o gateway (./scripts/deploy.sh vps-gateway) ou crie a rede."
     exit 1
@@ -148,4 +153,11 @@ echo "Status:"
 docker compose "${DOCKER_COMPOSE_ARGS[@]}" ps
 echo ""
 echo "PostgreSQL: localhost:${DB_HOST_PORT} | Redis: localhost:${REDIS_HOST_PORT}"
-echo "MinIO: http://localhost:${MINIO_API_HOST_PORT} | Console: http://localhost:${MINIO_CONSOLE_HOST_PORT}"
+echo "MinIO API: http://localhost:${MINIO_API_HOST_PORT} | Console: http://localhost:${MINIO_CONSOLE_HOST_PORT}"
+echo "Bucket: ${MINIO_BUCKET_NAME:-departamento-estadual-rodovias-files} | Console login: ${MINIO_ROOT_USER:-admin} (senha: MINIO_ROOT_PASSWORD no .env)"
+if [ -n "${MINIO_PUBLIC_ENDPOINT:-}" ] && [ -n "${MINIO_BUCKET_NAME:-}" ]; then
+  echo "Objetos (URL pública base): ${MINIO_PUBLIC_ENDPOINT%/}/${MINIO_BUCKET_NAME}/"
+fi
+if [ -n "${MINIO_CONSOLE_HOST:-}" ]; then
+  echo "Console HTTPS (VPS): https://${MINIO_CONSOLE_HOST}"
+fi

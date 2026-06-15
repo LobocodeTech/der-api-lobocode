@@ -1,0 +1,36 @@
+# Overlay OPCIONAL (VPS): console web MinIO em HTTPS — gerenciar buckets/objetos no browser.
+# Não altera a rota /files/... (docker-compose.minio-traefik.yml).
+#
+# Pré-requisitos:
+#   - DNS A/AAAA de MINIO_CONSOLE_HOST apontando para a VPS
+#   - TRAEFIK_NETWORK e certificado (mesmo gateway da API)
+#
+# Subir junto com database + files:
+#   COMPOSE_FILE_EXTRA="docker/docker-compose.minio-traefik.yml docker/docker-compose.minio-console-traefik.yml" \
+#     ./scripts/start-database.sh minio
+#
+# Acesso: https://${MINIO_CONSOLE_HOST}  (login: MINIO_ROOT_USER / MINIO_ROOT_PASSWORD)
+
+services:
+  minio:
+    environment:
+      MINIO_BROWSER_REDIRECT_URL: https://${MINIO_CONSOLE_HOST}
+      MINIO_SERVER_URL: https://${MINIO_CONSOLE_HOST}
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK}
+      - "traefik.http.routers.${VPS_APP_PROJECT_NAME}-minio-console.rule=Host(`${MINIO_CONSOLE_HOST}`)"
+      - traefik.http.routers.${VPS_APP_PROJECT_NAME}-minio-console.priority=90
+      - traefik.http.routers.${VPS_APP_PROJECT_NAME}-minio-console.entrypoints=websecure
+      - traefik.http.routers.${VPS_APP_PROJECT_NAME}-minio-console.tls=true
+      - traefik.http.routers.${VPS_APP_PROJECT_NAME}-minio-console.tls.certresolver=${TRAEFIK_CERT_RESOLVER}
+      - traefik.http.routers.${VPS_APP_PROJECT_NAME}-minio-console.service=${VPS_APP_PROJECT_NAME}-minio-console
+      - traefik.http.services.${VPS_APP_PROJECT_NAME}-minio-console.loadbalancer.server.port=9001
+    networks:
+      - stack
+      - edge
+
+networks:
+  edge:
+    name: ${TRAEFIK_NETWORK}
+    external: true
