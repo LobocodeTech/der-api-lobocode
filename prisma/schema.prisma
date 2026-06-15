@@ -406,6 +406,7 @@ model IpLocation {
   id          String  @id @default(cuid())
   ip          String
   description String?
+  sortOrder   Int     @default(0)
 
   locationId String
   location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
@@ -419,6 +420,7 @@ model IpLocation {
 
   @@index([id])
   @@index([locationId])
+  @@index([locationId, sortOrder])
   @@index([companyId])
   @@index([deletedAt])
 }

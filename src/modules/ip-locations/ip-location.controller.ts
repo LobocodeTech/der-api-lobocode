@@ -1,8 +1,9 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
 import { IpLocationService } from './ip-location.service';
 import { UniversalController } from 'src/shared/universal';
 import { CreateIpLocationDto } from './dto/create-ip-location-dto';
 import { UpdateIpLocationDto } from './dto/update-ip-location-dto';
+import { ReorderIpLocationsDto } from './dto/reorder-ip-locations.dto';
 import { AuthGuard } from 'src/shared/auth/guards/auth.guard';
 import { RoleByMethodGuard } from 'src/shared/auth/guards/role-by-method.guard';
 import { RoleByMethod } from 'src/shared/auth/role-by-method.decorator';
@@ -28,5 +29,10 @@ export class IpLocationController extends UniversalController<
   @Get('location/:locationId')
   async buscarPorLocalidade(@Param('locationId') locationId: string) {
     return this.service.buscarMuitosPorLocalidadeAtiva(locationId);
+  }
+
+  @Patch('reorder')
+  async reordenar(@Body() body: ReorderIpLocationsDto) {
+    return this.service.reordenarPorLocalidade(body.locationId, body.orderedIds);
   }
 }
