@@ -45,6 +45,7 @@ export class PlanningActivityNotificationService {
       userId: params.actorUserId,
       companyId: params.companyId,
       recipients,
+      skipEmail: true,
     });
   }
 
@@ -77,6 +78,7 @@ export class PlanningActivityNotificationService {
       userId: params.actorUserId,
       companyId: params.companyId,
       recipients,
+      skipEmail: true,
     });
   }
 
@@ -112,6 +114,7 @@ export class PlanningActivityNotificationService {
       userId: params.actorUserId,
       companyId: params.companyId,
       recipients,
+      skipEmail: true,
     });
   }
 }
