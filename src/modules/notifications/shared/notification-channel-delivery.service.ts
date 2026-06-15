@@ -4,6 +4,7 @@ import { EmailService } from '../../../shared/auth/services/email.service';
 import { PushNotificationService } from './push-notification.service';
 import { NotificationGateway } from '../notification.gateway';
 import { NotificationResponse } from './notification.types';
+import { resolvePushNotificationIconUrl } from './push-notification-assets.util';
 
 function resolvePushUrl(notification: NotificationResponse): string {
   const entityType = notification.entityType ?? '';
@@ -79,13 +80,14 @@ export class NotificationChannelDeliveryService {
 
     if (pushRecipients.length > 0) {
       const pushUrl = resolvePushUrl(notification);
+      const pushIcon = resolvePushNotificationIconUrl();
       await this.pushNotificationService.sendPushNotificationToUsers(
         pushRecipients,
         {
           title: notification.title,
           body: notification.message,
-          icon: '/src/assets/der-logo.png',
-          badge: '/src/assets/der-logo.png',
+          icon: pushIcon,
+          badge: pushIcon,
           data: {
             entityType: notification.entityType,
             entityId: notification.entityId,

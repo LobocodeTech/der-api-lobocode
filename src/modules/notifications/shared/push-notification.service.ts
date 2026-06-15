@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../shared/prisma/prisma.service';
 import * as webpush from 'web-push';
+import { resolvePushNotificationIconUrl } from './push-notification-assets.util';
 
 @Injectable()
 export class PushNotificationService {
@@ -145,11 +146,12 @@ export class PushNotificationService {
       // Payload no formato Web Push (flat): o SW lê e chama showNotification.
       // Evitar formato FCM (notification/data) para entrega confiável em background.
       const url = notification.data?.url || '/notifications';
+      const pushIcon = resolvePushNotificationIconUrl(notification.icon);
       const payload = JSON.stringify({
         title: notification.title,
         body: notification.body,
-        icon: notification.icon || '/src/assets/der-logo.png',
-        badge: notification.badge || '/src/assets/der-logo.png',
+        icon: pushIcon,
+        badge: resolvePushNotificationIconUrl(notification.badge) || pushIcon,
         url,
         timestamp: Date.now(),
         ...(notification.data && {
