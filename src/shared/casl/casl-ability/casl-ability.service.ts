@@ -174,6 +174,9 @@ const specificPermissions = {
   ipLocationsC2cMutate: (user: User, { can }: any) => {
     can(['create', 'update'], 'IpLocation', { companyId: user.companyId });
   },
+  locationsC2cMutate: (user: User, { can }: any) => {
+    can(['create', 'update'], 'Location', { companyId: user.companyId });
+  },
 };
 
 const operationalReadScopePermissions = {
@@ -671,6 +674,7 @@ const rolePermissionsMap: Record<Roles, (user: User, builder: any) => void> = {
       companyId: user.companyId,
     });
     specificPermissions.ipLocationsC2cMutate(user, { can });
+    specificPermissions.locationsC2cMutate(user, { can });
     cannot('delete', 'IpLocation', { companyId: user.companyId });
   },
 };
