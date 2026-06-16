@@ -12,6 +12,9 @@ export type WorkOrderLifecycleEventKind =
   | 'paused'
   | 'resumed'
   | 'completed'
+  | 'submitted_for_review'
+  | 'approved'
+  | 'rejected'
   | 'deleted';
 
 @Injectable()
@@ -215,7 +218,14 @@ export class WorkOrderActivityNotificationService {
 
   private lifecycleMessages: Record<
     WorkOrderLifecycleEventKind,
-    { title: string; message: (actorName: string, workOrderTitle: string) => string }
+    {
+      title: string;
+      message: (
+        actorName: string,
+        workOrderTitle: string,
+        rejectionReason?: string,
+      ) => string;
+    }
   > = {
     started: {
       title: 'OS iniciada',
@@ -237,6 +247,23 @@ export class WorkOrderActivityNotificationService {
       message: (actor, title) =>
         `${actor} concluiu a OS "${title}".`,
     },
+    submitted_for_review: {
+      title: 'OS aguardando validação',
+      message: (actor, title) =>
+        `${actor} concluiu a OS "${title}" e enviou para análise.`,
+    },
+    approved: {
+      title: 'OS aprovada',
+      message: (actor, title) =>
+        `${actor} aprovou e concluiu definitivamente a OS "${title}".`,
+    },
+    rejected: {
+      title: 'OS reprovada',
+      message: (actor, title, reason) =>
+        reason?.trim()
+          ? `${actor} reprovou a conclusão da OS "${title}". Motivo: ${reason.trim()}.`
+          : `${actor} reprovou a conclusão da OS "${title}".`,
+    },
     deleted: {
       title: 'OS excluída',
       message: (actor, title) =>
@@ -252,6 +279,7 @@ export class WorkOrderActivityNotificationService {
     recipientUserIds: string[];
     kind: WorkOrderLifecycleEventKind;
     skipEmail?: boolean;
+    rejectionReason?: string;
   }) {
     const uniqueRecipients = Array.from(
       new Set(
@@ -281,7 +309,11 @@ export class WorkOrderActivityNotificationService {
 
     await this.notificationService.criar({
       title: config.title,
-      message: config.message(actorName, workOrderTitle),
+      message: config.message(
+        actorName,
+        workOrderTitle,
+        params.rejectionReason,
+      ),
       entityType: 'work-order',
       entityId: params.workOrderId,
       userId: params.actorUserId,

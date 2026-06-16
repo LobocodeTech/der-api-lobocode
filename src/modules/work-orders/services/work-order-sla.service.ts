@@ -29,6 +29,7 @@ export interface CorrectiveSlaWorkOrderState {
   slaStatusExtended: WorkOrderCorrectiveSlaStatus | null;
   slaExceededAt: Date | null;
   completedAt: Date | null;
+  finalApprovalCompletedAt?: Date | null;
 }
 
 export interface CorrectiveSlaSnapshot {
@@ -398,6 +399,26 @@ export class WorkOrderSlaService {
     );
   }
 
+  private resolverFimConsumoSla(
+    ordem: CorrectiveSlaWorkOrderState,
+    agora: Date,
+  ): Date {
+    if (ordem.status === WorkOrderStatus.COMPLETED) {
+      return ordem.finalApprovalCompletedAt ?? ordem.completedAt ?? agora;
+    }
+    if (ordem.status === WorkOrderStatus.CANCELLED) {
+      return ordem.completedAt ?? agora;
+    }
+    return agora;
+  }
+
+  private statusEncerraConsumoSla(status: WorkOrderStatus): boolean {
+    return (
+      status === WorkOrderStatus.COMPLETED ||
+      status === WorkOrderStatus.CANCELLED
+    );
+  }
+
   private calcularConsumidoAtual(
     ordem: CorrectiveSlaWorkOrderState,
     config: CorrectiveSlaCompanyConfig,
@@ -416,16 +437,9 @@ export class WorkOrderSlaService {
       return base;
     }
 
-    const fim =
-      ordem.status === WorkOrderStatus.COMPLETED ||
-      ordem.status === WorkOrderStatus.CANCELLED
-        ? (ordem.completedAt ?? agora)
-        : agora;
+    const fim = this.resolverFimConsumoSla(ordem, agora);
 
-    if (
-      ordem.status === WorkOrderStatus.COMPLETED ||
-      ordem.status === WorkOrderStatus.CANCELLED
-    ) {
+    if (this.statusEncerraConsumoSla(ordem.status)) {
       if (ordem.slaPausedAt) {
         return base;
       }
@@ -494,9 +508,13 @@ export class WorkOrderSlaService {
       const exceeded =
         ordem.slaExceededAt != null ||
         consumed >= budget ||
+        (ordem.finalApprovalCompletedAt &&
+          ordem.slaDeadlineAt &&
+          ordem.finalApprovalCompletedAt > ordem.slaDeadlineAt) ||
         (ordem.completedAt &&
           ordem.slaDeadlineAt &&
-          ordem.completedAt > ordem.slaDeadlineAt);
+          ordem.completedAt > ordem.slaDeadlineAt &&
+          !ordem.finalApprovalCompletedAt);
       return exceeded
         ? WorkOrderCorrectiveSlaStatus.COMPLETED_LATE
         : WorkOrderCorrectiveSlaStatus.COMPLETED_ON_TIME;

@@ -85,6 +85,7 @@ export interface WorkOrderReportItem {
   createdAt: string;
   startedAt: string | null;
   completedAt: string | null;
+  finalApprovalCompletedAt: string | null;
   createdByUser: WorkOrderReportUserRef | null;
   assignee: WorkOrderReportUserRef | null;
   slaBucket: ReportSlaBucket | null;

@@ -37,6 +37,7 @@ interface WorkOrderMetricsInput {
   status: WorkOrderStatus;
   startedAt: Date | null;
   completedAt: Date | null;
+  finalApprovalCompletedAt?: Date | null;
   slaStartAt: Date | null;
   slaPausedAt: Date | null;
   slaResumedAt: Date | null;
@@ -236,6 +237,7 @@ export function calcularMetricasCorretiva(
     slaConsumedSeconds: ordem.slaConsumedSeconds,
     slaStatusExtended: ordem.slaStatusExtended as never,
     completedAt: ordem.completedAt,
+    finalApprovalCompletedAt: ordem.finalApprovalCompletedAt ?? null,
   };
   const consumedTotalSeconds = calcularConsumidoEfetivoCorretiva(
     estadoSla,
@@ -248,10 +250,12 @@ export function calcularMetricasCorretiva(
     budget,
     agora,
   );
+  const conclusaoOficial =
+    ordem.finalApprovalCompletedAt ?? ordem.completedAt;
   const fimExecucao =
     ordem.status === WorkOrderStatus.COMPLETED ||
     ordem.status === WorkOrderStatus.CANCELLED
-      ? ordem.completedAt ?? agora
+      ? conclusaoOficial ?? agora
       : ordem.startedAt
         ? agora
         : null;

@@ -30,6 +30,7 @@ import {
   createEntityConfig,
 } from 'src/shared/universal';
 import { CompleteWorkOrderDto } from './dto/complete-work-order.dto';
+import { RejectWorkOrderCompletionDto } from './dto/reject-work-order-completion.dto';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { CreateWorkOrderCommentDto } from './dto/create-work-order-comment.dto';
 import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
@@ -335,6 +336,14 @@ export class WorkOrdersService extends UniversalService<
   }
 
   async iniciarTrabalho(id: string) {
+    const roleUser = this.obterUsuarioLogado()?.role;
+
+    if(roleUser !== Roles.FIELD_TEAM) {
+      throw new BadRequestException(
+        'Você não tem permissão para iniciar uma ordem de serviço. Apenas usuários Técnicos do Campo.',
+      );
+    }
+
     const ordem = await this.buscarOrdemPorId(id);
     await this.validarFilasAssociadasParaIniciar(ordem.id);
     const companyId = (ordem as { companyId?: string }).companyId ?? this.obterCompanyId();
@@ -434,48 +443,117 @@ export class WorkOrdersService extends UniversalService<
 
   async concluirOrdem(id: string, dto: CompleteWorkOrderDto) {
     const ordem = await this.buscarOrdemPorId(id);
+    const roleUser = this.obterUsuarioLogado()?.role;
 
     if (ordem.status === WorkOrderStatus.COMPLETED) {
       throw new BadRequestException('A ordem de serviço já foi concluída.');
     }
 
-    const completedAt = new Date();
-    const updateData: Prisma.WorkOrderUpdateInput = {
-      status: WorkOrderStatus.COMPLETED,
-      completedAt,
-      ...this.dadosAuditoriaAtualizacaoPrisma(this.obterUsuarioLogadoId()),
-    };
-
-    if (ordem.type === WorkOrderType.CORRECTIVE) {
-      const config = await this.resolverConfigSlaDaOrdem(ordem);
-      const payload = this.workOrderSlaService.aoConcluir(
-        {
-          ...this.mapearEstadoSlaCorretiva(ordem),
-          status: WorkOrderStatus.COMPLETED,
-          completedAt,
-        },
-        config,
-        completedAt,
+    if (ordem.status === WorkOrderStatus.COMPLETED_UNDER_REVIEW) {
+      throw new BadRequestException(
+        'A ordem de serviço já foi enviada para análise.',
       );
-      if (payload) {
-        Object.assign(updateData, payload);
-      }
     }
 
+    const completedAt = new Date();
+
+    if (ordem.type === WorkOrderType.CORRECTIVE) {
+      if (roleUser !== Roles.FIELD_TEAM) {
+        throw new BadRequestException(
+          'Apenas técnicos de campo podem concluir OS corretivas.',
+        );
+      }
+      if (ordem.status !== WorkOrderStatus.IN_PROGRESS) {
+        throw new BadRequestException(
+          'A OS corretiva só pode ser concluída com status em andamento.',
+        );
+      }
+      await this.prisma.workOrder.update({
+        where: { id: ordem.id },
+        data: {
+          status: WorkOrderStatus.COMPLETED_UNDER_REVIEW,
+          completedAt,
+          ...this.dadosAuditoriaAtualizacaoPrisma(this.obterUsuarioLogadoId()),
+        },
+      });
+      const comentario = dto.resolutionNotes?.trim()
+        ? `OS concluída pelo técnico e enviada para análise. ${dto.resolutionNotes.trim()}`
+        : 'OS concluída pelo técnico e enviada para análise.';
+      await this.registrarComentarioAutomatico(ordem.id, comentario);
+      const companyId =
+        (ordem as { companyId?: string }).companyId ?? this.obterCompanyId();
+      const recipientIds = await this.resolverDestinatariosAdminC2c(
+        companyId ?? '',
+      );
+      await this.notificarEventoCicloDeVida(
+        ordem.id,
+        'submitted_for_review',
+        recipientIds,
+        { skipEmail: this.omitirEmailNasNotificacoesOs },
+      );
+      return this.buscarDetalhesPorId(ordem.id);
+    }
+
+    await this.executarConclusaoDefinitiva(ordem, completedAt, dto);
+    return this.buscarDetalhesPorId(ordem.id);
+  }
+
+  async aprovarConclusaoOrdem(id: string, dto?: CompleteWorkOrderDto) {
+    this.validarPermissaoAprovacaoConclusao();
+    const ordem = await this.buscarOrdemPorId(id);
+    if (ordem.type !== WorkOrderType.CORRECTIVE) {
+      throw new BadRequestException(
+        'A aprovação de conclusão é exclusiva para OS corretivas.',
+      );
+    }
+    if (ordem.status !== WorkOrderStatus.COMPLETED_UNDER_REVIEW) {
+      throw new BadRequestException(
+        'A OS precisa estar em análise para ser aprovada.',
+      );
+    }
+    const finalApprovalCompletedAt = new Date();
+    await this.executarConclusaoDefinitiva(
+      ordem,
+      finalApprovalCompletedAt,
+      dto,
+      {
+        finalApprovalCompletedAt,
+        fromReview: true,
+      },
+    );
+    return this.buscarDetalhesPorId(ordem.id);
+  }
+
+  async reprovarConclusaoOrdem(
+    id: string,
+    dto: RejectWorkOrderCompletionDto,
+  ) {
+    this.validarPermissaoAprovacaoConclusao();
+    const ordem = await this.buscarOrdemPorId(id);
+    if (ordem.type !== WorkOrderType.CORRECTIVE) {
+      throw new BadRequestException(
+        'A reprovação de conclusão é exclusiva para OS corretivas.',
+      );
+    }
+    if (ordem.status !== WorkOrderStatus.COMPLETED_UNDER_REVIEW) {
+      throw new BadRequestException(
+        'A OS precisa estar em análise para ser reprovada.',
+      );
+    }
+    const motivo = dto.reason.trim();
     await this.prisma.workOrder.update({
       where: { id: ordem.id },
-      data: updateData,
+      data: {
+        status: WorkOrderStatus.IN_PROGRESS,
+        completedAt: null,
+        finalApprovalCompletedAt: null,
+        ...this.dadosAuditoriaAtualizacaoPrisma(this.obterUsuarioLogadoId()),
+      },
     });
-
     await this.registrarComentarioAutomatico(
       ordem.id,
-      dto.resolutionNotes?.trim()
-        ? `OS concluída. ${dto.resolutionNotes.trim()}`
-        : 'OS concluída.',
+      `OS reprovada durante análise. Motivo: ${motivo}`,
     );
-
-    await this.concluirPlanejamentoVinculadoAoFinalizarOs(ordem.id);
-
     const companyId =
       (ordem as { companyId?: string }).companyId ?? this.obterCompanyId();
     const recipientIds =
@@ -483,11 +561,122 @@ export class WorkOrdersService extends UniversalService<
         ordem.id,
         companyId ?? undefined,
       );
-    await this.notificarEventoCicloDeVida(ordem.id, 'completed', recipientIds, {
+    await this.notificarEventoCicloDeVida(ordem.id, 'rejected', recipientIds, {
       skipEmail: this.omitirEmailNasNotificacoesOs,
+      rejectionReason: motivo,
     });
-
     return this.buscarDetalhesPorId(ordem.id);
+  }
+
+  private validarPermissaoAprovacaoConclusao(): void {
+    const roleUser = this.obterUsuarioLogado()?.role;
+    if (roleUser !== Roles.ADMIN && roleUser !== Roles.C2C) {
+      throw new BadRequestException(
+        'Você não tem permissão para aprovar ou reprovar conclusões de OS.',
+      );
+    }
+  }
+
+  private async resolverDestinatariosAdminC2c(
+    companyId: string,
+  ): Promise<string[]> {
+    if (!companyId) {
+      return [];
+    }
+    const usuarios = await this.prisma.user.findMany({
+      where: {
+        companyId,
+        status: 'ACTIVE',
+        deletedAt: null,
+        role: { in: [Roles.ADMIN, Roles.C2C] },
+      },
+      select: { id: true },
+    });
+    return usuarios.map((usuario) => usuario.id);
+  }
+
+  private resolverStatusConclusaoPorTipo(
+    type: WorkOrderType,
+  ): WorkOrderStatus {
+    return type === WorkOrderType.CORRECTIVE
+      ? WorkOrderStatus.COMPLETED_UNDER_REVIEW
+      : WorkOrderStatus.COMPLETED;
+  }
+
+  private async executarConclusaoDefinitiva(
+    ordem: {
+      id: string;
+      type: WorkOrderType;
+      status: WorkOrderStatus;
+      companyId: string;
+      completedAt?: Date | null;
+      slaStartAt?: Date | null;
+      slaPausedAt?: Date | null;
+      slaResumedAt?: Date | null;
+      slaConsumedSeconds?: number | null;
+      slaDeadlineAt?: Date | null;
+      slaStatusExtended?: WorkOrderCorrectiveSlaStatus | null;
+      slaExceededAt?: Date | null;
+      finalApprovalCompletedAt?: Date | null;
+    },
+    agora: Date,
+    dto?: CompleteWorkOrderDto,
+    opcoes?: {
+      finalApprovalCompletedAt?: Date;
+      fromReview?: boolean;
+    },
+  ): Promise<void> {
+    const finalApprovalCompletedAt =
+      opcoes?.finalApprovalCompletedAt ??
+      (ordem.type === WorkOrderType.CORRECTIVE ? agora : null);
+    const updateData: Prisma.WorkOrderUpdateInput = {
+      status: WorkOrderStatus.COMPLETED,
+      completedAt: ordem.completedAt ?? agora,
+      finalApprovalCompletedAt:
+        ordem.type === WorkOrderType.CORRECTIVE ? finalApprovalCompletedAt : null,
+      ...this.dadosAuditoriaAtualizacaoPrisma(this.obterUsuarioLogadoId()),
+    };
+    if (ordem.type === WorkOrderType.CORRECTIVE) {
+      const config = await this.resolverConfigSlaDaOrdem(ordem);
+      const slaEndAt = finalApprovalCompletedAt ?? agora;
+      const payload = this.workOrderSlaService.aoConcluir(
+        {
+          ...this.mapearEstadoSlaCorretiva(ordem),
+          status: WorkOrderStatus.COMPLETED,
+          completedAt: slaEndAt,
+          finalApprovalCompletedAt: slaEndAt,
+        },
+        config,
+        slaEndAt,
+      );
+      if (payload) {
+        Object.assign(updateData, payload);
+      }
+    }
+    await this.prisma.workOrder.update({
+      where: { id: ordem.id },
+      data: updateData,
+    });
+    let comentario = 'OS concluída.';
+    if (opcoes?.fromReview) {
+      comentario = 'OS aprovada e concluída definitivamente.';
+    } else if (dto?.resolutionNotes?.trim()) {
+      comentario = `OS concluída. ${dto.resolutionNotes.trim()}`;
+    }
+    await this.registrarComentarioAutomatico(ordem.id, comentario);
+    await this.concluirPlanejamentoVinculadoAoFinalizarOs(ordem.id);
+    const companyId = ordem.companyId ?? this.obterCompanyId();
+    const recipientIds =
+      await this.workOrderQueueUsersService.resolveUserIdsFromWorkOrderId(
+        ordem.id,
+        companyId ?? undefined,
+      );
+    await this.notificarEventoCicloDeVida(
+      ordem.id,
+      opcoes?.fromReview ? 'approved' : 'completed',
+      recipientIds,
+      { skipEmail: this.omitirEmailNasNotificacoesOs },
+    );
   }
 
   async moverParaColuna(id: string, dto: MoveWorkOrderColumnDto) {
@@ -549,7 +738,10 @@ export class WorkOrdersService extends UniversalService<
       nomeColunaDestino = coluna.name;
     }
 
-    const novoStatus = this.obterStatusPorNomeDaColuna(nomeColunaDestino);
+    const novoStatus = this.obterStatusPorNomeDaColuna(
+      nomeColunaDestino,
+      ordem.type,
+    );
     if (novoStatus === WorkOrderStatus.IN_PROGRESS) {
       await this.validarFilasAssociadasParaIniciar(ordem.id);
     }
@@ -565,32 +757,15 @@ export class WorkOrdersService extends UniversalService<
           ? agora
           : undefined,
       completedAt:
-        novoStatus === WorkOrderStatus.COMPLETED
+        novoStatus === WorkOrderStatus.COMPLETED ||
+        novoStatus === WorkOrderStatus.COMPLETED_UNDER_REVIEW
           ? agora
-          : ordem.status === WorkOrderStatus.COMPLETED
+          : ordem.status === WorkOrderStatus.COMPLETED ||
+              ordem.status === WorkOrderStatus.COMPLETED_UNDER_REVIEW
             ? null
             : undefined,
       ...this.dadosAuditoriaAtualizacaoUnchecked(this.obterUsuarioLogadoId()),
     };
-
-    if (
-      novoStatus === WorkOrderStatus.COMPLETED &&
-      ordem.type === WorkOrderType.CORRECTIVE
-    ) {
-      const config = await this.resolverConfigSlaDaOrdem(ordem);
-      const payload = this.workOrderSlaService.aoConcluir(
-        {
-          ...this.mapearEstadoSlaCorretiva(ordem),
-          status: WorkOrderStatus.COMPLETED,
-          completedAt: agora,
-        },
-        config,
-        agora,
-      );
-      if (payload) {
-        Object.assign(updateColuna, payload);
-      }
-    }
 
     await this.prisma.workOrder.update({
       where: { id: ordem.id },
@@ -601,24 +776,43 @@ export class WorkOrdersService extends UniversalService<
       await this.concluirPlanejamentoVinculadoAoFinalizarOs(ordem.id);
     }
 
+    if (novoStatus === WorkOrderStatus.COMPLETED_UNDER_REVIEW) {
+      await this.registrarComentarioAutomatico(
+        ordem.id,
+        'OS concluída pelo técnico e enviada para análise.',
+      );
+    }
+
     if (novoStatus !== ordem.status) {
       const companyId = ordem.companyId ?? this.obterCompanyId();
-      const recipientIds =
-        await this.workOrderQueueUsersService.resolveUserIdsFromWorkOrderId(
-          ordem.id,
-          companyId ?? undefined,
+      if (novoStatus === WorkOrderStatus.COMPLETED_UNDER_REVIEW) {
+        const recipientIds = await this.resolverDestinatariosAdminC2c(
+          companyId ?? '',
         );
-      if (novoStatus === WorkOrderStatus.IN_PROGRESS) {
-        await this.notificarEventoCicloDeVida(ordem.id, 'started', recipientIds, {
-          skipEmail: this.omitirEmailNasNotificacoesOs,
-        });
-      } else if (novoStatus === WorkOrderStatus.COMPLETED) {
         await this.notificarEventoCicloDeVida(
           ordem.id,
-          'completed',
+          'submitted_for_review',
           recipientIds,
           { skipEmail: this.omitirEmailNasNotificacoesOs },
         );
+      } else {
+        const recipientIds =
+          await this.workOrderQueueUsersService.resolveUserIdsFromWorkOrderId(
+            ordem.id,
+            companyId ?? undefined,
+          );
+        if (novoStatus === WorkOrderStatus.IN_PROGRESS) {
+          await this.notificarEventoCicloDeVida(ordem.id, 'started', recipientIds, {
+            skipEmail: this.omitirEmailNasNotificacoesOs,
+          });
+        } else if (novoStatus === WorkOrderStatus.COMPLETED) {
+          await this.notificarEventoCicloDeVida(
+            ordem.id,
+            'completed',
+            recipientIds,
+            { skipEmail: this.omitirEmailNasNotificacoesOs },
+          );
+        }
       }
     }
 
@@ -627,6 +821,7 @@ export class WorkOrdersService extends UniversalService<
 
   private obterStatusPorNomeDaColuna(
     nomeColuna: string | null,
+    type?: WorkOrderType,
   ): WorkOrderStatus {
     if (!nomeColuna) {
       return WorkOrderStatus.PENDING;
@@ -643,7 +838,9 @@ export class WorkOrdersService extends UniversalService<
       normalizado.includes('finaliz') ||
       normalizado.includes('encerr')
     ) {
-      return WorkOrderStatus.COMPLETED;
+      return this.resolverStatusConclusaoPorTipo(
+        type ?? WorkOrderType.GENERAL,
+      );
     }
 
     if (
@@ -1059,7 +1256,32 @@ export class WorkOrdersService extends UniversalService<
       } else if (data.status === WorkOrderStatus.COMPLETED) {
         this.pendingLifecycleEvent = 'completed';
         this.pendingLifecycleWorkOrderId = _id;
+      } else if (data.status === WorkOrderStatus.COMPLETED_UNDER_REVIEW) {
+        this.pendingLifecycleEvent = 'submitted_for_review';
+        this.pendingLifecycleWorkOrderId = _id;
       }
+    }
+
+    const tipoEfetivoPatch =
+      data.type !== undefined ? data.type : ordemAtual.type;
+
+    if (
+      data.status === WorkOrderStatus.COMPLETED &&
+      tipoEfetivoPatch === WorkOrderType.CORRECTIVE
+    ) {
+      throw new BadRequestException(
+        'OS corretivas não podem ser concluídas diretamente. Use a aprovação de conclusão.',
+      );
+    }
+
+    if (
+      ordemAtual.status === WorkOrderStatus.COMPLETED_UNDER_REVIEW &&
+      data.status !== undefined &&
+      data.status !== WorkOrderStatus.COMPLETED_UNDER_REVIEW
+    ) {
+      throw new BadRequestException(
+        'OS em análise só pode ser aprovada ou reprovada pelos endpoints dedicados.',
+      );
     }
 
     if (data.status === WorkOrderStatus.COMPLETED) {
@@ -1101,6 +1323,20 @@ export class WorkOrdersService extends UniversalService<
       return;
     }
 
+    if (data.status === WorkOrderStatus.COMPLETED_UNDER_REVIEW) {
+      if (tipoEfetivoPatch !== WorkOrderType.CORRECTIVE) {
+        throw new BadRequestException(
+          'O status em análise é exclusivo para OS corretivas.',
+        );
+      }
+      const completedAt = new Date();
+      (data as { completedAt?: Date }).completedAt = completedAt;
+      (data as { finalApprovalCompletedAt?: null }).finalApprovalCompletedAt =
+        null;
+      this.aplicarAuditoriaAtualizacao(data);
+      return;
+    }
+
     if (
       data.status === WorkOrderStatus.IN_PROGRESS &&
       (ordemAtual.status === WorkOrderStatus.PENDING ||
@@ -1112,9 +1348,11 @@ export class WorkOrdersService extends UniversalService<
 
     if (
       data.status &&
-      ordemAtual.status === WorkOrderStatus.COMPLETED
+      (ordemAtual.status === WorkOrderStatus.COMPLETED ||
+        ordemAtual.status === WorkOrderStatus.COMPLETED_UNDER_REVIEW)
     ) {
       (data as any).completedAt = null;
+      (data as any).finalApprovalCompletedAt = null;
     }
 
     const tipoEfetivoAtualizacao =
@@ -1164,11 +1402,14 @@ export class WorkOrdersService extends UniversalService<
     }
 
     if (this.pendingLifecycleEvent && this.pendingLifecycleWorkOrderId) {
+      const companyId = this.obterCompanyId();
       const recipientIds =
-        await this.workOrderQueueUsersService.resolveUserIdsFromWorkOrderId(
-          this.pendingLifecycleWorkOrderId,
-          this.obterCompanyId() ?? undefined,
-        );
+        this.pendingLifecycleEvent === 'submitted_for_review'
+          ? await this.resolverDestinatariosAdminC2c(companyId ?? '')
+          : await this.workOrderQueueUsersService.resolveUserIdsFromWorkOrderId(
+              this.pendingLifecycleWorkOrderId,
+              companyId ?? undefined,
+            );
       await this.notificarEventoCicloDeVida(
         this.pendingLifecycleWorkOrderId,
         this.pendingLifecycleEvent,
@@ -1436,7 +1677,7 @@ export class WorkOrdersService extends UniversalService<
     workOrderId: string,
     kind: WorkOrderLifecycleEventKind,
     recipientUserIds: string[],
-    opcoes?: { skipEmail?: boolean },
+    opcoes?: { skipEmail?: boolean; rejectionReason?: string },
   ): Promise<void> {
     const ordem = await this.prisma.workOrder.findFirst({
       where: { id: workOrderId, deletedAt: null },
@@ -1453,6 +1694,7 @@ export class WorkOrdersService extends UniversalService<
       recipientUserIds,
       kind,
       skipEmail: opcoes?.skipEmail,
+      rejectionReason: opcoes?.rejectionReason,
     });
   }
 
@@ -1645,6 +1887,7 @@ export class WorkOrdersService extends UniversalService<
     slaStatusExtended?: WorkOrderCorrectiveSlaStatus | null;
     slaExceededAt?: Date | null;
     completedAt?: Date | null;
+    finalApprovalCompletedAt?: Date | null;
   }) {
     return {
       type: ordem.type,
@@ -1657,6 +1900,7 @@ export class WorkOrdersService extends UniversalService<
       slaStatusExtended: ordem.slaStatusExtended ?? null,
       slaExceededAt: ordem.slaExceededAt ?? null,
       completedAt: ordem.completedAt ?? null,
+      finalApprovalCompletedAt: ordem.finalApprovalCompletedAt ?? null,
     };
   }
 
@@ -1738,6 +1982,8 @@ export class WorkOrdersService extends UniversalService<
           (record.slaStatusExtended as WorkOrderCorrectiveSlaStatus | null) ??
           null,
         completedAt: (record.completedAt as Date | null) ?? null,
+        finalApprovalCompletedAt:
+          (record.finalApprovalCompletedAt as Date | null) ?? null,
       },
       config,
       budget,
@@ -1893,6 +2139,8 @@ export class WorkOrdersService extends UniversalService<
           null,
         slaExceededAt: (record.slaExceededAt as Date | null) ?? null,
         completedAt: (record.completedAt as Date | null) ?? null,
+        finalApprovalCompletedAt:
+          (record.finalApprovalCompletedAt as Date | null) ?? null,
       },
       config,
       agora,

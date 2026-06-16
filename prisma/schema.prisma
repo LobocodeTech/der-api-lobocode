@@ -79,6 +79,7 @@ enum WorkOrderStatus {
   IN_PROGRESS
   PAUSED
   COMPLETED
+  COMPLETED_UNDER_REVIEW
   CANCELLED
 }
 
@@ -475,6 +476,8 @@ model WorkOrder {
   dueDate                  DateTime?                     @db.Date
   startedAt                DateTime?
   completedAt              DateTime?
+  /// Data/hora da conclusão definitiva após aprovação ADMIN/C2C.
+  finalApprovalCompletedAt DateTime?
   slaDeadlineHours         Int?
   slaStatus                WorkOrderSlaStatus?           @default(OK)
   /// SLA corretiva (tempo útil acumulado).
@@ -528,6 +531,7 @@ model WorkOrder {
   @@index([dueDate])
   @@index([startedAt])
   @@index([completedAt])
+  @@index([finalApprovalCompletedAt])
   @@index([deletedAt])
   @@index([slaStatusExtended])
   @@index([type, slaStatusExtended])

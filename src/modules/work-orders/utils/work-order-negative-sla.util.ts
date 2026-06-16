@@ -18,6 +18,27 @@ export interface CorrectiveSlaNegativeState {
   slaConsumedSeconds: number | null;
   slaStatusExtended: WorkOrderCorrectiveSlaStatus | null;
   completedAt: Date | null;
+  finalApprovalCompletedAt?: Date | null;
+}
+
+function resolverFimConsumoSlaNegativo(
+  ordem: CorrectiveSlaNegativeState,
+  agora: Date,
+): Date {
+  if (ordem.status === WorkOrderStatus.COMPLETED) {
+    return ordem.finalApprovalCompletedAt ?? ordem.completedAt ?? agora;
+  }
+  if (ordem.status === WorkOrderStatus.CANCELLED) {
+    return ordem.completedAt ?? agora;
+  }
+  return agora;
+}
+
+function statusEncerraConsumoSlaNegativo(status: WorkOrderStatus): boolean {
+  return (
+    status === WorkOrderStatus.COMPLETED ||
+    status === WorkOrderStatus.CANCELLED
+  );
 }
 
 /**
@@ -43,11 +64,9 @@ export function calcularSegundosAtrasoExcedenteCorretiva(
     return porConsumo;
   }
 
-  const fimReferencia =
-    ordem.status === WorkOrderStatus.COMPLETED ||
-    ordem.status === WorkOrderStatus.CANCELLED
-      ? ordem.completedAt
-      : agora;
+  const fimReferencia = statusEncerraConsumoSlaNegativo(ordem.status)
+    ? resolverFimConsumoSlaNegativo(ordem, agora)
+    : agora;
 
   if (!fimReferencia || fimReferencia.getTime() <= slaDeadlineAt.getTime()) {
     return porConsumo;
@@ -88,16 +107,9 @@ export function calcularConsumidoEfetivoCorretiva(
     return base;
   }
 
-  const fim =
-    ordem.status === WorkOrderStatus.COMPLETED ||
-    ordem.status === WorkOrderStatus.CANCELLED
-      ? (ordem.completedAt ?? agora)
-      : agora;
+  const fim = resolverFimConsumoSlaNegativo(ordem, agora);
 
-  if (
-    ordem.status === WorkOrderStatus.COMPLETED ||
-    ordem.status === WorkOrderStatus.CANCELLED
-  ) {
+  if (statusEncerraConsumoSlaNegativo(ordem.status)) {
     if (ordem.slaPausedAt) {
       return base;
     }
@@ -179,10 +191,7 @@ export function calcularSlaNegativoCorretiva(
     };
   }
 
-  if (
-    ordem.status === WorkOrderStatus.COMPLETED ||
-    ordem.status === WorkOrderStatus.CANCELLED
-  ) {
+  if (statusEncerraConsumoSlaNegativo(ordem.status)) {
     return {
       isOverdue: true,
       overdueSeconds,

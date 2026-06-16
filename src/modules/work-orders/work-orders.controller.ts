@@ -21,6 +21,7 @@ import { RoleByMethodGuard } from 'src/shared/auth/guards/role-by-method.guard';
 import { RoleByMethod } from 'src/shared/auth/role-by-method.decorator';
 import { UniversalController } from 'src/shared/universal';
 import { CompleteWorkOrderDto } from './dto/complete-work-order.dto';
+import { RejectWorkOrderCompletionDto } from './dto/reject-work-order-completion.dto';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { CreateWorkOrderCommentDto } from './dto/create-work-order-comment.dto';
 import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
@@ -87,6 +88,28 @@ export class WorkOrdersController extends UniversalController<
     @Body() body: CompleteWorkOrderDto,
   ) {
     return this.service.concluirOrdem(id, body);
+  }
+
+  @Patch(':id/approve-completion')
+  @RoleByMethod({
+    PATCH: [Roles.ADMIN, Roles.C2C],
+  })
+  async aprovarConclusaoOrdem(
+    @Param('id') id: string,
+    @Body() body: CompleteWorkOrderDto,
+  ) {
+    return this.service.aprovarConclusaoOrdem(id, body);
+  }
+
+  @Patch(':id/reject-completion')
+  @RoleByMethod({
+    PATCH: [Roles.ADMIN, Roles.C2C],
+  })
+  async reprovarConclusaoOrdem(
+    @Param('id') id: string,
+    @Body() body: RejectWorkOrderCompletionDto,
+  ) {
+    return this.service.reprovarConclusaoOrdem(id, body);
   }
 
   @Patch(':id/column')

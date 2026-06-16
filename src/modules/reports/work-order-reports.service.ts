@@ -38,6 +38,7 @@ const IN_PROGRESS_STATUSES: WorkOrderStatus[] = [
   WorkOrderStatus.ASSIGNED,
   WorkOrderStatus.IN_PROGRESS,
   WorkOrderStatus.PAUSED,
+  WorkOrderStatus.COMPLETED_UNDER_REVIEW,
 ];
 
 const RELATORIO_WORK_ORDER_INCLUDE = {
@@ -440,6 +441,8 @@ export class WorkOrderReportsService {
       createdAt: registro.createdAt.toISOString(),
       startedAt: registro.startedAt?.toISOString() ?? null,
       completedAt: registro.completedAt?.toISOString() ?? null,
+      finalApprovalCompletedAt:
+        registro.finalApprovalCompletedAt?.toISOString() ?? null,
       createdByUser: registro.createdByUser
         ? { id: registro.createdByUser.id, name: registro.createdByUser.name }
         : null,
@@ -452,7 +455,7 @@ export class WorkOrderReportsService {
           type: registro.type,
           status: registro.status,
           startedAt: registro.startedAt,
-          completedAt: registro.completedAt,
+          completedAt: registro.finalApprovalCompletedAt ?? registro.completedAt,
           slaStartAt: registro.slaStartAt,
           slaPausedAt: registro.slaPausedAt,
           slaResumedAt: registro.slaResumedAt,
