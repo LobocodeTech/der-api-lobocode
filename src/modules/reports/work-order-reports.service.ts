@@ -8,7 +8,7 @@ import {
 } from '@prisma/client';
 import { PrismaService } from 'src/shared/prisma/prisma.service';
 import { UniversalQueryService } from 'src/shared/universal';
-import { construirWorkOrderQueueInclude } from '../work-orders/work-order-queue-users/work-order-queue-users.service';
+import { construirWorkOrderQueueInclude, WorkOrderQueueUsersService } from '../work-orders/work-order-queue-users/work-order-queue-users.service';
 import { construirWhereWorkOrderQueueLegivel } from 'src/shared/casl/casl-ability/casl-ability.service';
 import { WORK_ORDER_AUDIT_USER_SELECT } from '../work-orders/dto/work-order-audit.fields';
 import {
@@ -22,6 +22,7 @@ import {
   WorkOrderReportExportResponse,
   WorkOrderReportItem,
   WorkOrderReportListResponse,
+  WorkOrderReportQueueRef,
   WorkOrderReportSummary,
   WorkOrderReportUserRef,
 } from './types/work-order-report.types';
@@ -76,6 +77,7 @@ export class WorkOrderReportsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly queryService: UniversalQueryService,
+    private readonly workOrderQueueUsersService: WorkOrderQueueUsersService,
   ) {}
 
   async listarRelatorio(
@@ -412,7 +414,16 @@ export class WorkOrderReportsService {
   private mapearItem(registro: WorkOrderComRelacoes): WorkOrderReportItem {
     const agora = new Date();
     const companyConfig = normalizarConfigEmpresaRelatorio(registro.company);
-    const assignee = this.resolverResponsavel(registro);
+    const filasMapeadas = this.workOrderQueueUsersService.mapQueuesToResponse(
+      registro.workOrderQueues,
+    );
+    const queues = this.mapearFilasRelatorio(filasMapeadas);
+    const assignees =
+      this.workOrderQueueUsersService.mapAssigneesFromQueues(filasMapeadas);
+    const assignee =
+      assignees.length > 0
+        ? { id: assignees[0].id, name: assignees[0].name }
+        : null;
     const base: WorkOrderReportItem = {
       id: registro.id,
       sequentialNumber: registro.sequentialNumber,
@@ -447,6 +458,7 @@ export class WorkOrderReportsService {
         ? { id: registro.createdByUser.id, name: registro.createdByUser.name }
         : null,
       assignee,
+      queues,
       slaBucket: null,
     };
     if (registro.type === WorkOrderType.CORRECTIVE) {
@@ -506,22 +518,16 @@ export class WorkOrderReportsService {
     return base;
   }
 
-  private resolverResponsavel(
-    registro: WorkOrderComRelacoes,
-  ): WorkOrderReportUserRef | null {
-    for (const fila of registro.workOrderQueues) {
-      const filaComUsuarios = fila as {
-        queue?: {
-          queueUsers?: Array<{ user?: { id: string; name: string } | null }>;
-        };
-      };
-      const usuarios = filaComUsuarios.queue?.queueUsers
-        ?.map((item) => item.user)
-        .filter((user): user is { id: string; name: string } => Boolean(user));
-      if (usuarios && usuarios.length > 0) {
-        return { id: usuarios[0].id, name: usuarios[0].name };
-      }
-    }
-    return null;
+  private mapearFilasRelatorio(
+    filas: ReturnType<WorkOrderQueueUsersService['mapQueuesToResponse']>,
+  ): WorkOrderReportQueueRef[] {
+    return filas.map((fila) => ({
+      id: fila.id,
+      title: fila.title,
+      users: fila.users.map((usuario) => ({
+        id: usuario.id,
+        name: usuario.name,
+      })),
+    }));
   }
 }

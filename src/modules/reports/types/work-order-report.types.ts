@@ -13,6 +13,12 @@ export interface WorkOrderReportUserRef {
   name: string;
 }
 
+export interface WorkOrderReportQueueRef {
+  id: string;
+  title: string;
+  users: WorkOrderReportUserRef[];
+}
+
 export interface WorkOrderReportLocationRef {
   id: string;
   name: string | null;
@@ -88,6 +94,7 @@ export interface WorkOrderReportItem {
   finalApprovalCompletedAt: string | null;
   createdByUser: WorkOrderReportUserRef | null;
   assignee: WorkOrderReportUserRef | null;
+  queues: WorkOrderReportQueueRef[];
   slaBucket: ReportSlaBucket | null;
   corrective?: WorkOrderReportCorrectiveMetrics;
   correctiveLive?: WorkOrderReportCorrectiveLiveContext;
