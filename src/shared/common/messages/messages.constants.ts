@@ -30,6 +30,9 @@ export const VALIDATION_MESSAGES = {
     EMAIL_INVALID: 'Email inválido',
     PASSWORD_WEAK:
       'A senha deve ter pelo menos 8 caracteres, incluindo uma letra maiúscula, uma minúscula, um número e um caractere especial',
+    PASSWORD_MISMATCH: 'As senhas não coincidem',
+    PASSWORD_SAME_AS_CURRENT:
+      'A nova senha não pode ser igual à senha atual do usuário',
     CPF_INVALID: 'CPF inválido',
     CNPJ_INVALID: 'CNPJ inválido',
     PHONE_INVALID: 'Telefone deve estar no formato brasileiro: (XX) XXXXX-XXXX',

@@ -27,6 +27,9 @@ import { PrismaService } from '../../shared/prisma/prisma.service';
 import { TenantService } from '../../shared/tenant/tenant.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { NotificationService } from 'src/modules/notifications/shared/notification.service';
+import { PasswordService } from 'src/shared/auth/services/password.service';
+import { ConflictError } from 'src/shared/common/errors';
+import { VALIDATION_MESSAGES } from 'src/shared/common/messages';
 
 function montarRotuloResponsavelOs(
   name: string,
@@ -59,6 +62,7 @@ export class UsersService extends BaseUserService {
     private userFactory: UserFactory,
     @Inject(forwardRef(() => NotificationService))
     private readonly notificationService: NotificationService,
+    private readonly passwordService: PasswordService,
   ) {
     super(
       userRepository,
@@ -313,10 +317,23 @@ export class UsersService extends BaseUserService {
   }
 
   async atualizar(id: string, updateUserDto: UpdateUserDto) {
+    const { passwordConfirmation, password, ...rest } = updateUserDto;
+    const dadosParaAtualizar: UpdateUserDto = { ...rest };
+
     const whereClause =
       this.userQueryService.construirWhereClauseParaUpdate(id);
     const userBefore = await this.userRepository.buscarPrimeiro(whereClause);
-    const result = await super.atualizar(id, updateUserDto);
+
+    if (password) {
+      await this.validarSeNovaSenhaEhDiferenteDaAtual(
+        password,
+        userBefore?.password,
+      );
+      dadosParaAtualizar.password =
+        await this.passwordService.hashPassword(password);
+    }
+
+    const result = await super.atualizar(id, dadosParaAtualizar);
 
     const desativouConta =
       userBefore?.status === UserStatus.ACTIVE &&
@@ -327,6 +344,28 @@ export class UsersService extends BaseUserService {
     }
 
     return result;
+  }
+
+  /**
+   * Garante que a nova senha não seja igual à senha já armazenada no banco.
+   * @throws ConflictError quando a nova senha coincide com a atual
+   */
+  private async validarSeNovaSenhaEhDiferenteDaAtual(
+    novaSenha: string,
+    hashAtual?: string | null,
+  ): Promise<void> {
+    if (!hashAtual) {
+      return;
+    }
+    const ehIgualASenhaAtual = await this.passwordService.verifyPassword(
+      novaSenha,
+      hashAtual,
+    );
+    if (ehIgualASenhaAtual) {
+      throw new ConflictError(
+        VALIDATION_MESSAGES.FORMAT.PASSWORD_SAME_AS_CURRENT,
+      );
+    }
   }
 
   async desativar(id: string) {

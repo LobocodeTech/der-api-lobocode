@@ -12,7 +12,6 @@ import {
   VALIDATION_MESSAGES,
 } from '../../../shared/common/messages';
 import { CreateOthersDto } from '../dto/create-others.dto';
-import bcrypt from 'bcrypt';
 
 @Injectable()
 export class BaseUserService {
@@ -415,9 +414,13 @@ export class BaseUserService {
     updateUserDto: UpdateUserDto,
   ): Record<string, any> {
     const updateData: Record<string, any> = {};
-    const nullableFields = ['profilePicture'];
+    const nullableFields = ['profilePicture', 'phone'];
+    const ignoredFields = ['passwordConfirmation'];
 
     Object.entries(updateUserDto).forEach(([key, value]) => {
+      if (ignoredFields.includes(key)) {
+        return;
+      }
       if (nullableFields.includes(key)) {
         if (value === null || value === '' || value === undefined) {
           updateData[key] = null;
@@ -428,9 +431,6 @@ export class BaseUserService {
         updateData[key] = value;
       }
     });
-
-    if (updateData.password)
-      updateData.password = bcrypt.hashSync(updateData.password, 10);
 
     if (updateData.login)
       updateData.login = updateData.login.trim().toLowerCase();
