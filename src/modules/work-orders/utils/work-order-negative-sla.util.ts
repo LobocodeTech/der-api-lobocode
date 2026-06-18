@@ -42,54 +42,44 @@ function statusEncerraConsumoSlaNegativo(status: WorkOrderStatus): boolean {
 }
 
 /**
- * Atraso (SLA negativo) contado em tempo ÚTIL após o limite — é a "sobra" além
- * do orçamento (consumo − 6h), parando fora da janela operacional assim como o
- * SLA positivo. Congela no instante da pausa quando a OS está pausada.
+ * Atraso (SLA negativo) contado em tempo CORRIDO (24h/dia) a partir do Limite —
+ * começa quando o SLA Positivo termina (`slaDeadlineAt`) e NÃO para na janela
+ * operacional nem nas pausas. Encerradas congelam na conclusão; ativas e
+ * pausadas continuam correndo até "agora".
  */
 export function calcularSegundosAtrasoExcedenteCorretiva(
   ordem: CorrectiveSlaNegativeState,
-  config: CorrectiveSlaCompanyConfig,
   consumed: number,
   budgetSeconds: number,
   agora: Date,
 ): number {
   const porConsumo = Math.max(0, consumed - budgetSeconds);
-  const { correctiveSlaWindowStart, correctiveSlaWindowEnd } = config;
 
   const slaDeadlineAt = ordem.slaDeadlineAt;
   if (!slaDeadlineAt) {
     return porConsumo;
   }
 
-  // Marco final do atraso conforme o estado: pausada congela no instante da
-  // pausa, encerradas usam a conclusão e ativas usam "agora".
-  let fimReferencia: Date | null;
-  if (ordem.status === WorkOrderStatus.PAUSED) {
-    fimReferencia = ordem.slaPausedAt ?? agora;
-  } else if (statusEncerraConsumoSlaNegativo(ordem.status)) {
-    fimReferencia = resolverFimConsumoSlaNegativo(ordem, agora);
-  } else {
-    fimReferencia = agora;
+  // Pausada antes de consumir o orçamento: o SLA Positivo ainda não terminou,
+  // então não há SLA Negativo — mesmo que o relógio passe do limite persistido.
+  if (ordem.status === WorkOrderStatus.PAUSED && consumed < budgetSeconds) {
+    return 0;
   }
 
-  if (!fimReferencia) {
-    return porConsumo;
-  }
+  // Encerradas usam a conclusão; ativas e pausadas usam "agora" (corrido).
+  const fimReferencia = statusEncerraConsumoSlaNegativo(ordem.status)
+    ? resolverFimConsumoSlaNegativo(ordem, agora)
+    : agora;
+
   if (fimReferencia.getTime() <= slaDeadlineAt.getTime()) {
     return 0;
   }
 
-  // Tempo ÚTIL após o limite (dentro da janela operacional). Usar como teto
-  // garante atraso contado só em tempo útil e evita que uma base de consumo
-  // corrida/legada infle o atraso com tempo corrido fora da janela.
-  const porLimite = calcularSegundosUteis(
-    slaDeadlineAt,
-    fimReferencia,
-    correctiveSlaWindowStart,
-    correctiveSlaWindowEnd,
+  // Tempo CORRIDO (24h/dia) entre o Limite e o marco final — sem desconto de
+  // janela operacional nem de pausas.
+  return Math.floor(
+    (fimReferencia.getTime() - slaDeadlineAt.getTime()) / 1000,
   );
-
-  return Math.min(porConsumo, porLimite);
 }
 
 export interface CorrectiveSlaNegativeSnapshot {
@@ -187,7 +177,6 @@ export function calcularSlaNegativoCorretiva(
   const consumed = calcularConsumidoEfetivoCorretiva(ordem, config, agora);
   const overdueSeconds = calcularSegundosAtrasoExcedenteCorretiva(
     ordem,
-    config,
     consumed,
     budgetSeconds,
     agora,
@@ -209,14 +198,7 @@ export function calcularSlaNegativoCorretiva(
     };
   }
 
-  if (ordem.status === WorkOrderStatus.PAUSED) {
-    return {
-      isOverdue: true,
-      overdueSeconds,
-      overdueStatus: 'PAUSED',
-    };
-  }
-
+  // Pausada também acumula SLA Negativo (corrido 24h), portanto continua ativo.
   return {
     isOverdue: true,
     overdueSeconds,

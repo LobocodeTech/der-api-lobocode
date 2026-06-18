@@ -280,8 +280,8 @@ export function calcularMetricasCorretiva(
     agora,
   );
 
-  const workedSeconds = consumedTotalSeconds;
-
+  // Tempo de execução do trabalho: relógio corrido 24h/dia desde o início
+  // (sem parar fora da janela), mas descontando os períodos de pausa da OS.
   let totalExecutionSeconds = 0;
   if (ordem.startedAt && fimExecucao) {
     const intervalosAtivos = calcularIntervalosAtivosExecucao(
@@ -299,6 +299,10 @@ export function calcularMetricasCorretiva(
     : Math.max(0, budget - consumedTotalSeconds);
   const withinSlaSeconds = slaPositiveSeconds;
   const slaNegativeSeconds = negativo.overdueSeconds;
+  // Consumo SLA = SLA Positivo (tempo útil consumido, limitado ao orçamento;
+  // para na janela e nas pausas) + SLA Negativo (corrido 24h após o vencimento).
+  const slaPositiveConsumed = Math.min(consumedTotalSeconds, budget);
+  const workedSeconds = slaPositiveConsumed + slaNegativeSeconds;
   const latePercentOfSla =
     budget > 0 ? Number(((slaNegativeSeconds / budget) * 100).toFixed(1)) : 0;
   return {
