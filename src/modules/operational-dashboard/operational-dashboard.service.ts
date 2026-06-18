@@ -119,7 +119,7 @@ export class OperationalDashboardService {
           createdAt: true,
         },
         orderBy: { createdAt: 'desc' },
-        take: 10,
+        take: 50,
       }),
       this.prisma.workOrder.findMany({
         where: {
@@ -146,7 +146,7 @@ export class OperationalDashboardService {
           slaRemainingSeconds: true,
         },
         orderBy: [{ createdAt: 'desc' }],
-        take: 5,
+        take: 50,
       }),
       this.prisma.workOrder.findMany({
         where: {
@@ -315,7 +315,7 @@ export class OperationalDashboardService {
         const right = b.daysSinceLastPreventive ?? Number.MAX_SAFE_INTEGER;
         return right - left;
       })
-      .slice(0, 8);
+      .slice(0, 50);
 
     const generalMap = new Map(
       lastGeneralByLocation.map((item) => [
@@ -345,7 +345,7 @@ export class OperationalDashboardService {
         const right = b.daysSinceLastGeneral ?? Number.MAX_SAFE_INTEGER;
         return right - left;
       })
-      .slice(0, 8);
+      .slice(0, 50);
 
     return {
       assets: {
