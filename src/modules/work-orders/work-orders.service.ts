@@ -468,11 +468,20 @@ export class WorkOrdersService extends UniversalService<
           'A OS corretiva só pode ser concluída com status em andamento.',
         );
       }
+      const colunaAnalise = await this.resolverColunaPorStatusDaOrdem(
+        ordem.id,
+        ordem.companyId,
+        WorkOrderStatus.COMPLETED_UNDER_REVIEW,
+        ordem.type,
+      );
       await this.prisma.workOrder.update({
         where: { id: ordem.id },
         data: {
           status: WorkOrderStatus.COMPLETED_UNDER_REVIEW,
           completedAt,
+          ...(colunaAnalise
+            ? { column: { connect: { id: colunaAnalise.id } } }
+            : {}),
           ...this.dadosAuditoriaAtualizacaoPrisma(this.obterUsuarioLogadoId()),
         },
       });
@@ -541,12 +550,21 @@ export class WorkOrdersService extends UniversalService<
       );
     }
     const motivo = dto.reason.trim();
+    const colunaAndamento = await this.resolverColunaPorStatusDaOrdem(
+      ordem.id,
+      ordem.companyId,
+      WorkOrderStatus.IN_PROGRESS,
+      ordem.type,
+    );
     await this.prisma.workOrder.update({
       where: { id: ordem.id },
       data: {
         status: WorkOrderStatus.IN_PROGRESS,
         completedAt: null,
         finalApprovalCompletedAt: null,
+        ...(colunaAndamento
+          ? { column: { connect: { id: colunaAndamento.id } } }
+          : {}),
         ...this.dadosAuditoriaAtualizacaoPrisma(this.obterUsuarioLogadoId()),
       },
     });
@@ -629,11 +647,20 @@ export class WorkOrdersService extends UniversalService<
     const finalApprovalCompletedAt =
       opcoes?.finalApprovalCompletedAt ??
       (ordem.type === WorkOrderType.CORRECTIVE ? agora : null);
+    const colunaConclusao = await this.resolverColunaPorStatusDaOrdem(
+      ordem.id,
+      ordem.companyId,
+      this.resolverStatusConclusaoPorTipo(ordem.type),
+      ordem.type,
+    );
     const updateData: Prisma.WorkOrderUpdateInput = {
       status: WorkOrderStatus.COMPLETED,
       completedAt: ordem.completedAt ?? agora,
       finalApprovalCompletedAt:
         ordem.type === WorkOrderType.CORRECTIVE ? finalApprovalCompletedAt : null,
+      ...(colunaConclusao
+        ? { column: { connect: { id: colunaConclusao.id } } }
+        : {}),
       ...this.dadosAuditoriaAtualizacaoPrisma(this.obterUsuarioLogadoId()),
     };
     if (ordem.type === WorkOrderType.CORRECTIVE) {
@@ -854,6 +881,10 @@ export class WorkOrdersService extends UniversalService<
 
     if (normalizado.includes('atribu')) {
       return WorkOrderStatus.ASSIGNED;
+    }
+
+    if (normalizado.includes('pausa')) {
+      return WorkOrderStatus.PAUSED;
     }
 
     if (normalizado.includes('cancel')) {
@@ -1539,6 +1570,58 @@ export class WorkOrdersService extends UniversalService<
       orderBy: [{ regionalId: 'desc' }, { createdAt: 'asc' }],
       select: { id: true },
     });
+  }
+
+  /**
+   * Localiza a coluna do Kanban cujo nome mapeia para `statusDestino`
+   * (ex.: "Pausada" → PAUSED), respeitando o escopo de empresa/regional.
+   * Prioriza colunas da própria regional sobre as gerais.
+   */
+  async obterColunaPorStatusDestino(
+    companyId: string | undefined | null,
+    regionalId: string | null,
+    statusDestino: WorkOrderStatus,
+    type?: WorkOrderType,
+  ): Promise<{ id: string } | null> {
+    if (!companyId) {
+      return null;
+    }
+
+    const colunas = await this.prisma.workOrderColumn.findMany({
+      where: {
+        companyId,
+        deletedAt: null,
+        OR: [{ regionalId: null }, ...(regionalId ? [{ regionalId }] : [])],
+      },
+      orderBy: [{ regionalId: 'desc' }, { createdAt: 'asc' }],
+      select: { id: true, name: true },
+    });
+
+    const coluna = colunas.find(
+      (item) =>
+        this.obterStatusPorNomeDaColuna(item.name, type) === statusDestino,
+    );
+
+    return coluna ? { id: coluna.id } : null;
+  }
+
+  private async resolverColunaPorStatusDaOrdem(
+    workOrderId: string,
+    companyId: string | undefined | null,
+    statusDestino: WorkOrderStatus,
+    type: WorkOrderType,
+  ): Promise<{ id: string } | null> {
+    const ordem = await this.prisma.workOrder.findFirst({
+      where: { id: workOrderId, deletedAt: null },
+      select: { location: { select: { regionalId: true } } },
+    });
+
+    return this.obterColunaPorStatusDestino(
+      companyId,
+      ordem?.location?.regionalId ?? null,
+      statusDestino,
+      type,
+    );
   }
 
   private async validarPlanejamentoDisponivel(

@@ -85,6 +85,12 @@ export class WorkOrderPauseHistoryService {
 
     const agora = new Date();
     const slaPayload = await this.buildPauseSlaUpdate(workOrder, agora);
+    const colunaPausa = await this.workOrdersService.obterColunaPorStatusDestino(
+      workOrder.companyId,
+      workOrder.location?.regionalId ?? null,
+      WorkOrderStatus.PAUSED,
+      workOrder.type,
+    );
 
     await this.prisma.$transaction(async (tx) => {
       await tx.workOrderPauseHistory.create({
@@ -104,6 +110,9 @@ export class WorkOrderPauseHistoryService {
         where: { id: workOrder.id },
         data: {
           status: WorkOrderStatus.PAUSED,
+          ...(colunaPausa
+            ? { column: { connect: { id: colunaPausa.id } } }
+            : {}),
           updatedByUser: { connect: { id: pausedByUserId } },
           ...(slaPayload ?? {}),
         },
@@ -142,6 +151,13 @@ export class WorkOrderPauseHistoryService {
 
     const agora = new Date();
     const slaPayload = await this.buildResumeSlaUpdate(workOrder, agora);
+    const colunaAndamento =
+      await this.workOrdersService.obterColunaPorStatusDestino(
+        workOrder.companyId,
+        workOrder.location?.regionalId ?? null,
+        WorkOrderStatus.IN_PROGRESS,
+        workOrder.type,
+      );
 
     await this.prisma.$transaction(async (tx) => {
       await tx.workOrderPauseHistory.create({
@@ -161,6 +177,9 @@ export class WorkOrderPauseHistoryService {
         where: { id: workOrder.id },
         data: {
           status: WorkOrderStatus.IN_PROGRESS,
+          ...(colunaAndamento
+            ? { column: { connect: { id: colunaAndamento.id } } }
+            : {}),
           updatedByUser: { connect: { id: userId } },
           ...(slaPayload ?? {}),
         },
@@ -338,7 +357,13 @@ export class WorkOrderPauseHistoryService {
         dueDate: true,
         status: true,
         companyId: true,
+        columnId: true,
         title: true,
+        location: {
+          select: {
+            regionalId: true,
+          },
+        },
         slaStartAt: true,
         slaPausedAt: true,
         slaResumedAt: true,
