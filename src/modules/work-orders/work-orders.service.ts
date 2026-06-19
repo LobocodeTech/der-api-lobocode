@@ -874,7 +874,10 @@ export class WorkOrdersService extends UniversalService<
       normalizado.includes('andamento') ||
       normalizado.includes('execu') ||
       normalizado.includes('progresso') ||
-      normalizado.includes('fazendo')
+      normalizado.includes('fazendo') ||
+      normalizado.includes('equipe') ||
+      normalizado.includes('campo') ||
+      normalizado.includes('monitora')
     ) {
       return WorkOrderStatus.IN_PROGRESS;
     }
