@@ -10,12 +10,7 @@ import { OperationalDashboardService } from './operational-dashboard.service';
 @UseGuards(AuthGuard, RoleByMethodGuard)
 @UseInterceptors(TenantInterceptor)
 @RoleByMethod({
-  GET: [
-    Roles.SYSTEM_ADMIN,
-    Roles.ADMIN,
-    Roles.FIELD_TEAM,
-    Roles.C2C,
-  ],
+  GET: [Roles.SYSTEM_ADMIN, Roles.ADMIN],
 })
 @Controller('dashboard/operational')
 export class OperationalDashboardController {

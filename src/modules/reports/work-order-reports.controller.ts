@@ -10,7 +10,7 @@ import { WorkOrderReportsService } from './work-order-reports.service';
 @UseGuards(AuthGuard, RoleByMethodGuard)
 @UseInterceptors(TenantInterceptor)
 @RoleByMethod({
-  GET: [Roles.SYSTEM_ADMIN, Roles.ADMIN, Roles.FIELD_TEAM],
+  GET: [Roles.SYSTEM_ADMIN, Roles.ADMIN],
 })
 @Controller('reports/work-orders')
 export class WorkOrderReportsController {

@@ -16,8 +16,8 @@ import { RegionalsService } from './regionals.service';
     Roles.FIELD_TEAM,
     Roles.C2C,
   ],
-  POST: [Roles.SYSTEM_ADMIN, Roles.ADMIN, Roles.FIELD_TEAM, Roles.C2C],
-  PATCH: [Roles.SYSTEM_ADMIN, Roles.ADMIN, Roles.FIELD_TEAM, Roles.C2C],
+  POST: [Roles.SYSTEM_ADMIN, Roles.ADMIN],
+  PATCH: [Roles.SYSTEM_ADMIN, Roles.ADMIN],
   DELETE: [Roles.SYSTEM_ADMIN, Roles.ADMIN],
 })
 @Controller('regionals')
