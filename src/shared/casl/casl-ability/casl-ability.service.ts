@@ -177,6 +177,12 @@ const specificPermissions = {
   locationsC2cMutate: (user: User, { can }: any) => {
     can(['create', 'update'], 'Location', { companyId: user.companyId });
   },
+  assetsC2cMutate: (user: User, { can }: any) => {
+    can(['create', 'update'], 'Asset', { companyId: user.companyId });
+  },
+  planningC2cMutate: (user: User, { can }: any) => {
+    can(['create', 'update'], 'Planning', { companyId: user.companyId });
+  },
 };
 
 const operationalReadScopePermissions = {
@@ -529,7 +535,7 @@ function aplicarPermissoesPlanningResponsible(user: User, { can }: any) {
     planning: { companyId: user.companyId },
   });
 
-  if (user.role === Roles.ADMIN) {
+  if (user.role === Roles.ADMIN || user.role === Roles.C2C) {
     can(['create', 'update', 'delete'], 'PlanningResponsible', {
       planning: { companyId: user.companyId },
     });
@@ -675,7 +681,12 @@ const rolePermissionsMap: Record<Roles, (user: User, builder: any) => void> = {
     });
     specificPermissions.ipLocationsC2cMutate(user, { can });
     specificPermissions.locationsC2cMutate(user, { can });
+    specificPermissions.assetsC2cMutate(user, { can });
+    specificPermissions.planningC2cMutate(user, { can });
     cannot('delete', 'IpLocation', { companyId: user.companyId });
+    cannot('delete', 'Location', { companyId: user.companyId });
+    cannot('delete', 'Asset', { companyId: user.companyId });
+    cannot('delete', 'Planning', { companyId: user.companyId });
   },
 };
 
