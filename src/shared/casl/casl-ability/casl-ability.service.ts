@@ -13,6 +13,7 @@ import {
 } from '@prisma/client';
 import {
   construirClausulaOsVisivelParaUsuario,
+  construirClausulaPlanningVisivelParaUsuario,
   isUsuarioAdministradorEmpresaOuSistema,
   deveIgnorarEscopoRegionalNaLeitura,
 } from '../../regional-scope/regional-scope.helper';
@@ -241,8 +242,8 @@ function aplicarRestricaoGestaoEquipeC2c(user: User, { can, cannot }: any) {
 // ========================================
 
 /**
- * Restringe leitura e mutação de Regional, Location, Asset, WorkOrder e User (listagens)
- * ao escopo da regional do usuário. Admin / SYSTEM_ADMIN não são alterados.
+ * Restringe leitura e mutação de Regional, Location, Asset, WorkOrder, Planning e User
+ * (listagens) ao escopo da regional do usuário. Admin / SYSTEM_ADMIN não são alterados.
  *
  * FIELD_TEAM: leitura de Location, Asset e IpLocation em toda a empresa (sem filtro
  * regional), para consultar cadastro operacional em modo somente leitura.
@@ -263,6 +264,8 @@ function aplicarRestricoesRegionaisNaoAdmin(
   const c = user.companyId;
   const ignorarLeitura = options?.ignorarEscopoRegionalLeitura === true;
   const fieldTeamLeituraCadastroEmpresa = user.role === Roles.FIELD_TEAM;
+  const planningPermitido =
+    construirClausulaPlanningVisivelParaUsuario(user);
 
   if (!user.regionalId) {
     if (!ignorarLeitura) {
@@ -273,6 +276,10 @@ function aplicarRestricoesRegionaisNaoAdmin(
         cannot('read', 'IpLocation', { companyId: c });
       }
       cannot('read', 'WorkOrder', { companyId: c });
+      cannot('read', 'Planning', {
+        companyId: c,
+        NOT: planningPermitido,
+      });
       cannot('read', 'User', { companyId: c, NOT: { id: user.id } });
     }
     for (const action of ['create', 'update', 'delete'] as const) {
@@ -282,6 +289,7 @@ function aplicarRestricoesRegionaisNaoAdmin(
       cannot(action, 'Asset', { companyId: c });
       cannot(action, 'IpLocation', { companyId: c });
       cannot(action, 'WorkOrder', { companyId: c });
+      cannot(action, 'Planning', { companyId: c });
     }
     if (!ignorarLeitura) {
       for (const action of ['create', 'update', 'delete'] as const) {
@@ -322,6 +330,10 @@ function aplicarRestricoesRegionaisNaoAdmin(
       companyId: c,
       NOT: workOrderPermitidoForaRegional,
     });
+    cannot('read', 'Planning', {
+      companyId: c,
+      NOT: planningPermitido,
+    });
     cannot('read', 'User', {
       companyId: c,
       NOT: { OR: [{ id: user.id }, { regionalId: r }] },
@@ -345,6 +357,10 @@ function aplicarRestricoesRegionaisNaoAdmin(
       cannot(action, 'WorkOrder', {
         companyId: c,
         NOT: workOrderPermitidoForaRegional,
+      });
+      cannot(action, 'Planning', {
+        companyId: c,
+        NOT: planningPermitido,
       });
     }
   }

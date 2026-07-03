@@ -89,6 +89,26 @@ export function construirClausulaOsVisivelParaUsuario(
   return membroDeFilaNaOs;
 }
 
+/**
+ * Planejamento visível para o usuário: regional do usuário ou responsável associado.
+ * Mesma regra usada em `aplicarRestricoesRegionaisNaoAdmin` (CASL) e queries universais.
+ */
+export function construirClausulaPlanningVisivelParaUsuario(
+  user: Pick<User, 'id' | 'regionalId'>,
+): Prisma.PlanningWhereInput {
+  const responsavelAssociado: Prisma.PlanningWhereInput = {
+    responsibles: { some: { userId: user.id } },
+  };
+
+  if (user.regionalId) {
+    return {
+      OR: [{ location: { regionalId: user.regionalId } }, responsavelAssociado],
+    };
+  }
+
+  return responsavelAssociado;
+}
+
 /** Cláusula Prisma que não casa com nenhum registro (`WHERE id IN ()`). */
 export function construirWhereImpossivel(): { id: { in: [] } } {
   return { id: { in: [] } };
@@ -141,6 +161,9 @@ export function construirClausulaAndEscopoRegional(
 
     case 'WorkOrder':
       return construirClausulaOsVisivelParaUsuario(user);
+
+    case 'Planning':
+      return construirClausulaPlanningVisivelParaUsuario(user);
 
     case 'User':
       if (!user.regionalId) {
