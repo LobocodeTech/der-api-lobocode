@@ -13,6 +13,19 @@ export interface WorkOrderReportUserRef {
   name: string;
 }
 
+export interface WorkOrderReportActorMemberRef {
+  id: string;
+  name: string;
+  level: string;
+}
+
+/** Ator do ciclo de vida da OS (iniciou / finalizou / aprovou). */
+export interface WorkOrderReportActorRef {
+  id: string;
+  name: string;
+  fieldTeamMembers: WorkOrderReportActorMemberRef[];
+}
+
 export interface WorkOrderReportQueueRef {
   id: string;
   title: string;
@@ -109,6 +122,10 @@ export interface WorkOrderReportItem {
   completedAt: string | null;
   finalApprovalCompletedAt: string | null;
   createdByUser: WorkOrderReportUserRef | null;
+  startedByUser: WorkOrderReportActorRef | null;
+  completedByUser: WorkOrderReportActorRef | null;
+  /** Preenchido somente em OS corretiva aprovada. */
+  approvedByUser: WorkOrderReportActorRef | null;
   assignee: WorkOrderReportUserRef | null;
   queues: WorkOrderReportQueueRef[];
   slaBucket: ReportSlaBucket | null;
