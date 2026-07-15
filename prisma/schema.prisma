@@ -186,6 +186,7 @@ model Company {
   workOrderColumns WorkOrderColumn[]
   plannings        Planning[]
   ipLocations      IpLocation[]
+  fieldTeamMembers FieldTeamMember[]
 
   files              File[]              @relation("CompanyFiles")
   documents          Document[]          @relation("CompanyDocuments")
@@ -228,16 +229,17 @@ model User {
   workOrderPauseHistories WorkOrderPauseHistory[]
   planningAssignments     PlanningResponsible[]
   queueUsers              QueueUser[]
-  files                   File[]                    @relation("UserFiles")
-  documentsSent           Document[]                @relation("DocumentSender")
-  notifications           NotificationRecipient[]   @relation("UserNotifications")
-  groupMemberships        NotificationGroupMember[] @relation("UserGroupMemberships")
-  pushSubscriptions       PushSubscription[]        @relation("UserPushSubscriptions")
-  workOrderComments       WorkOrderComment[]        @relation("WorkOrderCommentsAuthor")
+  passwordResetTokens     PasswordResetToken[]
+  fieldTeamMembers        FieldTeamMember[]
 
-  workOrdersCreated   WorkOrder[]          @relation("WorkOrdersCreatedBy")
-  workOrdersUpdated   WorkOrder[]          @relation("WorkOrdersUpdatedBy")
-  passwordResetTokens PasswordResetToken[]
+  files             File[]                    @relation("UserFiles")
+  documentsSent     Document[]                @relation("DocumentSender")
+  notifications     NotificationRecipient[]   @relation("UserNotifications")
+  groupMemberships  NotificationGroupMember[] @relation("UserGroupMemberships")
+  pushSubscriptions PushSubscription[]        @relation("UserPushSubscriptions")
+  workOrderComments WorkOrderComment[]        @relation("WorkOrderCommentsAuthor")
+  workOrdersCreated WorkOrder[]               @relation("WorkOrdersCreatedBy")
+  workOrdersUpdated WorkOrder[]               @relation("WorkOrdersUpdatedBy")
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -249,6 +251,25 @@ model User {
   @@index([deletedAt])
   @@index([role])
   @@index([createdAt])
+}
+
+model FieldTeamMember {
+  id    String @id @default(cuid())
+  name  String
+  level String
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  @@unique([userId, id])
+  @@index([userId])
 }
 
 model PasswordResetToken {

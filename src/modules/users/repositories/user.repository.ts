@@ -54,6 +54,10 @@ export class UserRepository {
           address: true,
         },
       },
+      fieldTeamMembers: {
+        where: { deletedAt: null },
+        orderBy: { createdAt: 'asc' as const },
+      },
     };
   }
 

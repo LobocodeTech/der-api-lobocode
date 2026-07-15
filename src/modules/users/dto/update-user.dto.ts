@@ -15,14 +15,26 @@ import {
 import { Type } from 'class-transformer';
 import { VALIDATION_MESSAGES } from 'src/shared/common/messages';
 import { FieldTeamMemberInputDto } from './field-team-member.dto';
+import { MAX_FIELD_TEAM_MEMBERS } from '../users.constants';
 
 /**
  * Update não usa @IsUniqueLogin/@IsUniqueEmail do BaseUserDto — em PATCH o próprio
  * registro falharia na validação assíncrona. Unicidade é checada no service.
  * A redefinição de senha (password/passwordConfirmation) vem de ResetUserPasswordDto.
+ *
+ * `fieldTeamMembers` é redeclarado (não herda via PartialType): IntersectionType/
+ * PartialType podem perder `@Type`/`ValidateNested` — sem isso o whitelist remove
+ * o array e o sync de membros não roda.
  */
 export class UpdateUserDto extends IntersectionType(
-  PartialType(OmitType(BaseUserDto, ['password', 'login', 'email', 'members'] as const)),
+  PartialType(
+    OmitType(BaseUserDto, [
+      'password',
+      'login',
+      'email',
+      'fieldTeamMembers',
+    ] as const),
+  ),
   ResetUserPasswordDto,
 ) {
   @IsOptional()
@@ -39,16 +51,15 @@ export class UpdateUserDto extends IntersectionType(
   role?: Roles;
 
   /**
-   * Lista de membros da equipe de campo. Enviar o array completo (estado
-   * desejado): membros ausentes serão soft-deletados; membros novos (sem id)
-   * serão criados; membros com id existente serão atualizados.
+   * Estado completo desejado dos membros.
+   * Sem id = criar; com id do backend = atualizar; ausentes = soft-delete.
    */
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(100, {
-    message: 'Limite de 100 membros por usuário excedido.',
+  @ArrayMaxSize(MAX_FIELD_TEAM_MEMBERS, {
+    message: `Limite de ${MAX_FIELD_TEAM_MEMBERS} membros por usuário excedido.`,
   })
   @ValidateNested({ each: true })
   @Type(() => FieldTeamMemberInputDto)
-  members?: FieldTeamMemberInputDto[];
+  fieldTeamMembers?: FieldTeamMemberInputDto[];
 }

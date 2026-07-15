@@ -22,6 +22,10 @@ import {
 } from './services';
 import { CreateOthersDto } from './dto/create-others.dto';
 import { Prisma, Roles, UserStatus } from '@prisma/client';
+import { BadRequestException } from '@nestjs/common';
+import { FieldTeamMemberService } from './services/field-team-member.service';
+import { FieldTeamMemberInputDto } from './dto/field-team-member.dto';
+import { MAX_FIELD_TEAM_MEMBERS } from './users.constants';
 import { UserFactory } from './factories/user.factory';
 import { PrismaService } from '../../shared/prisma/prisma.service';
 import { TenantService } from '../../shared/tenant/tenant.service';
@@ -63,6 +67,7 @@ export class UsersService extends BaseUserService {
     @Inject(forwardRef(() => NotificationService))
     private readonly notificationService: NotificationService,
     private readonly passwordService: PasswordService,
+    private readonly fieldTeamMemberService: FieldTeamMemberService,
   ) {
     super(
       userRepository,
@@ -91,13 +96,23 @@ export class UsersService extends BaseUserService {
 
     await this.validarUnicidadeParaCriacao(dto.email, dto.login);
 
+    // Extrai membros do DTO antes de passar para o factory (que não conhece)
+    const { fieldTeamMembers, ...userOnly } = dto;
+
     // Criação do usuário
-    const userData = this.userFactory.criarOthers(dto);
+    const userData = this.userFactory.criarOthers(userOnly as CreateOthersDto);
     const user = await this.userRepository.criar(
       userData as Prisma.UserCreateInput,
     );
 
-    return user;
+    if (fieldTeamMembers && fieldTeamMembers.length > 0) {
+      await this.applyMembersChange(user.id, fieldTeamMembers);
+    }
+
+    const userAtualizado = await this.userRepository.buscarUnico({
+      id: user.id,
+    });
+    return this.removerCamposSensiveis(userAtualizado!);
   }
 
   async criarNovoHR(dto: CreateHRDto) {
@@ -317,7 +332,8 @@ export class UsersService extends BaseUserService {
   }
 
   async atualizar(id: string, updateUserDto: UpdateUserDto) {
-    const { passwordConfirmation, password, ...rest } = updateUserDto;
+    const { passwordConfirmation, password, fieldTeamMembers, ...rest } =
+      updateUserDto;
     const dadosParaAtualizar: UpdateUserDto = { ...rest };
 
     const whereClause =
@@ -333,7 +349,28 @@ export class UsersService extends BaseUserService {
         await this.passwordService.hashPassword(password);
     }
 
-    const result = await super.atualizar(id, dadosParaAtualizar);
+    await super.atualizar(id, dadosParaAtualizar);
+
+    // Sincroniza membros conforme o role final:
+    //  - Saiu de FIELD_TEAM → soft-deleta todos os ativos.
+    //  - Voltou para FIELD_TEAM sem lista útil no payload → reativa soft-deleted
+    //    (form costuma mandar [] porque a API não devolve deletados).
+    //  - Já era FIELD_TEAM (ou voltou com membros no payload) → aplica diff.
+    const roleFinal = dadosParaAtualizar.role ?? userBefore?.role;
+    const voltandoParaFieldTeam =
+      roleFinal === Roles.FIELD_TEAM &&
+      userBefore?.role !== Roles.FIELD_TEAM;
+
+    if (roleFinal !== Roles.FIELD_TEAM) {
+      await this.softDeleteAllMembers(id);
+    } else if (
+      voltandoParaFieldTeam &&
+      (fieldTeamMembers === undefined || fieldTeamMembers.length === 0)
+    ) {
+      await this.reativarAllMembers(id);
+    } else if (fieldTeamMembers !== undefined) {
+      await this.applyMembersChange(id, fieldTeamMembers);
+    }
 
     const desativouConta =
       userBefore?.status === UserStatus.ACTIVE &&
@@ -343,7 +380,9 @@ export class UsersService extends BaseUserService {
       this.notificationService.revogarSessaoUsuario(id);
     }
 
-    return result;
+    // Rebusca após o sync — `super.atualizar` retorna membros do estado anterior.
+    const userAtualizado = await this.userRepository.buscarUnico({ id });
+    return this.removerCamposSensiveis(userAtualizado!);
   }
 
   /**
@@ -383,5 +422,78 @@ export class UsersService extends BaseUserService {
     }
 
     return result;
+  }
+
+  /**
+   * Aplica diff de membros: cria/atualiza membros do payload via
+   * `FieldTeamMemberService` (que reaproveita UniversalService); soft-deleta
+   * (via `desativar`) membros ativos no banco que não aparecem no payload.
+   *
+   * Chamado após `super.atualizar()` e `userRepository.criar()`. Equivalente
+   * semântico aos hooks `depoisDeCriar`/`depoisDeAtualizar` do `UniversalService`.
+   */
+  private async applyMembersChange(
+    userId: string,
+    inputs: FieldTeamMemberInputDto[],
+  ): Promise<void> {
+    if (inputs.length > MAX_FIELD_TEAM_MEMBERS) {
+      throw new BadRequestException(
+        `Limite de ${MAX_FIELD_TEAM_MEMBERS} membros ativos por usuário excedido.`,
+      );
+    }
+
+    const existentes = await this.prisma.fieldTeamMember.findMany({
+      where: { userId, deletedAt: null },
+      select: { id: true },
+    });
+    const ativosAtuaisIds = new Set(existentes.map((e) => e.id));
+
+    for (const input of inputs) {
+      if (!input.id) {
+        await this.fieldTeamMemberService.criar({
+          name: input.name.trim(),
+          level: input.level.trim(),
+          userId,
+        });
+        continue;
+      }
+      if (!ativosAtuaisIds.has(input.id)) {
+        throw new BadRequestException(
+          `Membro ${input.id} não pertence a este usuário.`,
+        );
+      }
+      await this.fieldTeamMemberService.atualizar(input.id, {
+        name: input.name.trim(),
+        level: input.level.trim(),
+      });
+    }
+
+    const idsNoPayload = new Set(inputs.map((i) => i.id).filter(Boolean));
+    const orfaos = existentes.filter((e) => !idsNoPayload.has(e.id));
+    for (const orfao of orfaos) {
+      await this.fieldTeamMemberService.desativar(orfao.id);
+    }
+  }
+
+  /**
+   * Soft-deleta todos os membros ativos do User.
+   * Chamado quando o user deixa de ser FIELD_TEAM.
+   */
+  private async softDeleteAllMembers(userId: string): Promise<void> {
+    await this.prisma.fieldTeamMember.updateMany({
+      where: { userId, deletedAt: null },
+      data: { deletedAt: new Date() },
+    });
+  }
+
+  /**
+   * Reativa todos os membros soft-deletados do User.
+   * Chamado quando o user volta a ser FIELD_TEAM (e não há payload de diff).
+   */
+  private async reativarAllMembers(userId: string): Promise<void> {
+    await this.prisma.fieldTeamMember.updateMany({
+      where: { userId, NOT: { deletedAt: null } },
+      data: { deletedAt: null },
+    });
   }
 }

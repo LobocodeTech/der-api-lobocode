@@ -5,7 +5,11 @@ import {
   IsOptional,
   IsEnum,
   ValidateIf,
+  ValidateNested,
+  IsArray,
+  ArrayMaxSize,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import {
   IsCUID,
   IsPhoneNumberBR,
@@ -15,6 +19,8 @@ import {
 } from '../../../shared/validators';
 import { VALIDATION_MESSAGES } from '../../../shared/common/messages';
 import { UserStatus } from '@prisma/client';
+import { FieldTeamMemberInputDto } from './field-team-member.dto';
+import { MAX_FIELD_TEAM_MEMBERS } from '../users.constants';
 
 export class BaseUserDto {
   @IsOptional()
@@ -61,4 +67,17 @@ export class BaseUserDto {
   @IsOptional()
   @IsString({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
   function?: string;
+
+  /**
+   * Membros da equipe de campo (input). Enviar só `name`/`level`;
+   * `id` apenas se já persistido (PATCH). Timestamps vêm do backend.
+   */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(MAX_FIELD_TEAM_MEMBERS, {
+    message: `Limite de ${MAX_FIELD_TEAM_MEMBERS} membros por usuário excedido.`,
+  })
+  @ValidateNested({ each: true })
+  @Type(() => FieldTeamMemberInputDto)
+  fieldTeamMembers?: FieldTeamMemberInputDto[];
 }
