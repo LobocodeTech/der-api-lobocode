@@ -20,6 +20,7 @@ import {
   CORRECTIVE_SLA_NEGATIVE_STATUSES,
   CORRECTIVE_SLA_NEAR_STATUSES,
   CORRECTIVE_SLA_POSITIVE_STATUSES,
+  WorkOrderReportActorRef,
   WorkOrderReportExportResponse,
   WorkOrderReportItem,
   WorkOrderReportListResponse,
@@ -44,6 +45,16 @@ const IN_PROGRESS_STATUSES: WorkOrderStatus[] = [
   WorkOrderStatus.COMPLETED_UNDER_REVIEW,
 ];
 
+const WORK_ORDER_REPORT_ACTOR_SELECT = {
+  id: true,
+  name: true,
+  fieldTeamMembers: {
+    where: { deletedAt: null },
+    select: { id: true, name: true, level: true },
+    orderBy: { createdAt: 'asc' as const },
+  },
+} as const;
+
 const RELATORIO_WORK_ORDER_INCLUDE = {
   location: {
     include: {
@@ -53,6 +64,9 @@ const RELATORIO_WORK_ORDER_INCLUDE = {
     },
   },
   createdByUser: { select: WORK_ORDER_AUDIT_USER_SELECT },
+  startedByUser: { select: WORK_ORDER_REPORT_ACTOR_SELECT },
+  completedByUser: { select: WORK_ORDER_REPORT_ACTOR_SELECT },
+  approvedByUser: { select: WORK_ORDER_REPORT_ACTOR_SELECT },
   company: {
     select: {
       correctiveSlaDefaultSeconds: true,
@@ -591,6 +605,9 @@ export class WorkOrderReportsService {
       createdByUser: registro.createdByUser
         ? { id: registro.createdByUser.id, name: registro.createdByUser.name }
         : null,
+      startedByUser: this.mapearAtorRelatorio(registro.startedByUser),
+      completedByUser: this.mapearAtorRelatorio(registro.completedByUser),
+      approvedByUser: this.mapearAtorRelatorio(registro.approvedByUser),
       assignee,
       queues,
       slaBucket: null,
@@ -657,6 +674,30 @@ export class WorkOrderReportsService {
     };
     base.slaBucket = dueDateSla.slaBucket;
     return base;
+  }
+
+  private mapearAtorRelatorio(
+    ator:
+      | {
+          id: string;
+          name: string;
+          fieldTeamMembers: Array<{ id: string; name: string; level: string }>;
+        }
+      | null
+      | undefined,
+  ): WorkOrderReportActorRef | null {
+    if (!ator) {
+      return null;
+    }
+    return {
+      id: ator.id,
+      name: ator.name,
+      fieldTeamMembers: ator.fieldTeamMembers.map((membro) => ({
+        id: membro.id,
+        name: membro.name,
+        level: membro.level,
+      })),
+    };
   }
 
   private mapearFilasRelatorio(

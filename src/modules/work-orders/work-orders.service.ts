@@ -379,12 +379,16 @@ export class WorkOrdersService extends UniversalService<
     }
 
     const agoraInicio = new Date();
+    const usuarioLogadoId = this.obterUsuarioLogadoId();
     const updateData: Prisma.WorkOrderUpdateInput = {
       status: WorkOrderStatus.IN_PROGRESS,
       startedAt: ordem.startedAt ?? agoraInicio,
       completedAt: null,
-      ...this.dadosAuditoriaAtualizacaoPrisma(this.obterUsuarioLogadoId()),
+      ...this.dadosAuditoriaAtualizacaoPrisma(usuarioLogadoId),
     };
+    if (!ordem.startedBy && usuarioLogadoId) {
+      updateData.startedByUser = { connect: { id: usuarioLogadoId } };
+    }
 
     if (ordem.type === WorkOrderType.CORRECTIVE) {
       const estado = this.mapearEstadoSlaCorretiva(ordem);
@@ -483,6 +487,7 @@ export class WorkOrdersService extends UniversalService<
             ? { column: { connect: { id: colunaAnalise.id } } }
             : {}),
           ...this.dadosAuditoriaAtualizacaoPrisma(this.obterUsuarioLogadoId()),
+          ...this.dadosAtorCompletedByPrisma(this.obterUsuarioLogadoId()),
         },
       });
       const comentario = dto.resolutionNotes?.trim()
@@ -562,6 +567,8 @@ export class WorkOrdersService extends UniversalService<
         status: WorkOrderStatus.IN_PROGRESS,
         completedAt: null,
         finalApprovalCompletedAt: null,
+        completedByUser: { disconnect: true },
+        approvedByUser: { disconnect: true },
         ...(colunaAndamento
           ? { column: { connect: { id: colunaAndamento.id } } }
           : {}),
@@ -662,6 +669,9 @@ export class WorkOrdersService extends UniversalService<
         ? { column: { connect: { id: colunaConclusao.id } } }
         : {}),
       ...this.dadosAuditoriaAtualizacaoPrisma(this.obterUsuarioLogadoId()),
+      ...(opcoes?.fromReview
+        ? this.dadosAtorApprovedByPrisma(this.obterUsuarioLogadoId())
+        : this.dadosAtorCompletedByPrisma(this.obterUsuarioLogadoId())),
     };
     if (ordem.type === WorkOrderType.CORRECTIVE) {
       const config = await this.resolverConfigSlaDaOrdem(ordem);
@@ -2302,6 +2312,30 @@ export class WorkOrdersService extends UniversalService<
     };
   }
 
+  /** Técnico que concluiu (ou enviou para análise na corretiva). */
+  private dadosAtorCompletedByPrisma(
+    userId?: string | null,
+  ): Prisma.WorkOrderUpdateInput {
+    if (!userId) {
+      return {};
+    }
+    return {
+      completedByUser: { connect: { id: userId } },
+    };
+  }
+
+  /** ADMIN/C2C que aprovou a conclusão (somente corretiva). */
+  private dadosAtorApprovedByPrisma(
+    userId?: string | null,
+  ): Prisma.WorkOrderUpdateInput {
+    if (!userId) {
+      return {};
+    }
+    return {
+      approvedByUser: { connect: { id: userId } },
+    };
+  }
+
   /** Atualizações com FKs escalares (ex.: `columnId`) usam input unchecked. */
   private dadosAuditoriaAtualizacaoUnchecked(
     userId?: string | null,
@@ -2319,6 +2353,12 @@ export class WorkOrdersService extends UniversalService<
     delete (data as { updatedBy?: unknown }).updatedBy;
     delete (data as { createdByUser?: unknown }).createdByUser;
     delete (data as { updatedByUser?: unknown }).updatedByUser;
+    delete (data as { startedBy?: unknown }).startedBy;
+    delete (data as { completedBy?: unknown }).completedBy;
+    delete (data as { approvedBy?: unknown }).approvedBy;
+    delete (data as { startedByUser?: unknown }).startedByUser;
+    delete (data as { completedByUser?: unknown }).completedByUser;
+    delete (data as { approvedByUser?: unknown }).approvedByUser;
   }
 
   private aplicarAuditoriaCriacao(data: CreateWorkOrderDto): void {

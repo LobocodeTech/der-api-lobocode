@@ -240,6 +240,9 @@ model User {
   workOrderComments WorkOrderComment[]        @relation("WorkOrderCommentsAuthor")
   workOrdersCreated WorkOrder[]               @relation("WorkOrdersCreatedBy")
   workOrdersUpdated WorkOrder[]               @relation("WorkOrdersUpdatedBy")
+  workOrdersStarted   WorkOrder[]             @relation("WorkOrdersStartedBy")
+  workOrdersCompleted WorkOrder[]             @relation("WorkOrdersCompletedBy")
+  workOrdersApproved  WorkOrder[]             @relation("WorkOrdersApprovedBy")
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -540,6 +543,18 @@ model WorkOrder {
   updatedBy     String?
   updatedByUser User?   @relation("WorkOrdersUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
 
+  /// Técnico que iniciou o trabalho na OS.
+  startedBy     String?
+  startedByUser User?   @relation("WorkOrdersStartedBy", fields: [startedBy], references: [id], onDelete: SetNull)
+
+  /// Técnico que concluiu (ou enviou para análise, na corretiva).
+  completedBy     String?
+  completedByUser User?   @relation("WorkOrdersCompletedBy", fields: [completedBy], references: [id], onDelete: SetNull)
+
+  /// ADMIN/C2C que aprovou a conclusão (somente OS corretiva).
+  approvedBy     String?
+  approvedByUser User?   @relation("WorkOrdersApprovedBy", fields: [approvedBy], references: [id], onDelete: SetNull)
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
@@ -559,6 +574,9 @@ model WorkOrder {
   @@index([companyId, type, status, createdAt])
   @@index([equipmentType])
   @@index([createdBy])
+  @@index([startedBy])
+  @@index([completedBy])
+  @@index([approvedBy])
 }
 
 model WorkOrderChecklistItem {
