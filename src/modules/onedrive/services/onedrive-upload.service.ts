@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type {
+  GraphCreateLinkResponse,
   GraphDriveItemResponse,
   OneDriveUploadResult,
 } from '../types/onedrive-upload.types';
@@ -15,6 +16,17 @@ const GRAPH_BASE = 'https://graph.microsoft.com/v1.0';
 const SIMPLE_UPLOAD_MAX_BYTES = 4 * 1024 * 1024;
 /** Limite seguro para não estourar throttling do Graph. */
 const UPLOAD_CONCURRENCY = 6;
+/**
+ * OneDrive pessoal (microsoftpersonalcontent / migratedtospo): createLink em
+ * pasta vazia gera 1drv.ms que abre 403/"inválido". Precisa de ao menos 1 arquivo.
+ */
+const SHARE_SEED_FILE_NAME = 'LEIA-ME.txt';
+const SHARE_SEED_CONTENT = Buffer.from(
+  'Pasta pública de relatórios DER (OneDrive). Os arquivos exportados ficam nas subpastas.',
+  'utf8',
+);
+const BROWSER_UA =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 /**
  * Faz upload de arquivos para a pasta configurada no OneDrive da conta fixa.
@@ -22,6 +34,12 @@ const UPLOAD_CONCURRENCY = 6;
 @Injectable()
 export class OneDriveUploadService {
   private readonly logger = new Logger(OneDriveUploadService.name);
+  /**
+   * Cache do link público amarrado ao itemId atual da pasta.
+   * Se a pasta for apagada e recriada, o Graph gera outro id — o cache antigo
+   * é ignorado (não reabre o 1drv.ms morto).
+   */
+  private cachedFolderShare: { itemId: string; url: string } | null = null;
 
   constructor(
     private readonly graphAuthService: MicrosoftGraphAuthService,
@@ -86,7 +104,11 @@ export class OneDriveUploadService {
       buffer: Buffer;
       contentType: string;
     }>;
-  }): Promise<{ uploadedFiles: number; packagePath: string }> {
+  }): Promise<{
+    uploadedFiles: number;
+    packagePath: string;
+    folderShareUrl: string;
+  }> {
     const root = this.obterPastaDestino();
     const accessToken = await this.graphAuthService.obterAccessToken();
     const preparadas = params.files
@@ -137,13 +159,369 @@ export class OneDriveUploadService {
       },
     );
     const uploadMs = Date.now() - uploadStartedAt;
+    const folderShareUrl =
+      await this.obterOuCriarLinkPublicoPastaRaiz(accessToken);
     this.logger.log(
-      `Pacote OneDrive: ${preparadas.length} arquivo(s) em ${Date.now() - startedAt}ms (pastas=${folderMs}ms, upload=${uploadMs}ms, concurrency=${UPLOAD_CONCURRENCY})`,
+      `Pacote OneDrive: ${preparadas.length} arquivo(s) em ${Date.now() - startedAt}ms (pastas=${folderMs}ms, upload=${uploadMs}ms, concurrency=${UPLOAD_CONCURRENCY}) share=${folderShareUrl}`,
     );
     return {
       uploadedFiles: preparadas.length,
       packagePath: root,
+      folderShareUrl,
     };
+  }
+
+  /**
+   * Garante a pasta raiz e retorna link público anônimo (somente leitura).
+   * Sempre resolve a pasta pelo caminho (itemId atual) antes de qualquer link.
+   * Cache só vale se for do mesmo itemId — pasta apagada/recriada = link novo.
+   */
+  async obterOuCriarLinkPublicoPastaRaiz(
+    accessToken?: string,
+  ): Promise<string> {
+    const token =
+      accessToken || (await this.graphAuthService.obterAccessToken());
+    const root = this.obterPastaDestino();
+    await this.garantirPasta(root, token);
+    const itemId = await this.obterIdItemPorCaminhoComRetry(root, token);
+    if (
+      this.cachedFolderShare?.itemId === itemId &&
+      this.cachedFolderShare.url
+    ) {
+      this.logger.log(
+        `Pasta OneDrive link em cache (id=${itemId}) → ${this.cachedFolderShare.url}`,
+      );
+      return this.cachedFolderShare.url;
+    }
+    if (this.cachedFolderShare) {
+      this.logger.log(
+        `Pasta OneDrive recriada (cache id=${this.cachedFolderShare.itemId} ≠ ${itemId}) — publicando de novo`,
+      );
+      this.cachedFolderShare = null;
+    }
+    await this.garantirConteudoMinimoParaShare(itemId, token);
+    const existing = await this.buscarLinkAnonimoNasPermissoes(itemId, token);
+    if (existing) {
+      const status = await this.avaliarLinkPublicoViaHttp(existing);
+      if (status === 'ok') {
+        this.cachedFolderShare = { itemId, url: existing };
+        this.logger.log(
+          `Pasta OneDrive já pública: ${root} (id=${itemId}) → ${existing}`,
+        );
+        return existing;
+      }
+      this.logger.warn(
+        `Link anônimo existente inválido — republicando ${root}: ${existing}`,
+      );
+    }
+    const confirmed = await this.republicarLinkAnonimoPasta(itemId, token);
+    this.cachedFolderShare = { itemId, url: confirmed };
+    this.logger.log(
+      `Pasta OneDrive publicada: ${root} (id=${itemId}) → ${confirmed}`,
+    );
+    return confirmed;
+  }
+
+  /**
+   * OneDrive pessoal: pasta sem arquivos → createLink gera link morto.
+   * Garante um LEIA-ME.txt quando a pasta ainda não tem filhos.
+   */
+  private async garantirConteudoMinimoParaShare(
+    itemId: string,
+    accessToken: string,
+  ): Promise<void> {
+    const childrenRes = await fetch(
+      `${GRAPH_BASE}/me/drive/items/${encodeURIComponent(itemId)}/children?$top=1&$select=id`,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+    );
+    const childrenPayload = (await childrenRes.json().catch(() => ({}))) as {
+      value?: Array<{ id?: string }>;
+      error?: { message?: string };
+    };
+    if (childrenRes.ok && (childrenPayload.value?.length ?? 0) > 0) {
+      return;
+    }
+    this.logger.log(
+      `Pasta OneDrive vazia — criando ${SHARE_SEED_FILE_NAME} antes do createLink`,
+    );
+    const encodedName = encodeURIComponent(SHARE_SEED_FILE_NAME);
+    const putRes = await fetch(
+      `${GRAPH_BASE}/me/drive/items/${encodeURIComponent(itemId)}:/${encodedName}:/content`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'text/plain; charset=utf-8',
+        },
+        body: new Uint8Array(SHARE_SEED_CONTENT),
+      },
+    );
+    if (!putRes.ok) {
+      const detail = await putRes.text().catch(() => '');
+      throw new ServiceUnavailableException(
+        `Falha ao preparar pasta OneDrive para compartilhamento: ${putRes.status} ${detail.slice(0, 180)}`,
+      );
+    }
+    // Propagação do item no OneDrive pessoal antes do createLink.
+    await this.aguardarMs(1500);
+  }
+
+  /**
+   * Remove shares anônimos quebrados e cria um novo (após haver conteúdo).
+   */
+  private async republicarLinkAnonimoPasta(
+    itemId: string,
+    accessToken: string,
+  ): Promise<string> {
+    const attempts = [0, 1000, 2500];
+    let lastUrl = '';
+    let lastDetail = 'falha ao republicar link';
+    for (const delay of attempts) {
+      if (delay > 0) {
+        await this.aguardarMs(delay);
+      }
+      await this.garantirConteudoMinimoParaShare(itemId, accessToken);
+      await this.removerLinksAnonimosDoItem(itemId, accessToken);
+      await this.aguardarMs(500);
+      const webUrl = await this.criarLinkAnonimoPorItemId(itemId, accessToken);
+      const fromPermissions =
+        (await this.buscarLinkAnonimoNasPermissoes(itemId, accessToken)) ||
+        webUrl;
+      lastUrl = fromPermissions;
+      await this.aguardarMs(1000);
+      const status = await this.avaliarLinkPublicoViaHttp(fromPermissions);
+      if (status === 'ok') {
+        return fromPermissions;
+      }
+      lastDetail = `link criado mas não abre publicamente: ${fromPermissions}`;
+      this.logger.warn(lastDetail);
+    }
+    throw new ServiceUnavailableException(
+      `Falha ao publicar pasta OneDrive: ${lastDetail}`,
+    );
+  }
+
+  /**
+   * Abre o 1drv.ms como browser (sem login do dono).
+   * Link morto de pasta vazia → 403 / login.live / “might not exist”.
+   */
+  private async avaliarLinkPublicoViaHttp(
+    webUrl: string,
+  ): Promise<'ok' | 'broken' | 'unknown'> {
+    const trimmed = webUrl?.trim();
+    if (!trimmed) return 'broken';
+    try {
+      const response = await fetch(trimmed, {
+        redirect: 'follow',
+        headers: {
+          'User-Agent': BROWSER_UA,
+          Accept: 'text/html,application/xhtml+xml',
+        },
+      });
+      const finalUrl = response.url?.toLowerCase() || '';
+      const body = (await response.text().catch(() => ''))
+        .slice(0, 5000)
+        .toLowerCase();
+      const requiresLogin =
+        finalUrl.includes('login.live.com') ||
+        finalUrl.includes('login.microsoftonline.com') ||
+        body.includes('wa=wsignin');
+      const seemsBroken =
+        response.status === 403 ||
+        response.status === 404 ||
+        requiresLogin ||
+        body.includes('this item might not exist') ||
+        body.includes('item might not exist or is no longer available') ||
+        body.includes('this link has been removed') ||
+        body.includes('não está disponível') ||
+        body.includes('something went wrong');
+      if (!response.ok || seemsBroken) {
+        this.logger.warn(
+          `Share HTTP inválido (${response.status} final=${finalUrl.slice(0, 80)}): ${trimmed.slice(0, 96)}`,
+        );
+        return 'broken';
+      }
+      return 'ok';
+    } catch (error) {
+      this.logger.warn(
+        `Falha ao checar share via HTTP: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return 'unknown';
+    }
+  }
+
+  /**
+   * Resolve o driveItem.id da pasta por caminho, com retry (propagação Graph).
+   */
+  private async obterIdItemPorCaminhoComRetry(
+    pathFromRoot: string,
+    accessToken: string,
+  ): Promise<string> {
+    const delaysMs = [0, 400, 900, 1600];
+    let lastDetail = 'item não encontrado';
+    for (const delay of delaysMs) {
+      if (delay > 0) {
+        await this.aguardarMs(delay);
+      }
+      const encodedPath = this.codificarCaminhoGraph(pathFromRoot);
+      const response = await fetch(
+        `${GRAPH_BASE}/me/drive/root:/${encodedPath}`,
+        {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        },
+      );
+      const payload = (await response
+        .json()
+        .catch(() => ({}))) as GraphDriveItemResponse;
+      if (response.ok && payload.id) {
+        return payload.id;
+      }
+      lastDetail =
+        payload.error?.message || `status ${response.status} sem id`;
+      this.logger.warn(
+        `Pasta ${pathFromRoot} ainda não resolvida: ${lastDetail}`,
+      );
+    }
+    throw new ServiceUnavailableException(
+      `Pasta OneDrive não encontrada após criar: ${pathFromRoot} (${lastDetail})`,
+    );
+  }
+
+  /**
+   * Lê permissões do item e devolve webUrl de link anonymous, se existir.
+   */
+  private async buscarLinkAnonimoNasPermissoes(
+    itemId: string,
+    accessToken: string,
+  ): Promise<string | null> {
+    const response = await fetch(
+      `${GRAPH_BASE}/me/drive/items/${encodeURIComponent(itemId)}/permissions`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      },
+    );
+    const payload = (await response.json().catch(() => ({}))) as {
+      value?: Array<{
+        id?: string;
+        link?: { scope?: string; type?: string; webUrl?: string };
+      }>;
+      error?: { message?: string };
+    };
+    if (!response.ok) {
+      this.logger.warn(
+        `Falha ao listar permissions item=${itemId}: ${payload.error?.message || response.status}`,
+      );
+      return null;
+    }
+    for (const permission of payload.value ?? []) {
+      const link = permission.link;
+      if (
+        link?.scope === 'anonymous' &&
+        (link.type === 'view' || link.type === 'edit') &&
+        link.webUrl?.trim()
+      ) {
+        return link.webUrl.trim();
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Cria link view + anonymous no item (pasta) e retorna webUrl.
+   */
+  private async criarLinkAnonimoPorItemId(
+    itemId: string,
+    accessToken: string,
+  ): Promise<string> {
+    const attempts = [0, 600, 1400];
+    let lastDetail = 'falha createLink';
+    for (const delay of attempts) {
+      if (delay > 0) {
+        await this.aguardarMs(delay);
+      }
+      const response = await fetch(
+        `${GRAPH_BASE}/me/drive/items/${encodeURIComponent(itemId)}/createLink`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            type: 'view',
+            scope: 'anonymous',
+          }),
+        },
+      );
+      const payload = (await response
+        .json()
+        .catch(() => ({}))) as GraphCreateLinkResponse;
+      const webUrl = payload.link?.webUrl?.trim();
+      const scope = payload.link?.scope;
+      if (response.ok && webUrl) {
+        if (scope && scope !== 'anonymous') {
+          lastDetail = `scope inesperado: ${scope}`;
+          this.logger.warn(
+            `createLink retornou scope=${scope} (esperado anonymous) item=${itemId}`,
+          );
+          continue;
+        }
+        this.logger.log(
+          `createLink ok item=${itemId} scope=${scope || 'n/d'} type=${payload.link?.type || 'n/d'}`,
+        );
+        return webUrl;
+      }
+      lastDetail =
+        payload.error?.message || `status ${response.status} sem webUrl`;
+      this.logger.warn(`createLink falhou item=${itemId}: ${lastDetail}`);
+    }
+    throw new ServiceUnavailableException(
+      `Falha ao publicar pasta OneDrive: ${lastDetail}`,
+    );
+  }
+
+  private async removerLinksAnonimosDoItem(
+    itemId: string,
+    accessToken: string,
+  ): Promise<void> {
+    const response = await fetch(
+      `${GRAPH_BASE}/me/drive/items/${encodeURIComponent(itemId)}/permissions`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      },
+    );
+    const payload = (await response.json().catch(() => ({}))) as {
+      value?: Array<{
+        id?: string;
+        link?: { scope?: string; webUrl?: string };
+      }>;
+    };
+    if (!response.ok) return;
+    for (const permission of payload.value ?? []) {
+      if (permission.link?.scope !== 'anonymous' || !permission.id) continue;
+      const del = await fetch(
+        `${GRAPH_BASE}/me/drive/items/${encodeURIComponent(itemId)}/permissions/${encodeURIComponent(permission.id)}`,
+        {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${accessToken}` },
+        },
+      );
+      if (del.ok || del.status === 204 || del.status === 404) {
+        this.logger.log(
+          `Link anônimo removido item=${itemId} permission=${permission.id}`,
+        );
+      } else {
+        this.logger.warn(
+          `Falha ao remover permission ${permission.id} item=${itemId}: ${del.status}`,
+        );
+      }
+    }
+  }
+
+  private aguardarMs(ms: number): Promise<void> {
+    return new Promise((resolve) => {
+      setTimeout(resolve, ms);
+    });
   }
 
   /**

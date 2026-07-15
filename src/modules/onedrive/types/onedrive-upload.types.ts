@@ -25,3 +25,17 @@ export interface GraphDriveItemResponse {
     message?: string;
   };
 }
+
+export interface GraphCreateLinkResponse {
+  id?: string;
+  roles?: string[];
+  link?: {
+    type?: string;
+    scope?: string;
+    webUrl?: string;
+  };
+  error?: {
+    code?: string;
+    message?: string;
+  };
+}

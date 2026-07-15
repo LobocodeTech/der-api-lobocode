@@ -114,6 +114,12 @@ DER_Relatórios_OS/
 
 Só são criadas as pastas de tipo selecionadas/com dados. O export Excel local (desktop) permanece inalterado.
 
+A pasta mãe (`ONEDRIVE_FOLDER_PATH`) é publicada com link anônimo **somente leitura** via Graph `createLink` (`view` + `anonymous`). No OneDrive pessoal moderno (conta migrada / `microsoftpersonalcontent`), o Graph gera `1drv.ms` **inválido se a pasta estiver vazia** — a API garante um `LEIA-ME.txt` (ou usa os arquivos do export) antes de publicar. O link volta no response do export (`folderShareUrl` / `webUrl`) e também em:
+
+```http
+GET /reports/work-orders/export/onedrive/folder-link
+```
+
 ## 6. Renovação e falhas
 
 - Se o refresh token for revogado (senha alterada, consent removido), rode o script de setup novamente e atualize o `.env`.

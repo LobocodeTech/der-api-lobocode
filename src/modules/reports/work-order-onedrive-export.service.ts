@@ -122,17 +122,36 @@ export class WorkOrderOneDriveExportService {
       files: pacote.files,
     });
     this.logger.log(
-      `Pacote OneDrive enviado: ${upload.packagePath} (${upload.uploadedFiles} arquivos, ${workOrders.length} OS) pastas=[${pacote.workOrderFolderNames.join(' | ')}]`,
+      `Pacote OneDrive enviado: ${upload.packagePath} (${upload.uploadedFiles} arquivos, ${workOrders.length} OS) pastas=[${pacote.workOrderFolderNames.join(' | ')}] share=${upload.folderShareUrl}`,
     );
     return {
       id: upload.packagePath,
       name: upload.packagePath,
-      webUrl: null as string | null,
+      webUrl: upload.folderShareUrl,
+      folderShareUrl: upload.folderShareUrl,
       size: null as number | null,
       packagePath: upload.packagePath,
       uploadedFiles: upload.uploadedFiles,
       workOrderCount: workOrders.length,
       workOrderFolders: pacote.workOrderFolderNames,
+    };
+  }
+
+  /**
+   * Retorna o link anônimo da pasta mãe OneDrive (reusa se já existir).
+   */
+  async obterLinkPublicoPastaRaiz(): Promise<{
+    packagePath: string;
+    folderShareUrl: string;
+    webUrl: string;
+  }> {
+    const packagePath = this.oneDriveUploadService.obterPastaDestino();
+    const folderShareUrl =
+      await this.oneDriveUploadService.obterOuCriarLinkPublicoPastaRaiz();
+    return {
+      packagePath,
+      folderShareUrl,
+      webUrl: folderShareUrl,
     };
   }
 

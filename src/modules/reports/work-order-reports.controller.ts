@@ -53,6 +53,15 @@ export class WorkOrderReportsController {
   }
 
   /**
+   * Garante pasta mãe pública (qualquer pessoa com o link, só leitura)
+   * e devolve a URL compartilhável.
+   */
+  @Get('export/onedrive/folder-link')
+  obterLinkPastaOneDrive() {
+    return this.oneDriveExportService.obterLinkPublicoPastaRaiz();
+  }
+
+  /**
    * Recebe XLSXs + manifesto + filtros e sobe pacote OneDrive por tipo
    * (Relatorio consolidado na raiz + pasta por OS com checklist/evidências).
    */
