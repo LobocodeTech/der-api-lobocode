@@ -76,6 +76,11 @@ export class WorkOrderReportFilterDto {
   @IsCUID()
   assigneeId?: string;
 
+  /** Quando informado, restringe o pacote OneDrive a uma única OS. */
+  @IsOptional()
+  @IsCUID()
+  workOrderId?: string;
+
   @IsOptional()
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()

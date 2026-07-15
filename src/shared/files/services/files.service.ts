@@ -316,6 +316,30 @@ export class FilesService {
     }
   }
 
+  /**
+   * Baixa o conteúdo binário do MinIO a partir do id do File.
+   */
+  async obterBufferPorId(id: string): Promise<{
+    buffer: Buffer;
+    originalName: string;
+    mimeType: string;
+  }> {
+    const file = await this.getFileById(id);
+    const stream = await this.minioClient.getObject(
+      this.bucketName,
+      file.fileName,
+    );
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    return {
+      buffer: Buffer.concat(chunks),
+      originalName: file.originalName,
+      mimeType: file.mimeType,
+    };
+  }
+
   async deleteFile(id: string): Promise<void> {
     try {
       const file = await this.prisma.file.findUnique({
