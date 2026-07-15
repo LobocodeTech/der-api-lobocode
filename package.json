@@ -32,7 +32,8 @@
     "prisma:erd": "npx prisma generate",
     "dev:setup": "npm run db:init:dev && npm run prisma:seed",
     "prisma:pull": "prisma db pull",
-    "prisma:push": "prisma db push"
+    "prisma:push": "prisma db push",
+    "onedrive:oauth-setup": "node scripts/onedrive-oauth-setup.mjs"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
