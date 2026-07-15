@@ -173,10 +173,25 @@ export class WorkOrderReportsService {
       ...where,
       type: WorkOrderType.CORRECTIVE,
     };
+    const wherePreventiva: Prisma.WorkOrderWhereInput = {
+      ...where,
+      type: WorkOrderType.PREVENTIVE,
+    };
+    const whereGeral: Prisma.WorkOrderWhereInput = {
+      ...where,
+      type: WorkOrderType.GENERAL,
+    };
     const [
       totalCorretivas,
-      emAndamento,
-      finalizadas,
+      corretivasEmAndamento,
+      corretivasFinalizadas,
+      corretivasAtrasadas,
+      totalPreventivas,
+      preventivasEmAndamento,
+      preventivasFinalizadas,
+      totalGerais,
+      geraisEmAndamento,
+      geraisFinalizadas,
       totalPausasCount,
       resumeCount,
     ] = await this.prisma.$transaction([
@@ -190,6 +205,38 @@ export class WorkOrderReportsService {
       this.prisma.workOrder.count({
         where: {
           ...whereCorretiva,
+          status: WorkOrderStatus.COMPLETED,
+        },
+      }),
+      this.prisma.workOrder.count({
+        where: {
+          ...whereCorretiva,
+          slaStatusExtended: { in: CORRECTIVE_SLA_NEGATIVE_STATUSES },
+        },
+      }),
+      this.prisma.workOrder.count({ where: wherePreventiva }),
+      this.prisma.workOrder.count({
+        where: {
+          ...wherePreventiva,
+          status: { in: IN_PROGRESS_STATUSES },
+        },
+      }),
+      this.prisma.workOrder.count({
+        where: {
+          ...wherePreventiva,
+          status: WorkOrderStatus.COMPLETED,
+        },
+      }),
+      this.prisma.workOrder.count({ where: whereGeral }),
+      this.prisma.workOrder.count({
+        where: {
+          ...whereGeral,
+          status: { in: IN_PROGRESS_STATUSES },
+        },
+      }),
+      this.prisma.workOrder.count({
+        where: {
+          ...whereGeral,
           status: WorkOrderStatus.COMPLETED,
         },
       }),
@@ -211,7 +258,6 @@ export class WorkOrderReportsService {
       take: EXPORT_MAX_ROWS,
       select: RESUMO_CORRETIVA_SLA_SELECT,
     });
-    let atrasadas = 0;
     let slaPositivo = 0;
     let slaNegativo = 0;
     let totalPausedSeconds = 0;
@@ -223,7 +269,6 @@ export class WorkOrderReportsService {
       totalPausedSeconds += metricas.totalPausedSeconds;
       if (metricas.isLate) {
         slaNegativo += 1;
-        atrasadas += 1;
         continue;
       }
       if (registro.slaStartAt) {
@@ -238,17 +283,88 @@ export class WorkOrderReportsService {
       totalComSla > 0
         ? Number(((slaPositivo / totalComSla) * 100).toFixed(1))
         : 0;
+    const preventivaAtrasadas = await this.prisma.workOrder.count({
+      where: {
+        ...wherePreventiva,
+        slaStatus: WorkOrderSlaStatus.OVERDUE,
+      },
+    });
+    const preventivaOnTime = await this.prisma.workOrder.count({
+      where: {
+        ...wherePreventiva,
+        slaStatus: WorkOrderSlaStatus.OK,
+      },
+    });
+    const preventivaNearDue = await this.prisma.workOrder.count({
+      where: {
+        ...wherePreventiva,
+        slaStatus: WorkOrderSlaStatus.WARNING,
+      },
+    });
+    const geralAtrasadas = await this.prisma.workOrder.count({
+      where: {
+        ...whereGeral,
+        slaStatus: WorkOrderSlaStatus.OVERDUE,
+      },
+    });
+    const geralOnTime = await this.prisma.workOrder.count({
+      where: {
+        ...whereGeral,
+        slaStatus: WorkOrderSlaStatus.OK,
+      },
+    });
+    const geralNearDue = await this.prisma.workOrder.count({
+      where: {
+        ...whereGeral,
+        slaStatus: WorkOrderSlaStatus.WARNING,
+      },
+    });
+    const preventivaTotalSla =
+      preventivaOnTime + preventivaNearDue + preventivaAtrasadas;
+    const preventivaComplianceRate =
+      preventivaTotalSla > 0
+        ? Number(((preventivaOnTime / preventivaTotalSla) * 100).toFixed(1))
+        : 0;
+    const geralTotalSla = geralOnTime + geralNearDue + geralAtrasadas;
+    const geralComplianceRate =
+      geralTotalSla > 0
+        ? Number(((geralOnTime / geralTotalSla) * 100).toFixed(1))
+        : 0;
     return {
       corrective: {
         total: totalCorretivas,
-        inProgress: emAndamento,
-        completed: finalizadas,
-        overdue: atrasadas,
+        inProgress: corretivasEmAndamento,
+        completed: corretivasFinalizadas,
+        overdue: corretivasAtrasadas,
+      },
+      preventive: {
+        total: totalPreventivas,
+        inProgress: preventivasEmAndamento,
+        completed: preventivasFinalizadas,
+        overdue: preventivaAtrasadas,
+      },
+      general: {
+        total: totalGerais,
+        inProgress: geraisEmAndamento,
+        completed: geraisFinalizadas,
+        overdue: geralAtrasadas,
       },
       sla: {
         positive: slaPositivo,
         negative: slaNegativo,
         complianceRate,
+      },
+      preventiveSla: {
+        onTime: preventivaOnTime,
+        nearDue: preventivaNearDue,
+        overdue: preventivaAtrasadas,
+        complianceRate: preventivaComplianceRate,
+      },
+      generalSla: {
+        onTime: geralOnTime,
+        nearDue: geralNearDue,
+        overdue: geralAtrasadas,
+        complianceRate: geralComplianceRate,
       },
       pauses: {
         totalCount: totalPausasCount,

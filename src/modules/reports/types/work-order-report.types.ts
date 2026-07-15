@@ -125,9 +125,33 @@ export interface WorkOrderReportSummary {
     completed: number;
     overdue: number;
   };
+  preventive: {
+    total: number;
+    inProgress: number;
+    completed: number;
+    overdue: number;
+  };
+  general: {
+    total: number;
+    inProgress: number;
+    completed: number;
+    overdue: number;
+  };
   sla: {
     positive: number;
     negative: number;
+    complianceRate: number;
+  };
+  preventiveSla: {
+    onTime: number;
+    nearDue: number;
+    overdue: number;
+    complianceRate: number;
+  };
+  generalSla: {
+    onTime: number;
+    nearDue: number;
+    overdue: number;
     complianceRate: number;
   };
   pauses: {
