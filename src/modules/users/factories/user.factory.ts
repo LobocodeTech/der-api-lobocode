@@ -18,8 +18,15 @@ export class UserFactory {
   }
 
   private criarUsuarioBase(dto: any, role: Roles): Prisma.UserCreateInput {
+    const rolesSemRegional: Roles[] = [
+      Roles.SYSTEM_ADMIN,
+      Roles.ADMIN,
+      Roles.C2C,
+    ];
     const regionalId =
-      typeof dto.regionalId === 'string' && dto.regionalId.trim()
+      !rolesSemRegional.includes(role) &&
+      typeof dto.regionalId === 'string' &&
+      dto.regionalId.trim()
         ? dto.regionalId.trim()
         : undefined;
     const userFunction =

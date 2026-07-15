@@ -414,8 +414,8 @@ export class BaseUserService {
     updateUserDto: UpdateUserDto,
   ): Record<string, any> {
     const updateData: Record<string, any> = {};
-    const nullableFields = ['profilePicture', 'phone'];
-    const ignoredFields = ['passwordConfirmation'];
+    const nullableFields = ['profilePicture', 'phone', 'regionalId'];
+    const ignoredFields = ['passwordConfirmation', 'fieldTeamMembers'];
 
     Object.entries(updateUserDto).forEach(([key, value]) => {
       if (ignoredFields.includes(key)) {
@@ -483,7 +483,9 @@ export class BaseUserService {
   /**
    * Remove campos sensíveis do usuário antes de responder para o frontend.
    */
-  private removerCamposSensiveis<T extends Record<string, any>>(user: T): Omit<T, 'password'> {
+  protected removerCamposSensiveis<T extends Record<string, any>>(
+    user: T,
+  ): Omit<T, 'password'> {
     const { password, ...safeUser } = user;
     return safeUser as Omit<T, 'password'>;
   }

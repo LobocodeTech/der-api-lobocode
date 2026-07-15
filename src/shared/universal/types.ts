@@ -15,7 +15,8 @@ export type EntityNameModel =
   | 'workOrderChecklistItem'
   | 'planning'
   | 'queue'
-  | 'ipLocation';
+  | 'ipLocation'
+  | 'fieldTeamMember';
 
 export type EntityNameCasl =
   | 'User'
@@ -29,7 +30,8 @@ export type EntityNameCasl =
   | 'WorkOrderChecklistItem'
   | 'Planning'
   | 'Queue'
-  | 'IpLocation';
+  | 'IpLocation'
+  | 'FieldTeamMember';
 
 // ============================================================================
 // 🔄 MAPEAMENTO AUTOMÁTICO MODEL ↔ CASL
@@ -52,6 +54,7 @@ export const ENTITY_MAPPING = {
   planning: 'Planning',
   queue: 'Queue',
   ipLocation: 'IpLocation',
+  fieldTeamMember: 'FieldTeamMember',
 } as const;
 
 /**
@@ -70,6 +73,7 @@ export const CASL_TO_MODEL_MAPPING = {
   Planning: 'planning',
   Queue: 'queue',
   IpLocation: 'ipLocation',
+  FieldTeamMember: 'fieldTeamMember',
 } as const;
 
 // ============================================================================
