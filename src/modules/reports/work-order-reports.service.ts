@@ -82,7 +82,56 @@ const RELATORIO_WORK_ORDER_INCLUDE = {
     select: { eventType: true, createdAt: true },
     orderBy: { createdAt: 'asc' as const },
   },
-};
+} as const;
+
+/** Include enriquecido — export completo (abas Excel por OS / OneDrive). */
+const RELATORIO_WORK_ORDER_DETALHES_INCLUDE = {
+  ...RELATORIO_WORK_ORDER_INCLUDE,
+  checklistItems: {
+    select: {
+      label: true,
+      isDone: true,
+      sortOrder: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+    orderBy: [{ sortOrder: 'asc' as const }, { createdAt: 'asc' as const }],
+  },
+  comments: {
+    select: {
+      text: true,
+      createdAt: true,
+      author: { select: { name: true } },
+    },
+    orderBy: { createdAt: 'asc' as const },
+  },
+  evidences: {
+    select: {
+      description: true,
+      createdAt: true,
+      file: {
+        select: {
+          originalName: true,
+          mimeType: true,
+          size: true,
+          url: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      },
+    },
+    orderBy: { createdAt: 'asc' as const },
+  },
+  workOrderPauseHistories: {
+    select: {
+      eventType: true,
+      reason: true,
+      createdAt: true,
+      pausedByUser: { select: { name: true } },
+    },
+    orderBy: { createdAt: 'asc' as const },
+  },
+} as const;
 
 type WorkOrderComRelacoes = Awaited<
   ReturnType<WorkOrderReportsService['buscarRegistrosRelatorio']>
@@ -395,14 +444,36 @@ export class WorkOrderReportsService {
   ): Promise<WorkOrderReportExportResponse> {
     const where = this.montarWhere(filtros);
     const orderBy = this.montarOrderBy(filtros);
+    /** Sempre enriquece no export: abas de OS única / pastas OneDrive por OS. */
+    const includeDetalhes = true;
     const registros = await this.buscarRegistrosRelatorio(
       where,
       orderBy,
       0,
       EXPORT_MAX_ROWS,
+      includeDetalhes,
     );
-    const itens = registros.map((registro) => this.mapearItem(registro));
-    const summary = await this.obterResumo(filtros);
+    const itens = registros.map((registro) =>
+      this.mapearItem(registro, includeDetalhes),
+    );
+    const isSingleOs = Boolean(filtros.workOrderId?.trim());
+    const summary = isSingleOs
+      ? {
+          corrective: { total: 0, inProgress: 0, completed: 0, overdue: 0 },
+          preventive: { total: 0, inProgress: 0, completed: 0, overdue: 0 },
+          general: { total: 0, inProgress: 0, completed: 0, overdue: 0 },
+          sla: { positive: 0, negative: 0, complianceRate: 0 },
+          preventiveSla: {
+            onTime: 0,
+            nearDue: 0,
+            overdue: 0,
+            complianceRate: 0,
+          },
+          generalSla: { onTime: 0, nearDue: 0, overdue: 0, complianceRate: 0 },
+          pauses: { totalCount: 0, totalPausedSeconds: 0 },
+          returns: { totalCount: 0 },
+        }
+      : await this.obterResumo(filtros);
     return {
       summary,
       corrective: itens.filter((item) => item.type === WorkOrderType.CORRECTIVE),
@@ -417,17 +488,27 @@ export class WorkOrderReportsService {
     orderBy: Prisma.WorkOrderOrderByWithRelationInput,
     skip: number,
     take: number,
+    includeDetalhes = false,
   ) {
     return this.prisma.workOrder.findMany({
       where,
       orderBy,
       skip,
       take,
-      include: RELATORIO_WORK_ORDER_INCLUDE,
+      include: includeDetalhes
+        ? RELATORIO_WORK_ORDER_DETALHES_INCLUDE
+        : RELATORIO_WORK_ORDER_INCLUDE,
     });
   }
 
   private montarWhere(filtros: WorkOrderReportFilterDto): Prisma.WorkOrderWhereInput {
+    if (filtros.workOrderId?.trim()) {
+      const baseWhere = this.queryService.construirWhereClauseParaRead(
+        'WorkOrder',
+        {},
+      );
+      return { AND: [baseWhere, { id: filtros.workOrderId.trim() }] };
+    }
     const { start, end } = resolverIntervaloPeriodoRelatorio(
       filtros.period,
       filtros.dateFrom,
@@ -559,7 +640,10 @@ export class WorkOrderReportsService {
     };
   }
 
-  private mapearItem(registro: WorkOrderComRelacoes): WorkOrderReportItem {
+  private mapearItem(
+    registro: WorkOrderComRelacoes,
+    includeDetalhes = false,
+  ): WorkOrderReportItem {
     const agora = new Date();
     const companyConfig = normalizarConfigEmpresaRelatorio(registro.company);
     const filasMapeadas = this.workOrderQueueUsersService.mapQueuesToResponse(
@@ -612,6 +696,9 @@ export class WorkOrderReportsService {
       queues,
       slaBucket: null,
     };
+    if (includeDetalhes) {
+      Object.assign(base, this.mapearDetalhesOsUnica(registro, agora));
+    }
     if (registro.type === WorkOrderType.CORRECTIVE) {
       const corrective = calcularMetricasCorretiva(
         this.construirEntradaMetricasCorretiva(registro),
@@ -674,6 +761,109 @@ export class WorkOrderReportsService {
     };
     base.slaBucket = dueDateSla.slaBucket;
     return base;
+  }
+
+  private mapearDetalhesOsUnica(
+    registro: WorkOrderComRelacoes,
+    agora: Date,
+  ): Pick<
+    WorkOrderReportItem,
+    'checklistItems' | 'evidences' | 'pauseEvents' | 'comments'
+  > {
+    const detalhado = registro as WorkOrderComRelacoes & {
+      checklistItems?: Array<{
+        label: string;
+        isDone: boolean;
+        sortOrder: number | null;
+        createdAt: Date;
+        updatedAt: Date;
+      }>;
+      evidences?: Array<{
+        description: string | null;
+        createdAt: Date;
+        file: {
+          originalName: string;
+          mimeType: string;
+          size: number;
+          url: string;
+          createdAt: Date;
+          updatedAt: Date;
+        } | null;
+      }>;
+      comments?: Array<{
+        text: string;
+        createdAt: Date;
+        author: { name: string } | null;
+      }>;
+      workOrderPauseHistories: Array<{
+        eventType: string;
+        reason?: string;
+        createdAt: Date;
+        pausedByUser?: { name: string } | null;
+      }>;
+    };
+    const pauseEventsRaw = [...(detalhado.workOrderPauseHistories ?? [])].sort(
+      (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
+    );
+    const pauseEvents = pauseEventsRaw.map((event, index) => {
+      let pausedSeconds: number | null = null;
+      if (event.eventType === 'PAUSE') {
+        const resume = pauseEventsRaw
+          .slice(index + 1)
+          .find((item) => item.eventType === 'RESUME');
+        const end = resume?.createdAt ?? agora;
+        pausedSeconds = Math.max(
+          0,
+          Math.floor((end.getTime() - event.createdAt.getTime()) / 1000),
+        );
+      } else if (event.eventType === 'RESUME') {
+        const pause = [...pauseEventsRaw]
+          .slice(0, index)
+          .reverse()
+          .find((item) => item.eventType === 'PAUSE');
+        if (pause) {
+          pausedSeconds = Math.max(
+            0,
+            Math.floor(
+              (event.createdAt.getTime() - pause.createdAt.getTime()) / 1000,
+            ),
+          );
+        }
+      }
+      return {
+        eventType: event.eventType,
+        reason: event.reason ?? '',
+        authorName: event.pausedByUser?.name ?? null,
+        createdAt: event.createdAt.toISOString(),
+        pausedSeconds,
+      };
+    });
+    return {
+      checklistItems: (detalhado.checklistItems ?? []).map((item) => ({
+        label: item.label,
+        isDone: item.isDone,
+        sortOrder: item.sortOrder,
+        createdAt: item.createdAt.toISOString(),
+        updatedAt: item.updatedAt.toISOString(),
+      })),
+      evidences: (detalhado.evidences ?? [])
+        .filter((item) => item.file)
+        .map((item) => ({
+          originalName: item.file!.originalName,
+          mimeType: item.file!.mimeType,
+          description: item.description,
+          size: item.file!.size,
+          url: item.file!.url,
+          createdAt: item.createdAt.toISOString(),
+          updatedAt: item.file!.updatedAt.toISOString(),
+        })),
+      pauseEvents,
+      comments: (detalhado.comments ?? []).map((comment) => ({
+        authorName: comment.author?.name ?? null,
+        text: comment.text,
+        createdAt: comment.createdAt.toISOString(),
+      })),
+    };
   }
 
   private mapearAtorRelatorio(

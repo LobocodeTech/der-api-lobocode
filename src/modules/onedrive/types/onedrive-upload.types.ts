@@ -3,6 +3,8 @@ export interface OneDriveUploadResult {
   name: string;
   webUrl: string | null;
   size: number | null;
+  /** true quando o item já existia e o upload foi ignorado. */
+  skipped?: boolean;
 }
 
 export interface MicrosoftTokenResponse {

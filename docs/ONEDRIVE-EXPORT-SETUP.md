@@ -64,7 +64,7 @@ MICROSOFT_CLIENT_ID=
 MICROSOFT_CLIENT_SECRET=
 MICROSOFT_REFRESH_TOKEN=
 ONEDRIVE_TENANT=consumers
-ONEDRIVE_FOLDER_PATH=DER_Relatórios_OS
+ONEDRIVE_FOLDER_PATH=DER
 ```
 
 | Variável | Obrigatória | Descrição |
@@ -73,7 +73,7 @@ ONEDRIVE_FOLDER_PATH=DER_Relatórios_OS
 | `MICROSOFT_CLIENT_SECRET` | Sim* | Client secret |
 | `MICROSOFT_REFRESH_TOKEN` | Sim* | Token do script de setup |
 | `ONEDRIVE_TENANT` | Não | Default: `consumers` (independente do `MICROSOFT_TENANT` do login) |
-| `ONEDRIVE_FOLDER_PATH` | Não | Pasta no OneDrive; default: `DER_Relatórios_OS` |
+| `ONEDRIVE_FOLDER_PATH` | Não | Pasta no OneDrive; default: `DER` |
 
 \*Obrigatórias apenas se for usar o botão OneDrive. Sem elas, a API responde erro claro pedindo configuração.
 
@@ -92,27 +92,29 @@ exportTypes: <JSON { corrective, preventive, general }>
 
 Roles: `SYSTEM_ADMIN`, `ADMIN` (igual aos demais endpoints de reports).
 
-Estrutura no OneDrive (`ONEDRIVE_FOLDER_PATH`, default `DER_Relatórios_OS`):
+Estrutura no OneDrive (`ONEDRIVE_FOLDER_PATH`, default `DER`):
 
 ```
-DER_Relatórios_OS/
-  Corretiva/
-    Relatorio OS Corretiva • Mensal.xlsx
-    OS-1 • 212 KM 212+121 • Corretiva/
+DER/
+  Relatórios Operacionais/
+    Relatório 16-07-2026 11h27m33s/
+      Corretiva/          ← sempre criada
+        Relatorio OS Corretiva • Mensal.xlsx
+        OS-1 • 212 KM 212+121 • Corretiva/
+          OS-1 • 212 KM 212+121 • Corretiva.xlsx
+      Preventiva/         ← sempre criada
+        Relatorio OS Preventiva • Mensal.xlsx
+        ...
+      Geral/              ← sempre criada
+        Relatorio OS Geral • Mensal.xlsx
+        ...
+  Relatórios Ordens de Serviço/
+    OS-1 • 212 KM 212+121 • Corretiva 17-07-2026 09h24m39s/
       OS-1 • 212 KM 212+121 • Corretiva.xlsx
-      checklist.txt
-      foto1.jpg
-  Preventiva/
-    Relatorio OS Preventiva • Mensal.xlsx
-    OS-2 • 065 KM 065+000 • Preventiva/
-      OS-2 • 065 KM 065+000 • Preventiva.xlsx
-      checklist.txt
-  Geral/
-    Relatorio OS Geral • Mensal.xlsx
-    ...
+        (abas: OS + Checklist + Evidências + Pausas e Retomadas + Comentários)
 ```
 
-Só são criadas as pastas de tipo selecionadas/com dados. O export Excel local (desktop) permanece inalterado.
+Cada export operacional gera uma pasta `Relatório {DD-MM-YYYY HHhMMmSSs}` com as três pastas de tipo (Corretiva, Preventiva, Geral), mesmo quando algum tipo não tem dados. Em todos os casos o OneDrive recebe **somente XLSX** — sem `.txt` nem arquivos de evidência soltos. O export individual de OS inclui as abas de detalhe no próprio Excel. O download Excel local do relatório operacional permanece sem essas abas de detalhe (volume).
 
 A pasta mãe (`ONEDRIVE_FOLDER_PATH`) é publicada com link anônimo **somente leitura** via Graph `createLink` (`view` + `anonymous`). No OneDrive pessoal moderno (conta migrada / `microsoftpersonalcontent`), o Graph gera `1drv.ms` **inválido se a pasta estiver vazia** — a API garante um `LEIA-ME.txt` (ou usa os arquivos do export) antes de publicar. O link volta no response do export (`folderShareUrl` / `webUrl`) e também em:
 
@@ -130,4 +132,4 @@ GET /reports/work-orders/export/onedrive/folder-link
 
 1. Configure as envs e reinicie a API.
 2. No app, em Relatórios → **OneDrive** → confirme tipos.
-3. Verifique na conta dedicada a pasta `DER_Relatórios_OS` com `Corretiva` / `Preventiva` / `Geral`.
+3. Verifique na conta dedicada a pasta `DER` com `Relatórios Operacionais` e/ou `Relatórios Ordens de Serviço`.

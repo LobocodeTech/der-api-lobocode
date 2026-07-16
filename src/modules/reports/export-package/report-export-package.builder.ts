@@ -1,9 +1,10 @@
 import { WorkOrderType } from '@prisma/client';
 import { formatarTituloLocalidadeKm } from './location-km-title.util';
 import {
-  montarConteudoComentarios,
-  montarConteudoPausasRetornos,
-} from './report-export-package-logs.util';
+  montarPastaSessaoRelatorioOperacional,
+  montarPastaSessaoRelatorioOs,
+  PASTAS_TIPO_OS,
+} from './report-export-onedrive-paths.util';
 import type {
   ReportExportPackageBuildResult,
   ReportExportPackageFile,
@@ -19,31 +20,60 @@ const PASTA_POR_TIPO: Record<string, ReportExportTypeFolder> = {
   [WorkOrderType.GENERAL]: 'Geral',
 };
 
-const CHECKLIST_PREFIX = '- ';
 const XLSX_MIME =
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
 /**
- * Estrutura:
- *   Corretiva/
- *     Relatorio OS Corretiva • Mensal.xlsx
- *     OS-1 • 212 KM 212+121 • Corretiva/
- *       OS-1 • 212 KM 212+121 • Corretiva.xlsx
- *       checklist.txt
- *       pausas-retornos.txt   (se houver)
- *       comentarios.txt       (se houver)
- *       evidencias...
- *   Preventiva/
- *   Geral/
+ * Estrutura OneDrive (somente XLSX — sem .txt nem evidências soltas):
+ *
+ * Relatório operacional:
+ *   Relatórios Operacionais/Relatório {ts}/{Corretiva|Preventiva|Geral}/
+ *     Relatorio OS ….xlsx
+ *     OS-1 • …/
+ *       ….xlsx
+ *
+ * Relatório individual de OS:
+ *   Relatórios Ordens de Serviço/{OS} {ts}/
+ *     ….xlsx  (com abas Checklist/Evidências/Pausas/Comentários)
  */
 export function construirPacoteExportacaoPorTipo(params: {
   workOrders: ReportExportPackageWorkOrderInput[];
   typeReports: ReportExportPackageTypeReportInput[];
   osReports: ReportExportPackageOsReportInput[];
+  exportedAt?: Date;
+}): ReportExportPackageBuildResult {
+  const exportedAt = params.exportedAt ?? new Date();
+  const isOperational = params.typeReports.some(
+    (report) => Boolean(report.buffer?.length),
+  );
+  if (isOperational) {
+    return construirPacoteOperacional({
+      workOrders: params.workOrders,
+      typeReports: params.typeReports,
+      osReports: params.osReports,
+      exportedAt,
+    });
+  }
+  return construirPacoteOsIndividual({
+    workOrders: params.workOrders,
+    osReports: params.osReports,
+    exportedAt,
+  });
+}
+
+function construirPacoteOperacional(params: {
+  workOrders: ReportExportPackageWorkOrderInput[];
+  typeReports: ReportExportPackageTypeReportInput[];
+  osReports: ReportExportPackageOsReportInput[];
+  exportedAt: Date;
 }): ReportExportPackageBuildResult {
   const files: ReportExportPackageFile[] = [];
   const workOrderFolderNames: string[] = [];
   const usedFolderNamesByType = new Map<string, Set<string>>();
+  const sessionFolder = montarPastaSessaoRelatorioOperacional(params.exportedAt);
+  const ensureFolders = PASTAS_TIPO_OS.map(
+    (typeFolder) => `${sessionFolder}/${typeFolder}`,
+  );
   for (const report of params.typeReports) {
     if (!report.buffer?.length) continue;
     const typeFolder = sanitizarSegmentoPath(report.typeFolder);
@@ -51,7 +81,7 @@ export function construirPacoteExportacaoPorTipo(params: {
       report.fileName || `Relatorio OS ${typeFolder}.xlsx`,
     );
     files.push({
-      relativePath: `${typeFolder}/${fileName}`,
+      relativePath: `${sessionFolder}/${typeFolder}/${fileName}`,
       buffer: report.buffer,
       contentType: report.contentType || XLSX_MIME,
     });
@@ -69,59 +99,78 @@ export function construirPacoteExportacaoPorTipo(params: {
       : montarNomePastaOrdem(order);
     folderName = garantirNomeUnico(folderName, used);
     used.add(folderName.toLowerCase());
-    workOrderFolderNames.push(`${typeFolder}/${folderName}`);
-    const osPath = `${typeFolder}/${folderName}`;
-    if (order.checklistItems.length > 0) {
-      files.push({
-        relativePath: `${osPath}/checklist.txt`,
-        buffer: Buffer.from(
-          montarConteudoChecklist(order.checklistItems),
-          'utf8',
-        ),
-        contentType: 'text/plain; charset=utf-8',
-      });
-    }
-    const pausasTxt = montarConteudoPausasRetornos(order);
-    if (pausasTxt) {
-      files.push({
-        relativePath: `${osPath}/pausas-retornos.txt`,
-        buffer: Buffer.from(pausasTxt, 'utf8'),
-        contentType: 'text/plain; charset=utf-8',
-      });
-    }
-    const comentariosTxt = montarConteudoComentarios(order);
-    if (comentariosTxt) {
-      files.push({
-        relativePath: `${osPath}/comentarios.txt`,
-        buffer: Buffer.from(comentariosTxt, 'utf8'),
-        contentType: 'text/plain; charset=utf-8',
-      });
-    }
-    if (osReport?.buffer?.length) {
-      // Sempre o mesmo nome da pasta (inclui sufixo de unicidade, se houver).
-      const osFileName = sanitizarSegmentoPath(`${folderName}.xlsx`);
-      files.push({
-        relativePath: `${osPath}/${osFileName}`,
-        buffer: osReport.buffer,
-        contentType: osReport.contentType || XLSX_MIME,
-      });
-    }
-    const usedEvidenceNames = new Set<string>();
-    for (const evidence of order.evidences) {
-      if (!evidence.buffer?.length) continue;
-      const baseName = sanitizarSegmentoPath(
-        evidence.originalName || 'evidencia.bin',
-      );
-      const uniqueName = garantirNomeUnico(baseName, usedEvidenceNames);
-      usedEvidenceNames.add(uniqueName.toLowerCase());
-      files.push({
-        relativePath: `${osPath}/${uniqueName}`,
-        buffer: evidence.buffer,
-        contentType: evidence.mimeType || 'application/octet-stream',
-      });
-    }
+    const osPath = `${sessionFolder}/${typeFolder}/${folderName}`;
+    workOrderFolderNames.push(osPath);
+    anexarExcelDaOs({
+      files,
+      osPath,
+      osReport,
+      folderName,
+    });
   }
-  return { packageFolderName: '', files, workOrderFolderNames };
+  return {
+    packageFolderName: sessionFolder,
+    files,
+    workOrderFolderNames,
+    ensureFolders,
+  };
+}
+
+function construirPacoteOsIndividual(params: {
+  workOrders: ReportExportPackageWorkOrderInput[];
+  osReports: ReportExportPackageOsReportInput[];
+  exportedAt: Date;
+}): ReportExportPackageBuildResult {
+  const files: ReportExportPackageFile[] = [];
+  const workOrderFolderNames: string[] = [];
+  const usedFolderNames = new Set<string>();
+  const osReportByWorkOrderId = new Map(
+    params.osReports.map((report) => [report.workOrderId, report]),
+  );
+  let packageFolderName = montarPastaSessaoRelatorioOs('OS', params.exportedAt);
+  for (const order of params.workOrders) {
+    const osReport = osReportByWorkOrderId.get(order.id);
+    let folderNameBase = osReport?.folderName?.trim()
+      ? sanitizarSegmentoPath(osReport.folderName)
+      : montarNomePastaOrdem(order);
+    folderNameBase = garantirNomeUnico(folderNameBase, usedFolderNames);
+    usedFolderNames.add(folderNameBase.toLowerCase());
+    const osPath = montarPastaSessaoRelatorioOs(
+      folderNameBase,
+      params.exportedAt,
+    );
+    packageFolderName = osPath;
+    workOrderFolderNames.push(osPath);
+    anexarExcelDaOs({
+      files,
+      osPath,
+      osReport,
+      folderName: folderNameBase,
+    });
+  }
+  return {
+    packageFolderName,
+    files,
+    workOrderFolderNames,
+    ensureFolders: workOrderFolderNames,
+  };
+}
+
+/** Anexa apenas o XLSX da OS (sem .txt nem evidências soltas). */
+function anexarExcelDaOs(params: {
+  files: ReportExportPackageFile[];
+  osPath: string;
+  osReport: ReportExportPackageOsReportInput | undefined;
+  folderName: string;
+}): void {
+  const { files, osPath, osReport, folderName } = params;
+  if (!osReport?.buffer?.length) return;
+  const osFileName = sanitizarSegmentoPath(`${folderName}.xlsx`);
+  files.push({
+    relativePath: `${osPath}/${osFileName}`,
+    buffer: osReport.buffer,
+    contentType: osReport.contentType || XLSX_MIME,
+  });
 }
 
 export function resolverPastaTipo(type: string): ReportExportTypeFolder {
@@ -145,37 +194,6 @@ export function montarNomePastaOrdem(
   });
   const tipo = PASTA_POR_TIPO[order.type] || order.type || 'OS';
   return sanitizarSegmentoPath(`${codigo} • ${localidade} • ${tipo}`);
-}
-
-export function montarConteudoChecklist(
-  items: ReportExportPackageWorkOrderInput['checklistItems'],
-): string {
-  const ordered = [...items].sort((a, b) => {
-    const sa = a.sortOrder ?? Number.MAX_SAFE_INTEGER;
-    const sb = b.sortOrder ?? Number.MAX_SAFE_INTEGER;
-    if (sa !== sb) return sa - sb;
-    return a.label.localeCompare(b.label, 'pt-BR');
-  });
-  const lines: string[] = [];
-  if (ordered.length === 0) {
-    lines.push(`${CHECKLIST_PREFIX}Nenhum item no checklist.`);
-  } else {
-    for (const item of ordered) {
-      const label = String(item.label ?? '').trim() || 'Item sem título';
-      const parts = label
-        .split(/\r?\n/)
-        .map((part) => part.trim())
-        .filter(Boolean);
-      if (parts.length === 0) {
-        lines.push(`${CHECKLIST_PREFIX}Item sem título`);
-        continue;
-      }
-      for (const part of parts) {
-        lines.push(`${CHECKLIST_PREFIX}${part}`);
-      }
-    }
-  }
-  return `\uFEFF${lines.join('\r\n')}\r\n`;
 }
 
 function sanitizarSegmentoPath(value: string): string {
