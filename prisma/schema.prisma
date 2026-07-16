@@ -232,17 +232,20 @@ model User {
   passwordResetTokens     PasswordResetToken[]
   fieldTeamMembers        FieldTeamMember[]
 
-  files             File[]                    @relation("UserFiles")
-  documentsSent     Document[]                @relation("DocumentSender")
-  notifications     NotificationRecipient[]   @relation("UserNotifications")
-  groupMemberships  NotificationGroupMember[] @relation("UserGroupMemberships")
-  pushSubscriptions PushSubscription[]        @relation("UserPushSubscriptions")
-  workOrderComments WorkOrderComment[]        @relation("WorkOrderCommentsAuthor")
-  workOrdersCreated WorkOrder[]               @relation("WorkOrdersCreatedBy")
-  workOrdersUpdated WorkOrder[]               @relation("WorkOrdersUpdatedBy")
-  workOrdersStarted   WorkOrder[]             @relation("WorkOrdersStartedBy")
-  workOrdersCompleted WorkOrder[]             @relation("WorkOrdersCompletedBy")
-  workOrdersApproved  WorkOrder[]             @relation("WorkOrdersApprovedBy")
+  // TODO: refatoração futura
+  // userNotificationPreferences UserNotificationPreferences[]
+
+  files               File[]                    @relation("UserFiles")
+  documentsSent       Document[]                @relation("DocumentSender")
+  notifications       NotificationRecipient[]   @relation("UserNotifications")
+  groupMemberships    NotificationGroupMember[] @relation("UserGroupMemberships")
+  pushSubscriptions   PushSubscription[]        @relation("UserPushSubscriptions")
+  workOrderComments   WorkOrderComment[]        @relation("WorkOrderCommentsAuthor")
+  workOrdersCreated   WorkOrder[]               @relation("WorkOrdersCreatedBy")
+  workOrdersUpdated   WorkOrder[]               @relation("WorkOrdersUpdatedBy")
+  workOrdersStarted   WorkOrder[]               @relation("WorkOrdersStartedBy")
+  workOrdersCompleted WorkOrder[]               @relation("WorkOrdersCompletedBy")
+  workOrdersApproved  WorkOrder[]               @relation("WorkOrdersApprovedBy")
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -256,6 +259,24 @@ model User {
   @@index([createdAt])
 }
 
+// TODO: refatoração futura
+/**
+ * model UserNotificationPreferences {
+ * id String @id @default(cuid())
+ * email Boolean @default(true)
+ * push  Boolean @default(true)
+ * activitiesAssignments Boolean @default(true)
+ * activitiesComments    Boolean @default(true)
+ * activitiesDeadlines   Boolean @default(true)
+ * activitiesReports     Boolean @default(true)
+ * userId String
+ * user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+ * createdAt DateTime @default(now())
+ * updatedAt DateTime @updatedAt
+ * @@index([userId])
+ * }
+ */
+
 model FieldTeamMember {
   id    String @id @default(cuid())
   name  String
@@ -267,8 +288,8 @@ model FieldTeamMember {
   companyId String
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
   @@unique([userId, id])
@@ -345,6 +366,9 @@ model Asset {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
+  // TODO: refatoração futura
+  //assetIpAddresses AssetIpAddress[]
+
   @@index([companyId])
   @@index([locationId])
   @@index([status])
@@ -352,6 +376,18 @@ model Asset {
   @@index([connectionType])
   @@index([deletedAt])
 }
+
+// TODO: refatoração futura
+/**
+ * model AssetIpAddress {
+ * id          String  @id @default(cuid())
+ * ip          String
+ * description String?
+ * sortOrder   Int     @default(0)
+ * assetId String
+ * asset   Asset  @relation(fields: [assetId], references: [id], onDelete: Cascade)
+ * }
+ */
 
 // ===============================================
 // REGIONAIS
@@ -367,6 +403,17 @@ model Regional {
   latitude  Float?
   longitude Float?
   address   Json?
+
+  // TODO: refatoração futura
+  /**
+   * street String?
+   * number String?
+   * complement String?
+   * neighborhood String?
+   * state String?
+   * zipCode String?
+   * country String? @default("Brasil")
+   */
 
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   companyId String
