@@ -133,6 +133,44 @@ export interface WorkOrderReportItem {
   correctiveLive?: WorkOrderReportCorrectiveLiveContext;
   dueDateSla?: WorkOrderReportDueDateMetrics;
   dueDateLive?: WorkOrderReportDueDateLiveContext;
+  /** Detalhes da OS — preenchidos no endpoint de export (abas Excel por OS). */
+  checklistItems?: WorkOrderReportChecklistItem[];
+  evidences?: WorkOrderReportEvidenceItem[];
+  pauseEvents?: WorkOrderReportPauseEventItem[];
+  comments?: WorkOrderReportCommentItem[];
+}
+
+export interface WorkOrderReportChecklistItem {
+  label: string;
+  isDone: boolean;
+  sortOrder: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkOrderReportEvidenceItem {
+  originalName: string;
+  mimeType: string;
+  description: string | null;
+  size: number;
+  url: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkOrderReportPauseEventItem {
+  eventType: 'PAUSE' | 'RESUME' | string;
+  reason: string;
+  authorName: string | null;
+  createdAt: string;
+  /** Segundos pausados do ciclo (preenchido no cliente/servidor). */
+  pausedSeconds?: number | null;
+}
+
+export interface WorkOrderReportCommentItem {
+  authorName: string | null;
+  text: string;
+  createdAt: string;
 }
 
 export interface WorkOrderReportSummary {

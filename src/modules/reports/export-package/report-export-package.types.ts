@@ -73,6 +73,8 @@ export interface ReportExportPackageBuildResult {
   packageFolderName: string;
   files: ReportExportPackageFile[];
   workOrderFolderNames: string[];
+  /** Pastas a garantir no OneDrive mesmo sem arquivo (ex.: tipos vazios). */
+  ensureFolders: string[];
 }
 
 /** Manifesto enviado pelo frontend (ordem bate com o array `files` do multipart). */

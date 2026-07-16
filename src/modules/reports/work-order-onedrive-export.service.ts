@@ -1,6 +1,5 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { Prisma, WorkOrderType } from '@prisma/client';
-import { FilesService } from 'src/shared/files/services/files.service';
 import { PrismaService } from 'src/shared/prisma/prisma.service';
 import { UniversalQueryService } from 'src/shared/universal';
 import { OneDriveUploadService } from '../onedrive/services/onedrive-upload.service';
@@ -19,6 +18,7 @@ const EXPORT_MAX_ROWS = 10_000;
 const XLSX_MIME =
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
+/** Só o necessário para nomear pastas — detalhes vão no XLSX gerado no frontend. */
 const PACOTE_WORK_ORDER_INCLUDE = {
   location: {
     select: {
@@ -26,45 +26,6 @@ const PACOTE_WORK_ORDER_INCLUDE = {
       referenceKm: true,
       name: true,
     },
-  },
-  checklistItems: {
-    select: { label: true, isDone: true, sortOrder: true },
-    orderBy: [{ sortOrder: 'asc' as const }, { createdAt: 'asc' as const }],
-  },
-  workOrderPauseHistories: {
-    select: {
-      eventType: true,
-      reason: true,
-      createdAt: true,
-      pausedByUser: {
-        select: { name: true },
-      },
-    },
-    orderBy: { createdAt: 'asc' as const },
-  },
-  comments: {
-    select: {
-      text: true,
-      createdAt: true,
-      author: {
-        select: { name: true },
-      },
-    },
-    orderBy: { createdAt: 'asc' as const },
-  },
-  evidences: {
-    select: {
-      id: true,
-      fileId: true,
-      file: {
-        select: {
-          id: true,
-          originalName: true,
-          mimeType: true,
-        },
-      },
-    },
-    orderBy: { createdAt: 'asc' as const },
   },
 } satisfies Prisma.WorkOrderInclude;
 
@@ -75,9 +36,10 @@ type UploadedReportFile = {
 };
 
 /**
- * Orquestra export OneDrive por tipo:
- * DER_Relatórios_OS/{Corretiva|Preventiva|Geral}/Relatorio.xlsx
- * + pastas por OS (Relatorio.xlsx sem resumo + checklist + evidências).
+ * Orquestra export OneDrive:
+ * DER/Relatórios Operacionais/Relatório {data hora}/{Corretiva|Preventiva|Geral}/…
+ * DER/Relatórios Ordens de Serviço/{OS} {data hora}/…
+ * Somente XLSX (sem .txt nem evidências soltas).
  */
 @Injectable()
 export class WorkOrderOneDriveExportService {
@@ -86,7 +48,6 @@ export class WorkOrderOneDriveExportService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly queryService: UniversalQueryService,
-    private readonly filesService: FilesService,
     private readonly oneDriveUploadService: OneDriveUploadService,
   ) {}
 
@@ -112,7 +73,7 @@ export class WorkOrderOneDriveExportService {
       params.filtros,
       params.exportTypes,
     );
-    const workOrders = await this.montarEntradasPacote(registros);
+    const workOrders = this.montarEntradasPacote(registros);
     const pacote = construirPacoteExportacaoPorTipo({
       workOrders,
       typeReports,
@@ -120,18 +81,20 @@ export class WorkOrderOneDriveExportService {
     });
     const upload = await this.oneDriveUploadService.enviarPacote({
       files: pacote.files,
+      ensureFolders: pacote.ensureFolders,
     });
     this.logger.log(
-      `Pacote OneDrive enviado: ${upload.packagePath} (${upload.uploadedFiles} arquivos, ${workOrders.length} OS) pastas=[${pacote.workOrderFolderNames.join(' | ')}] share=${upload.folderShareUrl}`,
+      `Pacote OneDrive enviado: ${pacote.packageFolderName || upload.packagePath} (enviados=${upload.uploadedFiles}, ignorados=${upload.skippedFiles}, ${workOrders.length} OS) pastas=[${pacote.workOrderFolderNames.join(' | ')}] share=${upload.folderShareUrl}`,
     );
     return {
-      id: upload.packagePath,
-      name: upload.packagePath,
+      id: pacote.packageFolderName || upload.packagePath,
+      name: pacote.packageFolderName || upload.packagePath,
       webUrl: upload.folderShareUrl,
       folderShareUrl: upload.folderShareUrl,
       size: null as number | null,
-      packagePath: upload.packagePath,
+      packagePath: pacote.packageFolderName || upload.packagePath,
       uploadedFiles: upload.uploadedFiles,
+      skippedFiles: upload.skippedFiles,
       workOrderCount: workOrders.length,
       workOrderFolders: pacote.workOrderFolderNames,
     };
@@ -273,7 +236,7 @@ export class WorkOrderOneDriveExportService {
     return { AND: [baseWhere, ...and] };
   }
 
-  private async montarEntradasPacote(
+  private montarEntradasPacote(
     registros: Array<{
       id: string;
       sequentialNumber: string | null;
@@ -283,81 +246,18 @@ export class WorkOrderOneDriveExportService {
         referenceKm: string | null;
         name: string | null;
       } | null;
-      checklistItems: Array<{
-        label: string;
-        isDone: boolean;
-        sortOrder: number | null;
-      }>;
-      workOrderPauseHistories: Array<{
-        eventType: string;
-        reason: string;
-        createdAt: Date;
-        pausedByUser: { name: string } | null;
-      }>;
-      comments: Array<{
-        text: string;
-        createdAt: Date;
-        author: { name: string } | null;
-      }>;
-      evidences: Array<{
-        fileId: string;
-        file: { id: string; originalName: string; mimeType: string } | null;
-      }>;
     }>,
-  ): Promise<ReportExportPackageWorkOrderInput[]> {
-    return Promise.all(
-      registros.map(async (registro) => {
-        const evidenceResults = await Promise.all(
-          registro.evidences.map(async (evidence) => {
-            if (!evidence.fileId) return null;
-            try {
-              const file = await this.filesService.obterBufferPorId(
-                evidence.fileId,
-              );
-              return {
-                originalName: file.originalName,
-                mimeType: file.mimeType,
-                buffer: file.buffer,
-              } satisfies ReportExportPackageWorkOrderInput['evidences'][number];
-            } catch (error) {
-              this.logger.warn(
-                `Evidência ${evidence.fileId} ignorada: ${
-                  error instanceof Error ? error.message : 'erro desconhecido'
-                }`,
-              );
-              return null;
-            }
-          }),
-        );
-        const evidences: ReportExportPackageWorkOrderInput['evidences'] = [];
-        for (const item of evidenceResults) {
-          if (item) evidences.push(item);
-        }
-        return {
-          id: registro.id,
-          sequentialNumber: registro.sequentialNumber,
-          type: registro.type,
-          locationCode: registro.location?.code,
-          locationKm: registro.location?.referenceKm,
-          checklistItems: registro.checklistItems.map((item) => ({
-            label: item.label,
-            isDone: item.isDone,
-            sortOrder: item.sortOrder,
-          })),
-          pauseEvents: registro.workOrderPauseHistories.map((event) => ({
-            eventType: event.eventType,
-            reason: event.reason,
-            createdAt: event.createdAt,
-            authorName: event.pausedByUser?.name,
-          })),
-          comments: registro.comments.map((comment) => ({
-            text: comment.text,
-            createdAt: comment.createdAt,
-            authorName: comment.author?.name,
-          })),
-          evidences,
-        };
-      }),
-    );
+  ): ReportExportPackageWorkOrderInput[] {
+    return registros.map((registro) => ({
+      id: registro.id,
+      sequentialNumber: registro.sequentialNumber,
+      type: registro.type,
+      locationCode: registro.location?.code,
+      locationKm: registro.location?.referenceKm,
+      checklistItems: [],
+      pauseEvents: [],
+      comments: [],
+      evidences: [],
+    }));
   }
 }

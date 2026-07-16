@@ -15,7 +15,9 @@ import { MicrosoftGraphAuthService } from './microsoft-graph-auth.service';
 const GRAPH_BASE = 'https://graph.microsoft.com/v1.0';
 const SIMPLE_UPLOAD_MAX_BYTES = 4 * 1024 * 1024;
 /** Limite seguro para não estourar throttling do Graph. */
-const UPLOAD_CONCURRENCY = 6;
+const UPLOAD_CONCURRENCY = 10;
+/** Concorrência na criação de pastas no mesmo nível. */
+const FOLDER_CREATE_CONCURRENCY = 8;
 /**
  * OneDrive pessoal (microsoftpersonalcontent / migratedtospo): createLink em
  * pasta vazia gera 1drv.ms que abre 403/"inválido". Precisa de ao menos 1 arquivo.
@@ -97,6 +99,7 @@ export class OneDriveUploadService {
   /**
    * Envia vários arquivos com paths relativos a ONEDRIVE_FOLDER_PATH.
    * Cria pastas únicas uma vez e faz upload em paralelo (concorrência limitada).
+   * Arquivos já existentes são ignorados (não substituídos).
    */
   async enviarPacote(params: {
     files: Array<{
@@ -104,8 +107,11 @@ export class OneDriveUploadService {
       buffer: Buffer;
       contentType: string;
     }>;
+    /** Pastas relativas ao root a criar mesmo sem arquivo (ex.: tipos vazios). */
+    ensureFolders?: string[];
   }): Promise<{
     uploadedFiles: number;
+    skippedFiles: number;
     packagePath: string;
     folderShareUrl: string;
   }> {
@@ -139,16 +145,21 @@ export class OneDriveUploadService {
     const startedAt = Date.now();
     await this.garantirPastasDoPacote({
       root,
-      subpastas: preparadas.map((item) => item.subpasta),
+      subpastas: [
+        ...preparadas.map((item) => item.subpasta),
+        ...(params.ensureFolders ?? []),
+      ],
       accessToken,
     });
     const folderMs = Date.now() - startedAt;
     const uploadStartedAt = Date.now();
+    let uploadedFiles = 0;
+    let skippedFiles = 0;
     await this.executarComConcurrency(
       preparadas,
       UPLOAD_CONCURRENCY,
       async (item) => {
-        await this.enviarArquivo({
+        const result = await this.enviarArquivo({
           buffer: item.buffer,
           fileName: item.fileName,
           contentType: item.contentType,
@@ -156,16 +167,24 @@ export class OneDriveUploadService {
           accessToken,
           pularGarantiaDePasta: true,
         });
+        if (result.skipped) {
+          skippedFiles += 1;
+        } else {
+          uploadedFiles += 1;
+        }
       },
     );
     const uploadMs = Date.now() - uploadStartedAt;
+    const shareStartedAt = Date.now();
     const folderShareUrl =
       await this.obterOuCriarLinkPublicoPastaRaiz(accessToken);
+    const shareMs = Date.now() - shareStartedAt;
     this.logger.log(
-      `Pacote OneDrive: ${preparadas.length} arquivo(s) em ${Date.now() - startedAt}ms (pastas=${folderMs}ms, upload=${uploadMs}ms, concurrency=${UPLOAD_CONCURRENCY}) share=${folderShareUrl}`,
+      `Pacote OneDrive: enviados=${uploadedFiles} ignorados=${skippedFiles} total=${preparadas.length} em ${Date.now() - startedAt}ms (pastas=${folderMs}ms, upload=${uploadMs}ms, share=${shareMs}ms, concurrency=${UPLOAD_CONCURRENCY}) share=${folderShareUrl}`,
     );
     return {
-      uploadedFiles: preparadas.length,
+      uploadedFiles,
+      skippedFiles,
       packagePath: root,
       folderShareUrl,
     };
@@ -173,8 +192,9 @@ export class OneDriveUploadService {
 
   /**
    * Garante a pasta raiz e retorna link público anônimo (somente leitura).
-   * Sempre resolve a pasta pelo caminho (itemId atual) antes de qualquer link.
-   * Cache só vale se for do mesmo itemId — pasta apagada/recriada = link novo.
+   * Cache em memória só vale enquanto o itemId da pasta for o mesmo.
+   * Se a pasta/share for apagada e recriada, o Graph gera outro id (ou
+   * some o permission) — o 1drv.ms antigo é descartado e republicamos.
    */
   async obterOuCriarLinkPublicoPastaRaiz(
     accessToken?: string,
@@ -184,26 +204,40 @@ export class OneDriveUploadService {
     const root = this.obterPastaDestino();
     await this.garantirPasta(root, token);
     const itemId = await this.obterIdItemPorCaminhoComRetry(root, token);
+
     if (
-      this.cachedFolderShare?.itemId === itemId &&
-      this.cachedFolderShare.url
+      this.cachedFolderShare?.url &&
+      this.cachedFolderShare.itemId === itemId
     ) {
-      this.logger.log(
-        `Pasta OneDrive link em cache (id=${itemId}) → ${this.cachedFolderShare.url}`,
+      const stillShared = await this.buscarLinkAnonimoNasPermissoes(
+        itemId,
+        token,
       );
-      return this.cachedFolderShare.url;
-    }
-    if (this.cachedFolderShare) {
-      this.logger.log(
-        `Pasta OneDrive recriada (cache id=${this.cachedFolderShare.itemId} ≠ ${itemId}) — publicando de novo`,
+      if (
+        stillShared &&
+        stillShared === this.cachedFolderShare.url
+      ) {
+        return this.cachedFolderShare.url;
+      }
+      this.logger.warn(
+        `Link em cache inválido ou removido (id=${itemId}) — republicando pasta ${root}`,
+      );
+      this.cachedFolderShare = null;
+    } else if (
+      this.cachedFolderShare &&
+      this.cachedFolderShare.itemId !== itemId
+    ) {
+      this.logger.warn(
+        `Pasta OneDrive recriada (id antigo=${this.cachedFolderShare.itemId} novo=${itemId}) — invalidando link em cache`,
       );
       this.cachedFolderShare = null;
     }
+
     await this.garantirConteudoMinimoParaShare(itemId, token);
     const existing = await this.buscarLinkAnonimoNasPermissoes(itemId, token);
     if (existing) {
       const status = await this.avaliarLinkPublicoViaHttp(existing);
-      if (status === 'ok') {
+      if (status === 'ok' || status === 'unknown') {
         this.cachedFolderShare = { itemId, url: existing };
         this.logger.log(
           `Pasta OneDrive já pública: ${root} (id=${itemId}) → ${existing}`,
@@ -246,7 +280,7 @@ export class OneDriveUploadService {
     );
     const encodedName = encodeURIComponent(SHARE_SEED_FILE_NAME);
     const putRes = await fetch(
-      `${GRAPH_BASE}/me/drive/items/${encodeURIComponent(itemId)}:/${encodedName}:/content`,
+      `${GRAPH_BASE}/me/drive/items/${encodeURIComponent(itemId)}:/${encodedName}:/content?@microsoft.graph.conflictBehavior=fail`,
       {
         method: 'PUT',
         headers: {
@@ -256,14 +290,16 @@ export class OneDriveUploadService {
         body: new Uint8Array(SHARE_SEED_CONTENT),
       },
     );
-    if (!putRes.ok) {
-      const detail = await putRes.text().catch(() => '');
-      throw new ServiceUnavailableException(
-        `Falha ao preparar pasta OneDrive para compartilhamento: ${putRes.status} ${detail.slice(0, 180)}`,
-      );
+    if (putRes.ok || putRes.status === 409) {
+      if (putRes.ok) {
+        await this.aguardarMs(400);
+      }
+      return;
     }
-    // Propagação do item no OneDrive pessoal antes do createLink.
-    await this.aguardarMs(1500);
+    const detail = await putRes.text().catch(() => '');
+    throw new ServiceUnavailableException(
+      `Falha ao preparar pasta OneDrive para compartilhamento: ${putRes.status} ${detail.slice(0, 180)}`,
+    );
   }
 
   /**
@@ -273,7 +309,7 @@ export class OneDriveUploadService {
     itemId: string,
     accessToken: string,
   ): Promise<string> {
-    const attempts = [0, 1000, 2500];
+    const attempts = [0, 600, 1200];
     let lastUrl = '';
     let lastDetail = 'falha ao republicar link';
     for (const delay of attempts) {
@@ -282,15 +318,15 @@ export class OneDriveUploadService {
       }
       await this.garantirConteudoMinimoParaShare(itemId, accessToken);
       await this.removerLinksAnonimosDoItem(itemId, accessToken);
-      await this.aguardarMs(500);
+      await this.aguardarMs(300);
       const webUrl = await this.criarLinkAnonimoPorItemId(itemId, accessToken);
       const fromPermissions =
         (await this.buscarLinkAnonimoNasPermissoes(itemId, accessToken)) ||
         webUrl;
       lastUrl = fromPermissions;
-      await this.aguardarMs(1000);
+      await this.aguardarMs(400);
       const status = await this.avaliarLinkPublicoViaHttp(fromPermissions);
-      if (status === 'ok') {
+      if (status === 'ok' || status === 'unknown') {
         return fromPermissions;
       }
       lastDetail = `link criado mas não abre publicamente: ${fromPermissions}`;
@@ -525,7 +561,7 @@ export class OneDriveUploadService {
   }
 
   /**
-   * Cria pastas intermediárias via Graph (ex.: DER_Relatórios_OS / Preventiva / OS-1).
+   * Cria pastas intermediárias via Graph (ex.: DER / Preventiva / OS-1).
    */
   async garantirPasta(
     pathFromRoot: string,
@@ -591,36 +627,25 @@ export class OneDriveUploadService {
     const cache = new Set<string>();
     for (const depth of profundidades) {
       const nivel = porProfundidade.get(depth) || [];
-      await Promise.all(
-        nivel.map((caminho) =>
-          this.garantirPasta(caminho, params.accessToken, cache),
-        ),
+      await this.executarComConcurrency(
+        nivel,
+        FOLDER_CREATE_CONCURRENCY,
+        async (caminho) => {
+          await this.garantirPasta(caminho, params.accessToken, cache);
+        },
       );
     }
   }
 
+  /**
+   * Cria a pasta (fail se já existe). Sem GET prévio — 1 RTT no caminho feliz.
+   */
   private async garantirSegmentoPasta(params: {
     currentPath: string;
     parentPath: string;
     segment: string;
     accessToken: string;
   }): Promise<void> {
-    const encodedCurrent = this.codificarCaminhoGraph(params.currentPath);
-    const probeUrl = `${GRAPH_BASE}/me/drive/root:/${encodedCurrent}`;
-    const probe = await fetch(probeUrl, {
-      headers: { Authorization: `Bearer ${params.accessToken}` },
-    });
-    if (probe.ok) {
-      return;
-    }
-    if (probe.status !== 404) {
-      const payload = (await probe.json().catch(() => ({}))) as {
-        error?: { message?: string };
-      };
-      this.logger.warn(
-        `Falha ao verificar pasta ${params.currentPath}: ${payload.error?.message || probe.status}`,
-      );
-    }
     const createUrl = params.parentPath
       ? `${GRAPH_BASE}/me/drive/root:/${this.codificarCaminhoGraph(params.parentPath)}:/children`
       : `${GRAPH_BASE}/me/drive/root/children`;
@@ -652,6 +677,14 @@ export class OneDriveUploadService {
     ) {
       return;
     }
+    const encodedCurrent = this.codificarCaminhoGraph(params.currentPath);
+    const probe = await fetch(
+      `${GRAPH_BASE}/me/drive/root:/${encodedCurrent}`,
+      { headers: { Authorization: `Bearer ${params.accessToken}` } },
+    );
+    if (probe.ok) {
+      return;
+    }
     this.logger.error(
       `Falha ao criar pasta ${params.currentPath}: ${createPayload.error?.message || createResponse.status}`,
     );
@@ -666,7 +699,7 @@ export class OneDriveUploadService {
     buffer: Buffer;
     contentType: string;
   }): Promise<OneDriveUploadResult> {
-    const url = `${GRAPH_BASE}/me/drive/root:/${params.encodedPath}:/content?@microsoft.graph.conflictBehavior=replace`;
+    const url = `${GRAPH_BASE}/me/drive/root:/${params.encodedPath}:/content?@microsoft.graph.conflictBehavior=fail`;
     const response = await fetch(url, {
       method: 'PUT',
       headers: {
@@ -675,7 +708,13 @@ export class OneDriveUploadService {
       },
       body: new Uint8Array(params.buffer),
     });
+    if (this.ehConflitoNome(response.status)) {
+      return this.mapearIgnorado(params.encodedPath);
+    }
     const payload = (await response.json()) as GraphDriveItemResponse;
+    if (this.ehConflitoNome(response.status, payload)) {
+      return this.mapearIgnorado(params.encodedPath);
+    }
     if (!response.ok || !payload.id) {
       this.tratarErroGraph('upload simples', response.status, payload);
     }
@@ -696,14 +735,24 @@ export class OneDriveUploadService {
       },
       body: JSON.stringify({
         item: {
-          '@microsoft.graph.conflictBehavior': 'replace',
+          '@microsoft.graph.conflictBehavior': 'fail',
         },
       }),
     });
+    if (this.ehConflitoNome(sessionResponse.status)) {
+      return this.mapearIgnorado(params.encodedPath);
+    }
     const sessionPayload = (await sessionResponse.json()) as {
       uploadUrl?: string;
-      error?: { message?: string };
+      error?: { message?: string; code?: string };
     };
+    if (
+      this.ehConflitoNome(sessionResponse.status, {
+        error: sessionPayload.error,
+      })
+    ) {
+      return this.mapearIgnorado(params.encodedPath);
+    }
     if (!sessionResponse.ok || !sessionPayload.uploadUrl) {
       const detail =
         sessionPayload.error?.message || 'não foi possível criar upload session';
@@ -730,6 +779,9 @@ export class OneDriveUploadService {
       const chunkPayload =
         (await chunkResponse.json().catch(() => ({}))) as GraphDriveItemResponse;
       if (!chunkResponse.ok && chunkResponse.status !== 202) {
+        if (this.ehConflitoNome(chunkResponse.status, chunkPayload)) {
+          return this.mapearIgnorado(params.encodedPath);
+        }
         this.tratarErroGraph('upload session', chunkResponse.status, chunkPayload);
       }
       if (chunkResponse.status === 200 || chunkResponse.status === 201) {
@@ -743,6 +795,35 @@ export class OneDriveUploadService {
       );
     }
     return this.mapearResultado(lastPayload);
+  }
+
+  private ehConflitoNome(
+    status: number,
+    payload?: { error?: { code?: string; message?: string } },
+  ): boolean {
+    if (status === 409 || status === 405) {
+      return true;
+    }
+    const code = payload?.error?.code?.toLowerCase() || '';
+    const message = payload?.error?.message?.toLowerCase() || '';
+    return (
+      code === 'namealreadyexists' ||
+      message.includes('name already exists') ||
+      message.includes('already exists')
+    );
+  }
+
+  private mapearIgnorado(encodedPath: string): OneDriveUploadResult {
+    const decoded = decodeURIComponent(encodedPath.replace(/\+/g, ' '));
+    const name = decoded.split('/').filter(Boolean).pop() || 'arquivo';
+    this.logger.debug(`OneDrive: ignorado (já existe) → ${decoded}`);
+    return {
+      id: `skipped:${decoded}`,
+      name,
+      webUrl: null,
+      size: null,
+      skipped: true,
+    };
   }
 
   private async executarComConcurrency<T>(
@@ -788,8 +869,8 @@ export class OneDriveUploadService {
 
   obterPastaDestino(): string {
     const raw =
-      this.configService.get<string>('ONEDRIVE_FOLDER_PATH', 'DER_Relatórios_OS') ||
-      'DER_Relatórios_OS';
+      this.configService.get<string>('ONEDRIVE_FOLDER_PATH', 'DER') ||
+      'DER';
     return raw
       .replace(/^\/+|\/+$/g, '')
       .split('/')
