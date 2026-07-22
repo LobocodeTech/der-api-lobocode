@@ -1028,29 +1028,45 @@ export class WorkOrdersService extends UniversalService<
     return this.buscarDetalhesPorId(ordem.id);
   }
 
-  async adicionarEvidencia(id: string, file: any, description?: string) {
+  async adicionarEvidencia(
+    id: string,
+    files: any[] | any,
+    description?: string,
+  ) {
     const ordem = await this.buscarOrdemPorId(id);
     const usuario = this.obterUsuarioLogado();
-
-    const arquivo = await this.filesService.uploadFile(
-      file,
-      FileType.DOCUMENT,
-      usuario?.companyId,
-      usuario?.id,
-      description,
+    const lista = (Array.isArray(files) ? files : files ? [files] : []).filter(
+      (file) => Boolean(file && (file.buffer?.length || file.size)),
     );
+    if (lista.length === 0) {
+      throw new BadRequestException('Envie ao menos um arquivo.');
+    }
+    const descricao = description?.trim() || undefined;
+    const nomes: string[] = [];
 
-    await this.prisma.workOrderEvidence.create({
-      data: {
-        workOrderId: ordem.id,
-        fileId: arquivo.id,
-        description,
-      },
-    });
+    for (const file of lista) {
+      const arquivo = await this.filesService.uploadFile(
+        file,
+        FileType.DOCUMENT,
+        usuario?.companyId,
+        usuario?.id,
+        descricao,
+      );
+      await this.prisma.workOrderEvidence.create({
+        data: {
+          workOrderId: ordem.id,
+          fileId: arquivo.id,
+          description: descricao,
+        },
+      });
+      nomes.push(arquivo.originalName);
+    }
 
     await this.registrarComentarioAutomatico(
       ordem.id,
-      `Evidência adicionada: ${arquivo.originalName}.`,
+      lista.length === 1
+        ? `Evidência adicionada: ${nomes[0]}.`
+        : `Evidências adicionadas (${lista.length}): ${nomes.join(', ')}.`,
     );
 
     return this.buscarDetalhesPorId(ordem.id);

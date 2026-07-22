@@ -8,13 +8,14 @@ import {
   Post,
   Query,
   Delete,
-  UploadedFile,
+  UploadedFiles,
   UseGuards,
   UseInterceptors,
   UsePipes,
   ParseFilePipe,
+  BadRequestException,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { Roles } from '@prisma/client';
 import { AuthGuard } from 'src/shared/auth/guards/auth.guard';
 import { RoleByMethodGuard } from 'src/shared/auth/guards/role-by-method.guard';
@@ -29,6 +30,8 @@ import { WorkOrdersService } from '../work-orders.service';
 import { CreateWorkOrderCheckListDto } from '../dto/create-work-order-checklist-item.dto';
 import { MoveWorkOrderColumnDto } from '../dto/move-work-order-column.dto';
 
+const EVIDENCE_MAX_FILES = 30;
+const EVIDENCE_MAX_FILE_BYTES = 100 * 1024 * 1024;
 @UseGuards(AuthGuard, RoleByMethodGuard)
 @RoleByMethod({
   GET: [
@@ -120,26 +123,30 @@ export class WorkOrdersQueueUsersController extends UniversalController<
 
   @Post(':id/evidences')
   @UseInterceptors(
-    FileInterceptor('file', {
+    FilesInterceptor('files', EVIDENCE_MAX_FILES, {
       limits: {
-        fileSize: 100 * 1024 * 1024,
+        fileSize: EVIDENCE_MAX_FILE_BYTES,
       },
     }),
   )
   @UsePipes()
   async adicionarEvidencia(
     @Param('id') id: string,
-    @UploadedFile(
+    @UploadedFiles(
       new ParseFilePipe({
         validators: [
-          new MaxFileSizeValidator({ maxSize: 100 * 1024 * 1024 }),
+          new MaxFileSizeValidator({ maxSize: EVIDENCE_MAX_FILE_BYTES }),
         ],
+        fileIsRequired: true,
       }),
     )
-    file: any,
+    files: any[],
     @Query('description') description?: string,
   ) {
-    return this.service.adicionarEvidencia(id, file, description);
+    if (!files?.length) {
+      throw new BadRequestException('Envie ao menos um arquivo.');
+    }
+    return this.service.adicionarEvidencia(id, files, description);
   }
 }
 

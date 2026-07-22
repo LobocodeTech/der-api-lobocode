@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 import { PrismaService } from '../../../shared/prisma/prisma.service';
 import * as Minio from 'minio';
+import { decodificarNomeArquivoMultipart } from '../utils/multipart-filename.util';
 
 export interface FileInfo {
   id: string;
@@ -233,8 +234,11 @@ export class FilesService {
     description?: string,
   ): Promise<FileInfo> {
     try {
+      const originalName = decodificarNomeArquivoMultipart(
+        String(file.originalname ?? 'arquivo'),
+      );
       // Gerar nome único para o arquivo
-      const fileName = `${Date.now()}-${file.originalname}`;
+      const fileName = `${Date.now()}-${originalName}`;
       const folder = companyId ? `companies/${companyId}` : 'public';
       const fullPath = `${folder}/${fileName}`;
 
@@ -253,7 +257,7 @@ export class FilesService {
       // Salvar no banco
       const fileRecord = await this.prisma.file.create({
         data: {
-          originalName: file.originalname,
+          originalName,
           fileName: fullPath,
           type: type as any,
           size: file.size,
