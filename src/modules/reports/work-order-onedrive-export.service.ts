@@ -187,14 +187,17 @@ export class WorkOrderOneDriveExportService {
       );
       return { AND: [baseWhere, { id: filtros.workOrderId.trim() }] };
     }
-    const { start, end } = resolverIntervaloPeriodoRelatorio(
+    const intervalo = resolverIntervaloPeriodoRelatorio(
       filtros.period,
       filtros.dateFrom,
       filtros.dateTo,
     );
-    const baseWhere = this.queryService.construirWhereClauseParaRead('WorkOrder', {
-      createdAt: { gte: start, lte: end },
-    });
+    const baseWhere = this.queryService.construirWhereClauseParaRead(
+      'WorkOrder',
+      intervalo
+        ? { createdAt: { gte: intervalo.start, lte: intervalo.end } }
+        : {},
+    );
     const and: Prisma.WorkOrderWhereInput[] = [];
     const types: WorkOrderType[] = [];
     if (exportTypes.corrective) types.push(WorkOrderType.CORRECTIVE);
