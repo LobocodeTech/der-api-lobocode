@@ -123,6 +123,14 @@ export class WorkOrdersController extends UniversalController<
     return this.service.moverParaColuna(id, body);
   }
 
+  @Patch(':id/clear-completed')
+  @RoleByMethod({
+    PATCH: [Roles.SYSTEM_ADMIN, Roles.ADMIN, Roles.C2C],
+  })
+  async limparOrdemConcluida(@Param('id') id: string) {
+    return this.service.limparOrdemConcluida(id);
+  }
+
   @Patch(':id/checklist-items/:itemId')
   async atualizarItemDoChecklist(
     @Param('id') id: string,

@@ -20,6 +20,7 @@ import {
   WorkOrderType,
 } from '@prisma/client';
 import { FilesService } from 'src/shared/files/services/files.service';
+import { SUCCESS_MESSAGES } from 'src/shared/common/messages';
 import { PrismaService } from 'src/shared/prisma/prisma.service';
 import {
   UniversalService,
@@ -231,6 +232,7 @@ export class WorkOrdersService extends UniversalService<
       },
       where: {
         deletedAt: null,
+        completedClearedAt: null,
         ...(companyId && { companyId }),
       },
       orderBy: { createdAt: 'desc' },
@@ -246,6 +248,19 @@ export class WorkOrdersService extends UniversalService<
     };
   }
 
+  /**
+   * Where de leitura de OS: soft-delete + OS limpas do Kanban (completedClearedAt).
+   * Não altera o Universal — o filtro extra é aplicado só neste serviço.
+   */
+  private construirWhereLeituraOs(
+    baseWhere: Record<string, unknown> = {},
+  ): Prisma.WorkOrderWhereInput {
+    return this.queryService.construirWhereClauseParaRead(
+      this.entityNameCasl,
+      { ...baseWhere, completedClearedAt: null },
+    );
+  }
+
   private async preloadCompanySlaConfig(): Promise<void> {
     const companyId = this.obterCompanyId();
     if (companyId) {
@@ -255,7 +270,16 @@ export class WorkOrdersService extends UniversalService<
 
   async buscarPorId(id: string, include?: Prisma.WorkOrderInclude) {
     await this.preloadCompanySlaConfig();
-    const ordem = await super.buscarPorId(id, include ?? this.construirDetalhesInclude());
+    this.permissionService.validarAction(this.entityNameCasl, 'read');
+    const whereClause = this.construirWhereLeituraOs({ id });
+    const includeConfig = include ?? this.construirDetalhesInclude();
+    const entity = await this.repository.buscarPrimeiro(
+      this.entityName,
+      whereClause,
+      includeConfig,
+    );
+    this.validarResultadoDaBusca(entity, this.entityName, 'id', id);
+    const ordem = { data: this.transformData(entity) };
     const normalizada = this.normalizarDetalhesDaOrdem(ordem);
     return this.mapWorkOrderResponse(normalizada);
   }
@@ -266,24 +290,81 @@ export class WorkOrdersService extends UniversalService<
 
   async buscarTodos() {
     await this.preloadCompanySlaConfig();
-    const resultado = await super.buscarTodos();
-    return this.mapWorkOrderResponse(resultado);
+    this.permissionService.validarAction(this.entityNameCasl, 'read');
+    const whereClause = this.construirWhereLeituraOs();
+    const entities = await this.repository.buscarMuitos(
+      this.entityName,
+      whereClause,
+      { orderBy: this.getEntityConfig().orderBy ?? { createdAt: 'desc' } },
+      this.getIncludeConfig(),
+    );
+    return this.mapWorkOrderResponse(this.transformData(entities));
   }
 
   async buscarComPaginacao(page = 1, limit = 20, include?: any) {
     await this.preloadCompanySlaConfig();
-    const resultado = await super.buscarComPaginacao(page, limit, include);
-    return this.mapWorkOrderResponse(resultado);
+    this.permissionService.validarAction(this.entityNameCasl, 'read');
+    const whereClause = this.construirWhereLeituraOs() as Record<string, unknown>;
+    if (this.removeCompanyIdInWhereClause) {
+      delete whereClause.companyId;
+    }
+    const includeConfig = include || this.getIncludeConfig();
+    const skip = (page - 1) * limit;
+    const defaultOrderBy =
+      this.getEntityConfig().orderBy ?? { createdAt: 'desc' };
+    const [entities, total] = await Promise.all([
+      this.repository.buscarMuitos(
+        this.entityName,
+        whereClause,
+        {
+          orderBy: defaultOrderBy,
+          skip,
+          take: limit,
+        },
+        includeConfig,
+      ),
+      this.repository.contarTodos(this.entityName, whereClause),
+    ]);
+    const totalPages = Math.ceil(total / limit);
+    const transformedData = this.transformData(entities);
+    return this.mapWorkOrderResponse({
+      data: transformedData,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      },
+    });
   }
 
   async buscarPorCampo(field: string, value: any, include?: any) {
-    const resultado = await super.buscarPorCampo(field, value, include);
-    return this.mapWorkOrderResponse(resultado);
+    this.permissionService.validarAction(this.entityNameCasl, 'read');
+    const whereClause = this.construirWhereLeituraOs({ [field]: value });
+    const includeConfig = include || this.getIncludeConfig();
+    const entity = await this.repository.buscarPrimeiro(
+      this.entityName,
+      whereClause,
+      includeConfig,
+    );
+    return this.mapWorkOrderResponse({ data: this.transformData(entity) });
   }
 
   async buscarMuitosPorCampo(field: string, value: any, include?: any) {
-    const resultado = await super.buscarMuitosPorCampo(field, value, include);
-    return this.mapWorkOrderResponse(resultado);
+    this.permissionService.validarAction(this.entityNameCasl, 'read');
+    const whereClause = this.construirWhereLeituraOs({ [field]: value });
+    const includeConfig = include || this.getIncludeConfig();
+    const defaultOrderBy =
+      this.getEntityConfig().orderBy ?? { createdAt: 'desc' };
+    const entities = await this.repository.buscarMuitos(
+      this.entityName,
+      whereClause,
+      { orderBy: defaultOrderBy },
+      includeConfig,
+    );
+    return this.mapWorkOrderResponse({ data: this.transformData(entities) });
   }
 
   async criar(data: CreateWorkOrderDto, include?: any, role?: Roles) {
@@ -722,6 +803,7 @@ export class WorkOrdersService extends UniversalService<
       where: {
         id,
         deletedAt: null,
+        completedClearedAt: null,
         ...(companyId && { companyId }),
       },
       include: {
@@ -1212,6 +1294,7 @@ export class WorkOrdersService extends UniversalService<
     const ordemAtual = await this.repository.buscarPrimeiro('workOrder', {
       id: _id,
       deletedAt: null,
+      completedClearedAt: null,
       ...(companyId && { companyId }),
     });
 
@@ -1550,6 +1633,7 @@ export class WorkOrdersService extends UniversalService<
     const whereClause: Prisma.WorkOrderWhereInput = {
       id,
       deletedAt: null,
+      completedClearedAt: null,
       ...(companyId && { companyId }),
     };
 
@@ -1821,6 +1905,52 @@ export class WorkOrdersService extends UniversalService<
         'Não é possível excluir uma ordem de serviço com trabalho em andamento ou pausado.',
       );
     }
+  }
+
+  /**
+   * Remove OS concluída da exibição (Kanban "Limpar concluídas") via completedClearedAt.
+   * Não usa soft-delete (deletedAt).
+   */
+  async limparOrdemConcluida(id: string) {
+    this.permissionService.validarAction(this.entityNameCasl, 'delete');
+    const companyId = this.obterCompanyId();
+    const ordem = await this.prisma.workOrder.findFirst({
+      where: {
+        id,
+        deletedAt: null,
+        ...(companyId && { companyId }),
+      },
+      select: {
+        id: true,
+        status: true,
+        completedClearedAt: true,
+        companyId: true,
+      },
+    });
+    if (!ordem) {
+      throw new NotFoundException('Ordem de serviço não encontrada.');
+    }
+    if (ordem.status !== WorkOrderStatus.COMPLETED) {
+      throw new BadRequestException(
+        'Somente ordens de serviço concluídas podem ser limpas do Kanban.',
+      );
+    }
+    if (ordem.completedClearedAt) {
+      return { message: SUCCESS_MESSAGES.CRUD.UPDATED };
+    }
+    await this.prisma.workOrder.update({
+      where: { id },
+      data: { completedClearedAt: new Date() },
+    });
+    const recipientIds =
+      await this.workOrderQueueUsersService.resolveUserIdsFromWorkOrderId(
+        id,
+        companyId ?? ordem.companyId ?? undefined,
+      );
+    await this.notificarEventoCicloDeVida(id, 'deleted', recipientIds, {
+      skipEmail: this.omitirEmailNasNotificacoesOs,
+    });
+    return { message: SUCCESS_MESSAGES.CRUD.DELETED };
   }
 
   protected async depoisDeDesativar(id: string): Promise<void> {

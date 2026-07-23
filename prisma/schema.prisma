@@ -605,6 +605,8 @@ model WorkOrder {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
+  /// Data em que a OS concluída foi removida do Kanban via "Limpar concluídas".
+  completedClearedAt DateTime?
 
   @@index([companyId])
   @@index([sequentialNumber])
@@ -616,6 +618,7 @@ model WorkOrder {
   @@index([completedAt])
   @@index([finalApprovalCompletedAt])
   @@index([deletedAt])
+  @@index([completedClearedAt])
   @@index([slaStatusExtended])
   @@index([type, slaStatusExtended])
   @@index([companyId, type, status, createdAt])
