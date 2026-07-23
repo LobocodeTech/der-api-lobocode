@@ -216,6 +216,20 @@ export interface WorkOrderReportSummary {
   returns: {
     totalCount: number;
   };
+  preventivePauses: {
+    totalCount: number;
+    totalPausedSeconds: number;
+  };
+  preventiveReturns: {
+    totalCount: number;
+  };
+  generalPauses: {
+    totalCount: number;
+    totalPausedSeconds: number;
+  };
+  generalReturns: {
+    totalCount: number;
+  };
 }
 
 export interface WorkOrderReportListResponse {
