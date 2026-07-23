@@ -167,6 +167,19 @@ const RESUMO_CORRETIVA_SLA_SELECT = {
   },
 } satisfies Prisma.WorkOrderSelect;
 
+/** Campos mínimos para SLA civil (Preventiva/Geral) ao vivo no resumo. */
+const RESUMO_DUE_DATE_SLA_SELECT = {
+  status: true,
+  completedAt: true,
+  dueDate: true,
+  slaStatus: true,
+  slaPausedAt: true,
+  workOrderPauseHistories: {
+    select: { eventType: true, createdAt: true },
+    orderBy: { createdAt: 'asc' as const },
+  },
+} satisfies Prisma.WorkOrderSelect;
+
 interface EntradaMetricasCorretivaRegistro {
   type: WorkOrderType;
   status: WorkOrderStatus;
@@ -346,53 +359,20 @@ export class WorkOrderReportsService {
       totalComSla > 0
         ? Number(((slaPositivo / totalComSla) * 100).toFixed(1))
         : 0;
-    const preventivaAtrasadas = await this.prisma.workOrder.count({
-      where: {
-        ...wherePreventiva,
-        slaStatus: WorkOrderSlaStatus.OVERDUE,
-      },
-    });
-    const preventivaOnTime = await this.prisma.workOrder.count({
-      where: {
-        ...wherePreventiva,
-        slaStatus: WorkOrderSlaStatus.OK,
-      },
-    });
-    const preventivaNearDue = await this.prisma.workOrder.count({
-      where: {
-        ...wherePreventiva,
-        slaStatus: WorkOrderSlaStatus.WARNING,
-      },
-    });
-    const geralAtrasadas = await this.prisma.workOrder.count({
-      where: {
-        ...whereGeral,
-        slaStatus: WorkOrderSlaStatus.OVERDUE,
-      },
-    });
-    const geralOnTime = await this.prisma.workOrder.count({
-      where: {
-        ...whereGeral,
-        slaStatus: WorkOrderSlaStatus.OK,
-      },
-    });
-    const geralNearDue = await this.prisma.workOrder.count({
-      where: {
-        ...whereGeral,
-        slaStatus: WorkOrderSlaStatus.WARNING,
-      },
-    });
-    const preventivaTotalSla =
-      preventivaOnTime + preventivaNearDue + preventivaAtrasadas;
-    const preventivaComplianceRate =
-      preventivaTotalSla > 0
-        ? Number(((preventivaOnTime / preventivaTotalSla) * 100).toFixed(1))
-        : 0;
-    const geralTotalSla = geralOnTime + geralNearDue + geralAtrasadas;
-    const geralComplianceRate =
-      geralTotalSla > 0
-        ? Number(((geralOnTime / geralTotalSla) * 100).toFixed(1))
-        : 0;
+    const [preventivas, gerais] = await Promise.all([
+      this.prisma.workOrder.findMany({
+        where: wherePreventiva,
+        take: EXPORT_MAX_ROWS,
+        select: RESUMO_DUE_DATE_SLA_SELECT,
+      }),
+      this.prisma.workOrder.findMany({
+        where: whereGeral,
+        take: EXPORT_MAX_ROWS,
+        select: RESUMO_DUE_DATE_SLA_SELECT,
+      }),
+    ]);
+    const preventivaAgg = this.agregarSlaDueDateAoVivo(preventivas, agora);
+    const geralAgg = this.agregarSlaDueDateAoVivo(gerais, agora);
     return {
       corrective: {
         total: totalCorretivas,
@@ -404,13 +384,13 @@ export class WorkOrderReportsService {
         total: totalPreventivas,
         inProgress: preventivasEmAndamento,
         completed: preventivasFinalizadas,
-        overdue: preventivaAtrasadas,
+        overdue: preventivaAgg.overdue,
       },
       general: {
         total: totalGerais,
         inProgress: geraisEmAndamento,
         completed: geraisFinalizadas,
-        overdue: geralAtrasadas,
+        overdue: geralAgg.overdue,
       },
       sla: {
         positive: slaPositivo,
@@ -418,16 +398,16 @@ export class WorkOrderReportsService {
         complianceRate,
       },
       preventiveSla: {
-        onTime: preventivaOnTime,
-        nearDue: preventivaNearDue,
-        overdue: preventivaAtrasadas,
-        complianceRate: preventivaComplianceRate,
+        onTime: preventivaAgg.onTime,
+        nearDue: preventivaAgg.nearDue,
+        overdue: preventivaAgg.overdue,
+        complianceRate: preventivaAgg.complianceRate,
       },
       generalSla: {
-        onTime: geralOnTime,
-        nearDue: geralNearDue,
-        overdue: geralAtrasadas,
-        complianceRate: geralComplianceRate,
+        onTime: geralAgg.onTime,
+        nearDue: geralAgg.nearDue,
+        overdue: geralAgg.overdue,
+        complianceRate: geralAgg.complianceRate,
       },
       pauses: {
         totalCount: totalPausasCount,
@@ -436,6 +416,10 @@ export class WorkOrderReportsService {
       returns: {
         totalCount: resumeCount,
       },
+      preventivePauses: preventivaAgg.pauses,
+      preventiveReturns: preventivaAgg.returns,
+      generalPauses: geralAgg.pauses,
+      generalReturns: geralAgg.returns,
     };
   }
 
@@ -472,6 +456,10 @@ export class WorkOrderReportsService {
           generalSla: { onTime: 0, nearDue: 0, overdue: 0, complianceRate: 0 },
           pauses: { totalCount: 0, totalPausedSeconds: 0 },
           returns: { totalCount: 0 },
+          preventivePauses: { totalCount: 0, totalPausedSeconds: 0 },
+          preventiveReturns: { totalCount: 0 },
+          generalPauses: { totalCount: 0, totalPausedSeconds: 0 },
+          generalReturns: { totalCount: 0 },
         }
       : await this.obterResumo(filtros);
     return {
@@ -595,6 +583,77 @@ export class WorkOrderReportsService {
       return { slaStatus: WorkOrderSlaStatus.WARNING };
     }
     return { slaStatus: WorkOrderSlaStatus.OK };
+  }
+
+  private agregarSlaDueDateAoVivo(
+    registros: Array<{
+      status: WorkOrderStatus;
+      completedAt: Date | null;
+      dueDate: Date | null;
+      slaStatus: WorkOrderSlaStatus | null;
+      slaPausedAt: Date | null;
+      workOrderPauseHistories: Array<{
+        eventType: WorkOrderPauseHistoryEventType;
+        createdAt: Date;
+      }>;
+    }>,
+    agora: Date,
+  ): {
+    onTime: number;
+    nearDue: number;
+    overdue: number;
+    complianceRate: number;
+    pauses: { totalCount: number; totalPausedSeconds: number };
+    returns: { totalCount: number };
+  } {
+    let onTime = 0;
+    let nearDue = 0;
+    let overdue = 0;
+    let totalPausedSeconds = 0;
+    let pauseCount = 0;
+    let returnCount = 0;
+    for (const registro of registros) {
+      // Sem prazo não entra no índice de SLA civil (Preventiva/Geral).
+      if (!registro.dueDate) {
+        continue;
+      }
+      const metricas = calcularMetricasDueDate(
+        {
+          dueDate: registro.dueDate,
+          status: registro.status,
+          completedAt: registro.completedAt,
+          slaStatus: registro.slaStatus,
+          slaPausedAt: registro.slaPausedAt,
+          pauseHistories: registro.workOrderPauseHistories,
+        },
+        agora,
+      );
+      if (metricas.slaStatus === WorkOrderSlaStatus.OVERDUE) {
+        overdue += 1;
+      } else if (metricas.slaStatus === WorkOrderSlaStatus.WARNING) {
+        nearDue += 1;
+      } else {
+        onTime += 1;
+      }
+      pauseCount += metricas.pauseCount;
+      returnCount += metricas.returnCount;
+      totalPausedSeconds += metricas.totalPausedSeconds;
+    }
+    // Cumprimento = ainda no prazo (OK + WARNING) ÷ total com SLA.
+    // Alinhado à corretiva: só atrasada derruba o índice.
+    const totalComSla = onTime + nearDue + overdue;
+    const complianceRate =
+      totalComSla > 0
+        ? Number((((onTime + nearDue) / totalComSla) * 100).toFixed(1))
+        : 0;
+    return {
+      onTime,
+      nearDue,
+      overdue,
+      complianceRate,
+      pauses: { totalCount: pauseCount, totalPausedSeconds },
+      returns: { totalCount: returnCount },
+    };
   }
 
   private montarOrderBy(
