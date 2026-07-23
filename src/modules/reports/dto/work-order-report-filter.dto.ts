@@ -16,6 +16,7 @@ import {
 import { IsCUID } from '../../../shared/validators';
 
 export const REPORT_PERIODS = [
+  'all',
   'today',
   'yesterday',
   'last-7-days',
@@ -97,7 +98,7 @@ export class WorkOrderReportFilterDto {
   @IsInt()
   @Min(1)
   @Max(100)
-  limit?: number = 20;
+  limit?: number = 10;
 
   @IsOptional()
   @IsString()

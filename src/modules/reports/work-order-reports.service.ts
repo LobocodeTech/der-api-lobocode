@@ -497,14 +497,17 @@ export class WorkOrderReportsService {
       );
       return { AND: [baseWhere, { id: filtros.workOrderId.trim() }] };
     }
-    const { start, end } = resolverIntervaloPeriodoRelatorio(
+    const intervalo = resolverIntervaloPeriodoRelatorio(
       filtros.period,
       filtros.dateFrom,
       filtros.dateTo,
     );
-    const baseWhere = this.queryService.construirWhereClauseParaRead('WorkOrder', {
-      createdAt: { gte: start, lte: end },
-    });
+    const baseWhere = this.queryService.construirWhereClauseParaRead(
+      'WorkOrder',
+      intervalo
+        ? { createdAt: { gte: intervalo.start, lte: intervalo.end } }
+        : {},
+    );
     const and: Prisma.WorkOrderWhereInput[] = [];
     if (filtros.type) and.push({ type: filtros.type });
     if (filtros.locationId) and.push({ locationId: filtros.locationId });

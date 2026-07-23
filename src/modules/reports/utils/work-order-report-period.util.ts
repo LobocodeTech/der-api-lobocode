@@ -16,11 +16,16 @@ function fimDoDiaBrt(base: Date): Date {
   return new Date(inicio.getTime() + 24 * 60 * 60 * 1000 - 1);
 }
 
+/** Retorna `null` quando o período é `all` (sem filtro de datas). */
 export function resolverIntervaloPeriodoRelatorio(
-  period: ReportPeriod = 'last-30-days',
+  period: ReportPeriod = 'all',
   dateFrom?: string,
   dateTo?: string,
-): { start: Date; end: Date } {
+): { start: Date; end: Date } | null {
+  if (period === 'all') {
+    return null;
+  }
+
   const agora = new Date();
   const end = fimDoDiaBrt(agora);
 
@@ -81,6 +86,5 @@ export function resolverIntervaloPeriodoRelatorio(
     return { start, end: endPrev };
   }
 
-  const start = inicioDoDiaBrt(new Date(agora.getTime() - 29 * 24 * 60 * 60 * 1000));
-  return { start, end };
+  return null;
 }
