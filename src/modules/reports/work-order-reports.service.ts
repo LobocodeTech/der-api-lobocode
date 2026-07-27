@@ -154,6 +154,7 @@ const RESUMO_CORRETIVA_SLA_SELECT = {
   slaDeadlineAt: true,
   slaDeadlineHours: true,
   slaStatusExtended: true,
+  slaExceededAt: true,
   dueDate: true,
   slaStatus: true,
   workOrderPauseHistories: {
@@ -171,6 +172,7 @@ const RESUMO_CORRETIVA_SLA_SELECT = {
 
 /** Campos mínimos para SLA civil (Preventiva/Geral) ao vivo no resumo. */
 const RESUMO_DUE_DATE_SLA_SELECT = {
+  type: true,
   status: true,
   completedAt: true,
   dueDate: true,
@@ -406,6 +408,89 @@ export class WorkOrderReportsService {
     ]);
     const preventivaAgg = this.agregarSlaDueDateAoVivo(preventivas, agora);
     const geralAgg = this.agregarSlaDueDateAoVivo(gerais, agora);
+
+    // Com filtro Atrasada, as contagens das abas devem usar o critério ao vivo
+    // (inclui concluída fora do prazo), igual à listagem.
+    if (filtros.slaBucket === 'OVERDUE') {
+      const corretivasLive = corretivas.filter((registro) =>
+        this.registroEstaAtrasadoAoVivo(registro, agora),
+      );
+      const preventivasLive = preventivas.filter((registro) =>
+        this.registroEstaAtrasadoAoVivo(registro, agora),
+      );
+      const geraisLive = gerais.filter((registro) =>
+        this.registroEstaAtrasadoAoVivo(registro, agora),
+      );
+      const countByStatus = (
+        items: Array<{ status: WorkOrderStatus }>,
+        predicate: (status: WorkOrderStatus) => boolean,
+      ) => items.filter((item) => predicate(item.status)).length;
+
+      return {
+        corrective: {
+          total: corretivasLive.length,
+          inProgress: countByStatus(corretivasLive, (status) =>
+            IN_PROGRESS_STATUSES.includes(status),
+          ),
+          completed: countByStatus(
+            corretivasLive,
+            (status) => status === WorkOrderStatus.COMPLETED,
+          ),
+          overdue: corretivasLive.length,
+        },
+        preventive: {
+          total: preventivasLive.length,
+          inProgress: countByStatus(preventivasLive, (status) =>
+            IN_PROGRESS_STATUSES.includes(status),
+          ),
+          completed: countByStatus(
+            preventivasLive,
+            (status) => status === WorkOrderStatus.COMPLETED,
+          ),
+          overdue: preventivasLive.length,
+        },
+        general: {
+          total: geraisLive.length,
+          inProgress: countByStatus(geraisLive, (status) =>
+            IN_PROGRESS_STATUSES.includes(status),
+          ),
+          completed: countByStatus(
+            geraisLive,
+            (status) => status === WorkOrderStatus.COMPLETED,
+          ),
+          overdue: geraisLive.length,
+        },
+        sla: {
+          positive: 0,
+          negative: corretivasLive.length,
+          complianceRate: 0,
+        },
+        preventiveSla: {
+          onTime: 0,
+          nearDue: 0,
+          overdue: preventivasLive.length,
+          complianceRate: 0,
+        },
+        generalSla: {
+          onTime: 0,
+          nearDue: 0,
+          overdue: geraisLive.length,
+          complianceRate: 0,
+        },
+        pauses: {
+          totalCount: totalPausasCount,
+          totalPausedSeconds,
+        },
+        returns: {
+          totalCount: resumeCount,
+        },
+        preventivePauses: preventivaAgg.pauses,
+        preventiveReturns: preventivaAgg.returns,
+        generalPauses: geralAgg.pauses,
+        generalReturns: geralAgg.returns,
+      };
+    }
+
     return {
       corrective: {
         total: totalCorretivas,
