@@ -37,6 +37,7 @@ import {
 } from './utils/work-order-report-metrics.util';
 import { resolverConfigSlaDaOrdem } from '../work-orders/utils/work-order-corrective-sla.util';
 import { diaCivilParaDatePostgres } from '../work-orders/utils/work-order-due-date.util';
+import { calcularSlaStatusGeralPreventiva } from '../work-orders/utils/general-preventive-sla.util';
 
 const EXPORT_MAX_ROWS = 10_000;
 const IN_PROGRESS_STATUSES: WorkOrderStatus[] = [
@@ -221,8 +222,39 @@ export class WorkOrderReportsService {
   ): Promise<WorkOrderReportListResponse> {
     const page = filtros.page ?? 1;
     const limit = filtros.limit ?? 20;
-    const where = this.montarWhere(filtros);
     const orderBy = this.montarOrderBy(filtros);
+
+    // Atraso (OVERDUE) usa critério ao vivo — inclui "concluída fora do prazo"
+    // e evita divergência com o resumo (status persistido fica defasado).
+    if (filtros.slaBucket === 'OVERDUE') {
+      const where = this.montarWhere(filtros);
+      const registros = await this.buscarRegistrosRelatorio(
+        where,
+        orderBy,
+        0,
+        EXPORT_MAX_ROWS,
+      );
+      const agora = new Date();
+      const atrasadas = registros.filter((registro) =>
+        this.registroEstaAtrasadoAoVivo(registro, agora),
+      );
+      const total = atrasadas.length;
+      const totalPages = Math.max(1, Math.ceil(total / limit) || 1);
+      const slice = atrasadas.slice((page - 1) * limit, page * limit);
+      return {
+        data: slice.map((registro) => this.mapearItem(registro)),
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPreviousPage: page > 1,
+        },
+      };
+    }
+
+    const where = this.montarWhere(filtros);
     const [total, registros] = await this.prisma.$transaction([
       this.prisma.workOrder.count({ where }),
       this.buscarRegistrosRelatorio(where, orderBy, (page - 1) * limit, limit),
@@ -431,13 +463,19 @@ export class WorkOrderReportsService {
     const orderBy = this.montarOrderBy(filtros);
     /** Sempre enriquece no export: abas de OS única / pastas OneDrive por OS. */
     const includeDetalhes = true;
-    const registros = await this.buscarRegistrosRelatorio(
+    let registros = await this.buscarRegistrosRelatorio(
       where,
       orderBy,
       0,
       EXPORT_MAX_ROWS,
       includeDetalhes,
     );
+    if (filtros.slaBucket === 'OVERDUE') {
+      const agora = new Date();
+      registros = registros.filter((registro) =>
+        this.registroEstaAtrasadoAoVivo(registro, agora),
+      );
+    }
     const itens = registros.map((registro) =>
       this.mapearItem(registro, includeDetalhes),
     );
@@ -569,8 +607,8 @@ export class WorkOrderReportsService {
 
   private filtroSlaCorretiva(bucket: ReportSlaBucket): Prisma.WorkOrderWhereInput {
     if (bucket === 'OVERDUE') {
-      // Alinha ao resumo ao vivo (`isLate`): status persistido fica defasado
-      // em OS abertas que já passaram de `slaDeadlineAt` sem transição registrada.
+      // Candidatas (refinadas ao vivo): status negativo, exceededAt,
+      // abertas com deadline vencido, ou concluídas com datas para comparar.
       const agora = new Date();
       return {
         OR: [
@@ -589,6 +627,31 @@ export class WorkOrderReportsService {
               },
             ],
           },
+          {
+            AND: [
+              { status: WorkOrderStatus.COMPLETED },
+              { slaDeadlineAt: { not: null } },
+              {
+                OR: [
+                  { completedAt: { not: null } },
+                  { finalApprovalCompletedAt: { not: null } },
+                ],
+              },
+            ],
+          },
+          {
+            AND: [
+              { status: WorkOrderStatus.COMPLETED_UNDER_REVIEW },
+              { slaDeadlineAt: { not: null } },
+              {
+                OR: [
+                  { completedAt: { not: null } },
+                  { finalApprovalCompletedAt: { not: null } },
+                  { slaDeadlineAt: { lt: agora } },
+                ],
+              },
+            ],
+          },
         ],
       };
     }
@@ -602,8 +665,10 @@ export class WorkOrderReportsService {
 
   private filtroSlaCivil(bucket: ReportSlaBucket): Prisma.WorkOrderWhereInput {
     if (bucket === 'OVERDUE') {
-      // Alinha ao resumo ao vivo: `slaStatus` persistido fica defasado em OS
-      // abertas cujo prazo civil já venceu (Preventiva/Geral).
+      // Candidatas a atraso (refinadas ao vivo em listar/exportar):
+      // - slaStatus persistido OVERDUE
+      // - abertas com prazo civil vencido
+      // - concluídas com prazo civil já passado (inclui "fora do prazo")
       const brt = new Date(Date.now() - 3 * 60 * 60 * 1000);
       const hojeYmd = `${brt.getUTCFullYear()}-${String(brt.getUTCMonth() + 1).padStart(2, '0')}-${String(brt.getUTCDate()).padStart(2, '0')}`;
       const inicioHojeCivil = diaCivilParaDatePostgres(hojeYmd);
@@ -613,13 +678,22 @@ export class WorkOrderReportsService {
           {
             AND: [
               { dueDate: { lt: inicioHojeCivil } },
+              { status: { not: WorkOrderStatus.CANCELLED } },
               {
-                status: {
-                  notIn: [
-                    WorkOrderStatus.COMPLETED,
-                    WorkOrderStatus.CANCELLED,
-                  ],
-                },
+                OR: [
+                  {
+                    status: {
+                      notIn: [
+                        WorkOrderStatus.COMPLETED,
+                        WorkOrderStatus.CANCELLED,
+                      ],
+                    },
+                  },
+                  {
+                    status: WorkOrderStatus.COMPLETED,
+                    completedAt: { not: null },
+                  },
+                ],
               },
             ],
           },
@@ -630,6 +704,121 @@ export class WorkOrderReportsService {
       return { slaStatus: WorkOrderSlaStatus.WARNING };
     }
     return { slaStatus: WorkOrderSlaStatus.OK };
+  }
+
+  /**
+   * Critério ao vivo de atraso — alinhado ao resumo.
+   * Preventiva/Geral: inclui concluída fora do prazo.
+   * Corretiva: usa `isLate` das métricas ao vivo.
+   */
+  private registroEstaAtrasadoAoVivo(
+    registro: {
+      type: WorkOrderType;
+      status: WorkOrderStatus;
+      dueDate: Date | null;
+      completedAt: Date | null;
+      finalApprovalCompletedAt?: Date | null;
+      startedAt?: Date | null;
+      slaStartAt?: Date | null;
+      slaPausedAt?: Date | null;
+      slaResumedAt?: Date | null;
+      slaConsumedSeconds?: number | null;
+      slaRemainingSeconds?: number | null;
+      slaDeadlineAt?: Date | null;
+      slaDeadlineHours?: number | null;
+      slaStatusExtended?: string | null;
+      slaExceededAt?: Date | null;
+      slaStatus?: WorkOrderSlaStatus | null;
+      company?: {
+        correctiveSlaDefaultSeconds?: number | null;
+        correctiveSlaWindowStart?: string | null;
+        correctiveSlaWindowEnd?: string | null;
+      } | null;
+      workOrderPauseHistories?: Array<{
+        eventType: WorkOrderPauseHistoryEventType;
+        createdAt: Date;
+      }>;
+    },
+    agora: Date,
+  ): boolean {
+    if (registro.status === WorkOrderStatus.CANCELLED) {
+      return false;
+    }
+
+    if (registro.type === WorkOrderType.CORRECTIVE) {
+      if (
+        registro.slaStatusExtended === 'BREACHED' ||
+        registro.slaStatusExtended === 'COMPLETED_LATE'
+      ) {
+        return true;
+      }
+      if (registro.slaExceededAt) {
+        return true;
+      }
+
+      const deadlineMs = registro.slaDeadlineAt
+        ? registro.slaDeadlineAt.getTime()
+        : NaN;
+      const concludedMs = registro.finalApprovalCompletedAt
+        ? registro.finalApprovalCompletedAt.getTime()
+        : registro.completedAt
+          ? registro.completedAt.getTime()
+          : NaN;
+
+      if (!Number.isNaN(deadlineMs) && !Number.isNaN(concludedMs)) {
+        if (
+          registro.status === WorkOrderStatus.COMPLETED ||
+          registro.status === WorkOrderStatus.COMPLETED_UNDER_REVIEW ||
+          Boolean(registro.completedAt || registro.finalApprovalCompletedAt)
+        ) {
+          return concludedMs > deadlineMs;
+        }
+      }
+
+      if (
+        registro.status !== WorkOrderStatus.COMPLETED &&
+        !Number.isNaN(deadlineMs) &&
+        agora.getTime() > deadlineMs
+      ) {
+        return true;
+      }
+
+      const metricas = calcularMetricasCorretiva(
+        this.construirEntradaMetricasCorretiva(
+          registro as EntradaMetricasCorretivaRegistro,
+        ),
+        agora,
+      );
+      return metricas.isLate;
+    }
+
+    if (
+      registro.type === WorkOrderType.PREVENTIVE ||
+      registro.type === WorkOrderType.GENERAL
+    ) {
+      if (!registro.dueDate) {
+        return false;
+      }
+      if (registro.slaStatus === WorkOrderSlaStatus.OVERDUE) {
+        return true;
+      }
+      const statusParaCalculo =
+        registro.status === WorkOrderStatus.COMPLETED ||
+        (registro.status === WorkOrderStatus.COMPLETED_UNDER_REVIEW &&
+          Boolean(registro.completedAt))
+          ? WorkOrderStatus.COMPLETED
+          : registro.status;
+      return (
+        calcularSlaStatusGeralPreventiva(
+          registro.dueDate,
+          statusParaCalculo,
+          agora,
+          registro.completedAt,
+        ) === WorkOrderSlaStatus.OVERDUE
+      );
+    }
+
+    return false;
   }
 
   private agregarSlaDueDateAoVivo(
