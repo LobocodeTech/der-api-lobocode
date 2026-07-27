@@ -36,6 +36,7 @@ import {
   resolverSlaBucketCorretivaLive,
 } from './utils/work-order-report-metrics.util';
 import { resolverConfigSlaDaOrdem } from '../work-orders/utils/work-order-corrective-sla.util';
+import { diaCivilParaDatePostgres } from '../work-orders/utils/work-order-due-date.util';
 
 const EXPORT_MAX_ROWS = 10_000;
 const IN_PROGRESS_STATUSES: WorkOrderStatus[] = [
@@ -568,7 +569,28 @@ export class WorkOrderReportsService {
 
   private filtroSlaCorretiva(bucket: ReportSlaBucket): Prisma.WorkOrderWhereInput {
     if (bucket === 'OVERDUE') {
-      return { slaStatusExtended: { in: CORRECTIVE_SLA_NEGATIVE_STATUSES } };
+      // Alinha ao resumo ao vivo (`isLate`): status persistido fica defasado
+      // em OS abertas que já passaram de `slaDeadlineAt` sem transição registrada.
+      const agora = new Date();
+      return {
+        OR: [
+          { slaStatusExtended: { in: CORRECTIVE_SLA_NEGATIVE_STATUSES } },
+          { slaExceededAt: { not: null } },
+          {
+            AND: [
+              { slaDeadlineAt: { lt: agora } },
+              {
+                status: {
+                  notIn: [
+                    WorkOrderStatus.COMPLETED,
+                    WorkOrderStatus.CANCELLED,
+                  ],
+                },
+              },
+            ],
+          },
+        ],
+      };
     }
     if (bucket === 'NEAR_DUE') {
       return { slaStatusExtended: { in: CORRECTIVE_SLA_NEAR_STATUSES } };
@@ -580,7 +602,29 @@ export class WorkOrderReportsService {
 
   private filtroSlaCivil(bucket: ReportSlaBucket): Prisma.WorkOrderWhereInput {
     if (bucket === 'OVERDUE') {
-      return { slaStatus: WorkOrderSlaStatus.OVERDUE };
+      // Alinha ao resumo ao vivo: `slaStatus` persistido fica defasado em OS
+      // abertas cujo prazo civil já venceu (Preventiva/Geral).
+      const brt = new Date(Date.now() - 3 * 60 * 60 * 1000);
+      const hojeYmd = `${brt.getUTCFullYear()}-${String(brt.getUTCMonth() + 1).padStart(2, '0')}-${String(brt.getUTCDate()).padStart(2, '0')}`;
+      const inicioHojeCivil = diaCivilParaDatePostgres(hojeYmd);
+      return {
+        OR: [
+          { slaStatus: WorkOrderSlaStatus.OVERDUE },
+          {
+            AND: [
+              { dueDate: { lt: inicioHojeCivil } },
+              {
+                status: {
+                  notIn: [
+                    WorkOrderStatus.COMPLETED,
+                    WorkOrderStatus.CANCELLED,
+                  ],
+                },
+              },
+            ],
+          },
+        ],
+      };
     }
     if (bucket === 'NEAR_DUE') {
       return { slaStatus: WorkOrderSlaStatus.WARNING };
