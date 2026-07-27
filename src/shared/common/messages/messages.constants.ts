@@ -217,7 +217,7 @@ export const LOG_MESSAGES = {
   // Logs de segurança
   SECURITY: {
     UNAUTHORIZED_ACCESS: 'Tentativa de acesso não autorizado',
-    RATE_LIMIT_EXCEEDED: 'Limite de taxa excedido',
+    RATE_LIMIT_EXCEEDED: 'Limite de requisições excedido. Tente novamente em alguns minutos.',
     SUSPICIOUS_ACTIVITY: 'Atividade suspeita detectada',
     PERMISSION_DENIED: 'Permissão negada',
   },

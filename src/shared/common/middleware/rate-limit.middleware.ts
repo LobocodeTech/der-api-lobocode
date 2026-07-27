@@ -21,12 +21,15 @@ export class RateLimitMiddleware implements NestMiddleware {
   private getMaxRequests(): number {
     // Prioridade: variável de ambiente > ambiente > padrão
     if (process.env.RATE_LIMIT_MAX_REQUESTS) {
-      return parseInt(process.env.RATE_LIMIT_MAX_REQUESTS);
+      const parsed = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS, 10);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        return parsed;
+      }
     }
     
     return process.env.NODE_ENV === 'production' 
-      ? 500  // 500 req/15min = ~33 req/min (produção)
-      : 2000; // 2000 req/15min = ~133 req/min (desenvolvimento)
+      ? 20000  // 20000 req/15min ≈ 1333 req/min (produção; IP compartilhado)
+      : 50000; // 50000 req/15min ≈ 3333 req/min (desenvolvimento)
   }
 
   use(req: Request, res: Response, next: NextFunction) {
@@ -57,10 +60,14 @@ export class RateLimitMiddleware implements NestMiddleware {
 
     // Verificar limite
     if (this.store[key].count > this.maxRequests) {
-      const resetTime = new Date(this.store[key].resetTime).toISOString();
-      const remainingTime = Math.ceil((this.store[key].resetTime - now) / 1000 / 60);
+      const remainingMinutes = Math.max(
+        1,
+        Math.ceil((this.store[key].resetTime - now) / 1000 / 60),
+      );
+      const minutesLabel =
+        remainingMinutes === 1 ? '1 minuto' : `${remainingMinutes} minutos`;
       throw new HttpException(
-        `Too many requests. Please try again in ${remainingTime} minutes.`,
+        `Muitas requisições. Tente novamente em ${minutesLabel}.`,
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }

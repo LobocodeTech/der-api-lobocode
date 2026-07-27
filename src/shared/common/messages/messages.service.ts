@@ -146,7 +146,7 @@ getErrorMessage(category: keyof typeof ERROR_MESSAGES, key: string, context?: Me
       404: 'Recurso não encontrado',
       409: 'Conflito de dados',
       422: 'Dados inválidos',
-      429: 'Muitas requisições',
+      429: 'Muitas requisições. Tente novamente em alguns minutos.',
       500: 'Erro interno do servidor',
       502: 'Erro de gateway',
       503: 'Serviço indisponível',
