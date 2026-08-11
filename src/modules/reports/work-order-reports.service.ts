@@ -296,7 +296,6 @@ export class WorkOrderReportsService {
       totalCorretivas,
       corretivasEmAndamento,
       corretivasFinalizadas,
-      corretivasAtrasadas,
       totalPreventivas,
       preventivasEmAndamento,
       preventivasFinalizadas,
@@ -317,12 +316,6 @@ export class WorkOrderReportsService {
         where: {
           ...whereCorretiva,
           status: WorkOrderStatus.COMPLETED,
-        },
-      }),
-      this.prisma.workOrder.count({
-        where: {
-          ...whereCorretiva,
-          slaStatusExtended: { in: CORRECTIVE_SLA_NEGATIVE_STATUSES },
         },
       }),
       this.prisma.workOrder.count({ where: wherePreventiva }),
@@ -408,13 +401,14 @@ export class WorkOrderReportsService {
     ]);
     const preventivaAgg = this.agregarSlaDueDateAoVivo(preventivas, agora);
     const geralAgg = this.agregarSlaDueDateAoVivo(gerais, agora);
+    const corretivasAtrasadasAoVivo = corretivas.filter((registro) =>
+      this.registroEstaAtrasadoAoVivo(registro, agora),
+    );
 
     // Com filtro Atrasada, as contagens das abas devem usar o critério ao vivo
     // (inclui concluída fora do prazo), igual à listagem.
     if (filtros.slaBucket === 'OVERDUE') {
-      const corretivasLive = corretivas.filter((registro) =>
-        this.registroEstaAtrasadoAoVivo(registro, agora),
-      );
+      const corretivasLive = corretivasAtrasadasAoVivo;
       const preventivasLive = preventivas.filter((registro) =>
         this.registroEstaAtrasadoAoVivo(registro, agora),
       );
@@ -496,7 +490,7 @@ export class WorkOrderReportsService {
         total: totalCorretivas,
         inProgress: corretivasEmAndamento,
         completed: corretivasFinalizadas,
-        overdue: corretivasAtrasadas,
+        overdue: corretivasAtrasadasAoVivo.length,
       },
       preventive: {
         total: totalPreventivas,

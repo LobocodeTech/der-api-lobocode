@@ -19,7 +19,24 @@ export class OperationalDashboardService {
     private readonly tenantService: TenantService,
   ) {}
 
-  async obterResumoOperacional(userRole?: Roles) {
+  async obterResumoOperacional(
+    userRole?: Roles,
+    listPages: {
+      incidentsPage?: number;
+      pendingPage?: number;
+      preventivePage?: number;
+      generalPage?: number;
+      listLimit?: number;
+    } = {},
+  ) {
+    const listLimit = Math.min(
+      50,
+      Math.max(1, Number(listPages.listLimit) || 5),
+    );
+    const incidentsPage = Math.max(1, Number(listPages.incidentsPage) || 1);
+    const pendingPage = Math.max(1, Number(listPages.pendingPage) || 1);
+    const preventivePage = Math.max(1, Number(listPages.preventivePage) || 1);
+    const generalPage = Math.max(1, Number(listPages.generalPage) || 1);
     const companyId = this.tenantService.getCompanyId();
     const periodStart = this.obterInicioDosUltimosDias(7);
 
@@ -53,7 +70,9 @@ export class OperationalDashboardService {
       warningSla,
       overdueSla,
       recentCriticalWorkOrders,
+      criticalIncidentsTotal,
       pendingSlaWorkOrders,
+      pendingSlaTotal,
       workOrderTrendRecords,
       mttrRecords,
       monitoredEquipmentPairs,
@@ -119,7 +138,17 @@ export class OperationalDashboardService {
           createdAt: true,
         },
         orderBy: { createdAt: 'desc' },
-        take: 50,
+        skip: (incidentsPage - 1) * listLimit,
+        take: listLimit,
+      }),
+      this.prisma.workOrder.count({
+        where: {
+          ...workOrderWhere,
+          status: { not: WorkOrderStatus.COMPLETED },
+          priority: {
+            in: [WorkOrderPriority.CRITICAL, WorkOrderPriority.HIGH],
+          },
+        },
       }),
       this.prisma.workOrder.findMany({
         where: {
@@ -146,7 +175,23 @@ export class OperationalDashboardService {
           slaRemainingSeconds: true,
         },
         orderBy: [{ createdAt: 'desc' }],
-        take: 50,
+        skip: (pendingPage - 1) * listLimit,
+        take: listLimit,
+      }),
+      this.prisma.workOrder.count({
+        where: {
+          ...workOrderWhere,
+          type: WorkOrderType.CORRECTIVE,
+          status: {
+            notIn: [WorkOrderStatus.COMPLETED, WorkOrderStatus.CANCELLED],
+          },
+          slaStatusExtended: {
+            in: [
+              WorkOrderCorrectiveSlaStatus.NEAR_BREACH,
+              WorkOrderCorrectiveSlaStatus.BREACHED,
+            ],
+          },
+        },
       }),
       this.prisma.workOrder.findMany({
         where: {
@@ -314,8 +359,7 @@ export class OperationalDashboardService {
         const left = a.daysSinceLastPreventive ?? Number.MAX_SAFE_INTEGER;
         const right = b.daysSinceLastPreventive ?? Number.MAX_SAFE_INTEGER;
         return right - left;
-      })
-      .slice(0, 50);
+      });
 
     const generalMap = new Map(
       lastGeneralByLocation.map((item) => [
@@ -344,8 +388,7 @@ export class OperationalDashboardService {
         const left = a.daysSinceLastGeneral ?? Number.MAX_SAFE_INTEGER;
         const right = b.daysSinceLastGeneral ?? Number.MAX_SAFE_INTEGER;
         return right - left;
-      })
-      .slice(0, 50);
+      });
 
     return {
       assets: {
@@ -364,12 +407,40 @@ export class OperationalDashboardService {
         slaWarning: warningSla,
         slaOverdue: overdueSla,
       },
-      criticalIncidents,
-      pendingWorkOrders,
+      criticalIncidents: {
+        items: criticalIncidents,
+        total: criticalIncidentsTotal,
+      },
+      pendingWorkOrders: {
+        items: pendingWorkOrders,
+        total: pendingSlaTotal,
+      },
       workOrdersTrend,
       mttrTrend,
-      preventiveAgingByLocationEquipment,
-      generalAgingByLocation,
+      preventiveAgingByLocationEquipment: this.paginarLista(
+        preventiveAgingByLocationEquipment,
+        preventivePage,
+        listLimit,
+      ),
+      generalAgingByLocation: this.paginarLista(
+        generalAgingByLocation,
+        generalPage,
+        listLimit,
+      ),
+    };
+  }
+
+  private paginarLista<T>(
+    items: T[],
+    page: number,
+    limit: number,
+    totalOverride?: number,
+  ) {
+    const total = totalOverride ?? items.length;
+    const start = (page - 1) * limit;
+    return {
+      items: items.slice(start, start + limit),
+      total,
     };
   }
 

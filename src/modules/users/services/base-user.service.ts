@@ -36,46 +36,60 @@ export class BaseUserService {
     orderBy = 'name',
     orderDirection: 'asc' | 'desc' = 'asc',
     scope: UserSoftDeleteScope = 'active',
+    filtros: { q?: string; role?: string; status?: string } = {},
   ) {
     const resolvedOrderBy =
       scope === 'deleted' && orderBy === 'name' ? 'deletedAt' : orderBy;
     const resolvedOrderDirection =
       scope === 'deleted' && orderBy === 'name' ? 'desc' : orderDirection;
 
-    const whereClause = this.userQueryService.construirWhereClauseParaRead(
+    const safePage = Number.isFinite(Number(page)) && Number(page) > 0
+      ? Math.floor(Number(page))
+      : 1;
+    const safeLimit =
+      Number.isFinite(Number(limit)) && Number(limit) > 0
+        ? Math.min(100, Math.floor(Number(limit)))
+        : 20;
+
+    const baseWhereClause = this.userQueryService.construirWhereClauseParaRead(
       {},
       scope,
     );
-    const skip = (page - 1) * limit;
+    const whereClause = this.aplicarFiltrosDeUsuarios(baseWhereClause, filtros);
+    const skip = (safePage - 1) * safeLimit;
 
     const orderByConfig = {
       [resolvedOrderBy]: resolvedOrderDirection,
     };
     
-    const [users, total] = await Promise.all([
+    const [users, total, counts, scopeCounts] = await Promise.all([
       this.userRepository.buscarMuitos(whereClause, { 
         skip, 
-        take: limit,
+        take: safeLimit,
         orderBy: orderByConfig
       } as any),
       this.userRepository.contar(whereClause),
+      this.contarUsuariosPorStatus(whereClause),
+      this.contarUsuariosPorStatus(baseWhereClause),
     ]);
 
     const { totalPages, hasNextPage, hasPreviousPage } =
-      this.calcularInformacoesDePaginacao(page, limit, total);
+      this.calcularInformacoesDePaginacao(safePage, safeLimit, total);
 
     const transformedData = this.transformData(users);
 
     return {
       data: transformedData,
       pagination: {
-        page,
-        limit,
+        page: safePage,
+        limit: safeLimit,
         total,
         totalPages,
         hasNextPage,
         hasPreviousPage,
       },
+      counts,
+      scopeCounts,
     };
   }
 
@@ -89,62 +103,53 @@ export class BaseUserService {
     orderBy = 'name',
     orderDirection: 'asc' | 'desc' = 'asc',
     scope: UserSoftDeleteScope = 'active',
+    filtros: { role?: string; status?: string } = {},
   ) {
-    const resolvedOrderBy =
-      scope === 'deleted' && orderBy === 'name' ? 'deletedAt' : orderBy;
-    const resolvedOrderDirection =
-      scope === 'deleted' && orderBy === 'name' ? 'desc' : orderDirection;
+    return this.buscarTodos(page, limit, orderBy, orderDirection, scope, {
+      q: query,
+      ...filtros,
+    });
+  }
 
-    const baseWhereClause = this.userQueryService.construirWhereClauseParaRead(
-      {},
-      scope,
-    );
-    
-    // Adicionar filtros de pesquisa se query fornecida
-    let whereClause = baseWhereClause;
-    if (query && query.trim()) {
-      const searchTerm = query.trim();
-      whereClause = {
-        ...baseWhereClause,
-        OR: [
-          { name: { contains: searchTerm, mode: 'insensitive' } },
-          { email: { contains: searchTerm, mode: 'insensitive' } },
-          { phone: { contains: searchTerm, mode: 'insensitive' } },
-        ],
-      };
+  private aplicarFiltrosDeUsuarios(
+    baseWhere: Record<string, unknown>,
+    filtros: { q?: string; role?: string; status?: string },
+  ) {
+    const where: Record<string, unknown> = { ...baseWhere };
+    const search = filtros.q?.trim();
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search, mode: 'insensitive' } },
+      ];
     }
+    if (filtros.role && filtros.role !== 'all') {
+      where.role = filtros.role;
+    }
+    if (filtros.status && filtros.status !== 'all') {
+      where.status = filtros.status;
+    }
+    return where;
+  }
 
-    const skip = (page - 1) * limit;
-
-    const orderByConfig = {
-      [resolvedOrderBy]: resolvedOrderDirection,
-    };
-
-    const [users, total] = await Promise.all([
-      this.userRepository.buscarMuitos(whereClause, {
-        skip,
-        take: limit,
-        orderBy: orderByConfig,
-      } as any),
+  private async contarUsuariosPorStatus(whereClause: Record<string, unknown>) {
+    const whereSemStatus = { ...whereClause };
+    delete whereSemStatus.status;
+    const statusFiltro = whereClause.status as string | undefined;
+    const [total, active, pending, inactive] = await Promise.all([
       this.userRepository.contar(whereClause),
+      statusFiltro && statusFiltro !== 'ACTIVE'
+        ? Promise.resolve(0)
+        : this.userRepository.contar({ ...whereSemStatus, status: 'ACTIVE' }),
+      statusFiltro && statusFiltro !== 'PENDING'
+        ? Promise.resolve(0)
+        : this.userRepository.contar({ ...whereSemStatus, status: 'PENDING' }),
+      statusFiltro && statusFiltro !== 'INACTIVE'
+        ? Promise.resolve(0)
+        : this.userRepository.contar({ ...whereSemStatus, status: 'INACTIVE' }),
     ]);
-
-    const { totalPages, hasNextPage, hasPreviousPage } =
-      this.calcularInformacoesDePaginacao(page, limit, total);
-
-    const transformedData = this.transformData(users);
-
-    return {
-      data: transformedData,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages,
-        hasNextPage,
-        hasPreviousPage,
-      },
-    };
+    return { total, active, pending, inactive };
   }
 
   /**
