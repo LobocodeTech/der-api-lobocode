@@ -13,6 +13,8 @@ import {
   IncludeConfig,
   TransformConfig,
   EntityConfig,
+  ListagemFiltros,
+  ListagemCounts,
 } from '../types';
 
 /**
@@ -133,20 +135,37 @@ export abstract class UniversalService<DtoCreate, DtoUpdate> {
   /**
    * Lista todas as entidades com paginação
    */
-  async buscarComPaginacao(page = 1, limit = 20, include?: any) {
+  async buscarComPaginacao(
+    page = 1,
+    limit = 20,
+    include?: any,
+    filtros: ListagemFiltros = {},
+  ) {
     this.permissionService.validarAction(this.entityNameCasl, 'read');
 
-    const whereClause = this.queryService.construirWhereClauseParaRead(
-      this.entityNameCasl,
-    );
+    const safePage = Number.isFinite(Number(page)) && Number(page) > 0
+      ? Math.floor(Number(page))
+      : 1;
+    const safeLimit =
+      Number.isFinite(Number(limit)) && Number(limit) > 0
+        ? Math.min(100, Math.floor(Number(limit)))
+        : 10;
+
+    const whereClause = {
+      ...this.queryService.construirWhereClauseParaRead(this.entityNameCasl),
+      ...this.construirFiltrosDeListagem(filtros),
+    };
 
     if (this.removeCompanyIdInWhereClause) delete whereClause.companyId;
 
     // Usa includes da configuração se não for fornecido
     const includeConfig = include || this.getIncludeConfig();
 
-    const skip = (page - 1) * limit;
-    const defaultOrderBy = this.getEntityConfig().orderBy ?? { createdAt: 'desc' };
+    const skip = (safePage - 1) * safeLimit;
+    const defaultOrderBy =
+      this.resolverOrderByListagem(filtros) ??
+      this.getEntityConfig().orderBy ??
+      { createdAt: 'desc' };
     const [entities, total] = await Promise.all([
       this.repository.buscarMuitos(
         this.entityName,
@@ -154,7 +173,7 @@ export abstract class UniversalService<DtoCreate, DtoUpdate> {
         {
           orderBy: defaultOrderBy,
           skip,
-          take: limit,
+          take: safeLimit,
         },
         includeConfig,
       ),
@@ -162,22 +181,70 @@ export abstract class UniversalService<DtoCreate, DtoUpdate> {
     ]);
 
     const { totalPages, hasNextPage, hasPreviousPage } =
-      this.calcularInformacoesDePaginacao(page, limit, total);
+      this.calcularInformacoesDePaginacao(safePage, safeLimit, total);
 
     // Aplica transformações se configurado
     const transformedData = this.transformData(entities);
+    const counts = await this.obterCountsDeListagem(whereClause);
 
     return {
       data: transformedData,
       pagination: {
-        page,
-        limit,
+        page: safePage,
+        limit: safeLimit,
         total,
         totalPages,
         hasNextPage,
         hasPreviousPage,
       },
+      ...(counts ? { counts } : {}),
     };
+  }
+
+  /**
+   * Filtros extras de GET / (search/status/etc). GET /all não usa isto.
+   */
+  protected construirFiltrosDeListagem(
+    filtros: ListagemFiltros,
+  ): Record<string, unknown> {
+    const extra: Record<string, unknown> = {};
+    if (filtros.status && filtros.status !== 'all') {
+      extra.status = filtros.status;
+    }
+    return extra;
+  }
+
+  protected resolverOrderByListagem(
+    _filtros: ListagemFiltros,
+  ): Record<string, 'asc' | 'desc'> | undefined {
+    return undefined;
+  }
+
+  protected async obterCountsDeListagem(
+    _whereClause: Record<string, unknown>,
+  ): Promise<ListagemCounts | null> {
+    return null;
+  }
+
+  protected async contarStatusAtivoInativo(
+    whereClause: Record<string, unknown>,
+  ): Promise<ListagemCounts> {
+    const statusFiltro = whereClause.status;
+    const total = await this.repository.contarTodos(
+      this.entityName,
+      whereClause,
+    );
+    if (statusFiltro === 'INACTIVE') {
+      return { total, active: 0, inactive: total };
+    }
+    if (statusFiltro === 'ACTIVE') {
+      return { total, active: total, inactive: 0 };
+    }
+    const active = await this.repository.contarTodos(this.entityName, {
+      ...whereClause,
+      status: 'ACTIVE',
+    });
+    return { total, active, inactive: Math.max(0, total - active) };
   }
 
   /**

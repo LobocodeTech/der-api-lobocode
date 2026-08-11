@@ -7,6 +7,7 @@ import {
   UniversalQueryService,
   UniversalPermissionService,
   createEntityConfig,
+  ListagemFiltros,
 } from '../../shared/universal';
 import { CreateRegionalsDto } from './dto/create-regionals.dto';
 import { UpdateRegionalsDto } from './dto/update-regionals.dto';
@@ -75,6 +76,27 @@ export class RegionalsService extends UniversalService<
       },
       orderBy: { cgr: 'asc' },
     };
+  }
+
+  protected construirFiltrosDeListagem(
+    filtros: ListagemFiltros,
+  ): Record<string, unknown> {
+    const extra = super.construirFiltrosDeListagem(filtros);
+    const search = filtros.search?.trim();
+    if (search) {
+      extra.OR = [
+        { cgr: { contains: search, mode: 'insensitive' } },
+        { city: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+    if (filtros.city && filtros.city !== 'all') {
+      extra.city = filtros.city;
+    }
+    return extra;
+  }
+
+  protected obterCountsDeListagem(whereClause: Record<string, unknown>) {
+    return this.contarStatusAtivoInativo(whereClause);
   }
 
   /**

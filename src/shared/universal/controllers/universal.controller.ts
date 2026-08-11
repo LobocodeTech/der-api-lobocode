@@ -78,8 +78,21 @@ export abstract class UniversalController<
   buscarComPaginacao(
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
+    @Query('search') search?: string,
+    @Query('status') status?: string,
+    @Query('city') city?: string,
+    @Query('regionalId') regionalId?: string,
+    @Query('locationId') locationId?: string,
+    @Query('orderBy') orderBy?: string,
   ) {
-    return this.service.buscarComPaginacao(page, limit);
+    return this.service.buscarComPaginacao(page, limit, undefined, {
+      search,
+      status,
+      city,
+      regionalId,
+      locationId,
+      orderBy,
+    });
   }
 
   @Get('all')

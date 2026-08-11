@@ -92,22 +92,19 @@ export class NotificationService {
   // ============================================================================
 
   /**
-   * Buscar notificações de um usuário
-   * - Sem busca: limite de 200 notificações
-   * - Com busca: sem limite (pesquisa em toda a base)
-   * Suporta busca por termo (query) em título, mensagem e entityType
+   * Buscar notificações de um usuário com page/limit.
+   * O teto é por request (não limita o total no banco).
    */
   async buscarDoUsuario(
     userId: string,
     filters: NotificationFilters = {},
     usuario?: Pick<User, 'id' | 'role' | 'regionalId' | 'companyId'>,
   ): Promise<{ notifications: NotificationResponse[]; total: number }> {
-    const page = filters.page || 1;
+    const page = Math.max(1, filters.page || 1);
     const hasSearchQuery = filters.query && filters.query.trim();
-    
-    // Se tem busca, não aplica limite. Se não tem, aplica limite de 200
-    const limit = hasSearchQuery ? undefined : Math.min(filters.limit || 200, 200);
-    const skip = limit ? (page - 1) * limit : 0;
+    const MAX_LIMIT = 100;
+    const limit = Math.min(Math.max(1, filters.limit || 50), MAX_LIMIT);
+    const skip = (page - 1) * limit;
 
     const escopoOs =
       usuario?.role === Roles.FIELD_TEAM
@@ -146,10 +143,10 @@ export class NotificationService {
       };
     }
 
-    // Query options - take é opcional (undefined = sem limite)
     const queryOptions: any = {
       where,
       skip,
+      take: limit,
       orderBy: { createdAt: 'desc' },
       include: {
         recipients: {
@@ -158,11 +155,6 @@ export class NotificationService {
         },
       },
     };
-    
-    // Só adicionar take se tiver limite
-    if (limit) {
-      queryOptions.take = limit;
-    }
 
     const [notifications, total] = await Promise.all([
       this.prisma.notification.findMany(queryOptions) as unknown as Promise<Array<{

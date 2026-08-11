@@ -13,7 +13,9 @@ import {
   UniversalQueryService,
   UniversalPermissionService,
   createEntityConfig,
+  ListagemFiltros,
 } from '../../shared/universal';
+import { AssetType } from '@prisma/client';
 import { CreateLocationsDto } from './dto/create-locations.dto';
 import { UpdateLocationsDto } from './dto/update-locations.dto';
 
@@ -45,6 +47,64 @@ export class LocationsService extends UniversalService<
     this.setEntityConfig();
   }
 
+  protected construirFiltrosDeListagem(
+    filtros: ListagemFiltros,
+  ): Record<string, unknown> {
+    const extra = super.construirFiltrosDeListagem(filtros);
+    const search = filtros.search?.trim();
+    if (search) {
+      extra.OR = [
+        { code: { contains: search, mode: 'insensitive' } },
+        { name: { contains: search, mode: 'insensitive' } },
+        { city: { contains: search, mode: 'insensitive' } },
+        { referenceKm: { contains: search, mode: 'insensitive' } },
+        { regional: { cgr: { contains: search, mode: 'insensitive' } } },
+        { regional: { city: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+    if (filtros.regionalId && filtros.regionalId !== 'all') {
+      extra.regionalId = filtros.regionalId;
+    }
+    return extra;
+  }
+
+  protected resolverOrderByListagem(
+    filtros: ListagemFiltros,
+  ): Record<string, 'asc' | 'desc'> | undefined {
+    switch (filtros.orderBy) {
+      case 'created-oldest':
+        return { createdAt: 'asc' };
+      case 'name-az':
+        return { name: 'asc' };
+      case 'updated-newest':
+        return { updatedAt: 'desc' };
+      case 'created-newest':
+        return { createdAt: 'desc' };
+      default:
+        return undefined;
+    }
+  }
+
+  protected obterCountsDeListagem(whereClause: Record<string, unknown>) {
+    return this.contarStatusAtivoInativo(whereClause);
+  }
+
+  async buscarComPaginacao(
+    page = 1,
+    limit = 20,
+    include?: unknown,
+    filtros: ListagemFiltros = {},
+  ) {
+    const includeComAssets = include ?? {
+      ...(this.getIncludeConfig() ?? {}),
+      assets: {
+        where: { deletedAt: null },
+        select: { type: true },
+      },
+    };
+    return super.buscarComPaginacao(page, limit, includeComAssets, filtros);
+  }
+
   setEntityConfig() {
     const companyId = this.obterUsuarioLogado()?.companyId;
 
@@ -74,7 +134,23 @@ export class LocationsService extends UniversalService<
       transform: {
         flatten: {
         },
-        exclude: ['companyId', 'regionalId'],
+        exclude: ['companyId', 'regionalId', 'assets'],
+        custom: (entity: Record<string, unknown>) => {
+          if (!Array.isArray(entity.assets)) return entity;
+          const assets = entity.assets as Array<{ type?: string }>;
+          const assetCounts = {
+            camera: 0,
+            atdb: 0,
+            pmv: 0,
+            total: assets.length,
+          };
+          for (const asset of assets) {
+            if (asset.type === AssetType.CAMERA) assetCounts.camera += 1;
+            else if (asset.type === AssetType.ATDB) assetCounts.atdb += 1;
+            else if (asset.type === AssetType.PMV) assetCounts.pmv += 1;
+          }
+          return { ...entity, assetCounts };
+        },
       },
     };
   }

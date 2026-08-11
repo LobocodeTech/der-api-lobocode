@@ -37,12 +37,14 @@ export class NotificationController {
     @Query('entityType') entityType?: string,
   ) {
     const userId = req.user.id;
-    const MAX_LIMIT = 200;
+    const MAX_LIMIT = 100;
 
     const filters: NotificationFilters = {
       page: page ? parseInt(page) : 1,
-      limit: Math.min(limit ? parseInt(limit) : 200, MAX_LIMIT),
-      ...(isRead !== undefined && { isRead: isRead === 'true' }),
+      limit: Math.min(limit ? parseInt(limit) : 50, MAX_LIMIT),
+      ...(isRead === 'true' || isRead === 'false'
+        ? { isRead: isRead === 'true' }
+        : {}),
       ...(entityType && { entityType }),
     };
 
@@ -65,14 +67,15 @@ export class NotificationController {
   ) {
     const userId = req.user.id;
     const searchQuery = query?.trim() || undefined;
+    const MAX_LIMIT = 100;
 
-    // Se há busca, não aplicar limite (busca em toda a base)
-    // Se não há busca, aplicar limite de 200
     const filters: NotificationFilters = {
       page: page ? parseInt(page) : 1,
-      limit: searchQuery ? undefined : 200, // Sem limite quando busca
+      limit: Math.min(limit ? parseInt(limit) : 50, MAX_LIMIT),
       query: searchQuery,
-      ...(isRead !== undefined && { isRead: isRead === 'true' }),
+      ...(isRead === 'true' || isRead === 'false'
+        ? { isRead: isRead === 'true' }
+        : {}),
       ...(entityType && { entityType }),
     };
 

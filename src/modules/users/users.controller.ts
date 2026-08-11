@@ -65,6 +65,9 @@ export class UsersController {
     @Query('orderBy') orderBy: string = 'name',
     @Query('orderDirection') orderDirection: 'asc' | 'desc' = 'asc',
     @Query('deletedOnly') deletedOnly?: string,
+    @Query('q') q?: string,
+    @Query('role') role?: string,
+    @Query('status') status?: string,
   ) {
     const scope = parseUserSoftDeleteScope(deletedOnly);
     return this.service.buscarTodos(
@@ -73,6 +76,7 @@ export class UsersController {
       orderBy,
       orderDirection,
       scope,
+      { q, role, status },
     );
   }
 
@@ -108,6 +112,9 @@ export class UsersController {
     @Query('orderBy') orderBy: string = 'name',
     @Query('orderDirection') orderDirection: 'asc' | 'desc' = 'asc',
     @Query('deletedOnly') deletedOnly?: string,
+    @Query('q') q?: string,
+    @Query('role') role?: string,
+    @Query('status') status?: string,
   ) {
     const scope = parseUserSoftDeleteScope(deletedOnly);
     return this.service.buscarTodos(
@@ -116,6 +123,7 @@ export class UsersController {
       orderBy,
       orderDirection,
       scope,
+      { q, role, status },
     );
   }
 
@@ -129,6 +137,8 @@ export class UsersController {
     @Query('orderBy') orderBy: string = 'name',
     @Query('orderDirection') orderDirection: 'asc' | 'desc' = 'asc',
     @Query('deletedOnly') deletedOnly?: string,
+    @Query('role') role?: string,
+    @Query('status') status?: string,
   ) {
     const scope = parseUserSoftDeleteScope(deletedOnly);
     return this.service.buscarUsuarios(
@@ -138,6 +148,7 @@ export class UsersController {
       orderBy,
       orderDirection,
       scope,
+      { role, status },
     );
   }
 

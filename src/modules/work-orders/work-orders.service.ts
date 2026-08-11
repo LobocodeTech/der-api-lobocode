@@ -15,6 +15,7 @@ import {
   Prisma,
   Roles,
   WorkOrderCorrectiveSlaStatus,
+  WorkOrderPriority,
   WorkOrderSlaStatus,
   WorkOrderStatus,
   WorkOrderType,
@@ -29,6 +30,7 @@ import {
   UniversalQueryService,
   UniversalPermissionService,
   createEntityConfig,
+  ListagemFiltros,
 } from 'src/shared/universal';
 import { CompleteWorkOrderDto } from './dto/complete-work-order.dto';
 import { RejectWorkOrderCompletionDto } from './dto/reject-work-order-completion.dto';
@@ -245,6 +247,17 @@ export class WorkOrdersService extends UniversalService<
     return {
       ...base,
       workOrderQueues: construirWorkOrderQueuesOnWorkOrderInclude(companyId ?? undefined),
+      _count: {
+        select: {
+          checklistItems: true,
+          comments: true,
+          evidences: true,
+        },
+      },
+      checklistItems: {
+        where: { isDone: true },
+        select: { id: true },
+      },
     };
   }
 
@@ -259,6 +272,151 @@ export class WorkOrdersService extends UniversalService<
       this.entityNameCasl,
       { ...baseWhere, completedClearedAt: null },
     );
+  }
+
+  private mesclarWhere(
+    base: Prisma.WorkOrderWhereInput,
+    extra: Prisma.WorkOrderWhereInput,
+  ): Prisma.WorkOrderWhereInput {
+    return { AND: [base, extra] };
+  }
+
+  private inicioDoDiaUtc(ymd: string): Date {
+    return new Date(`${ymd}T00:00:00.000Z`);
+  }
+
+  private ymdHoje(): string {
+    return new Date().toLocaleDateString('en-CA', {
+      timeZone: 'America/Sao_Paulo',
+    });
+  }
+
+  private somarDiasYmd(ymd: string, dias: number): string {
+    const date = this.inicioDoDiaUtc(ymd);
+    date.setUTCDate(date.getUTCDate() + dias);
+    return date.toISOString().slice(0, 10);
+  }
+
+  private whereOverdue(): Prisma.WorkOrderWhereInput {
+    const hoje = this.ymdHoje();
+    return {
+      status: { not: WorkOrderStatus.CANCELLED },
+      OR: [
+        {
+          slaStatusExtended: {
+            in: [
+              WorkOrderCorrectiveSlaStatus.BREACHED,
+              WorkOrderCorrectiveSlaStatus.COMPLETED_LATE,
+            ],
+          },
+        },
+        { slaExceededAt: { not: null } },
+        {
+          type: { in: [WorkOrderType.PREVENTIVE, WorkOrderType.GENERAL] },
+          dueDate: { lt: this.inicioDoDiaUtc(hoje) },
+        },
+      ],
+    };
+  }
+
+  private whereDueToday(): Prisma.WorkOrderWhereInput {
+    const hoje = this.ymdHoje();
+    const amanha = this.somarDiasYmd(hoje, 1);
+    return {
+      dueDate: {
+        gte: this.inicioDoDiaUtc(hoje),
+        lt: this.inicioDoDiaUtc(amanha),
+      },
+    };
+  }
+
+  private construirWhereListagemOs(
+    filtros: ListagemFiltros,
+    incluirAba: boolean,
+  ): Prisma.WorkOrderWhereInput {
+    const extras: Prisma.WorkOrderWhereInput[] = [];
+    const search = filtros.search?.trim();
+    if (search) {
+      extras.push({
+        OR: [
+          { title: { contains: search, mode: 'insensitive' } },
+          { description: { contains: search, mode: 'insensitive' } },
+          { sequentialNumber: { contains: search, mode: 'insensitive' } },
+          { location: { name: { contains: search, mode: 'insensitive' } } },
+          { location: { code: { contains: search, mode: 'insensitive' } } },
+          { location: { city: { contains: search, mode: 'insensitive' } } },
+        ],
+      });
+    }
+    if (filtros.priority && filtros.priority !== 'all') {
+      extras.push({ priority: filtros.priority as WorkOrderPriority });
+    }
+    if (filtros.type && filtros.type !== 'all') {
+      extras.push({ type: filtros.type as WorkOrderType });
+    }
+    if (filtros.regionalId && filtros.regionalId !== 'all') {
+      extras.push({ location: { regionalId: filtros.regionalId } });
+    }
+    if (filtros.locationId && filtros.locationId !== 'all') {
+      extras.push({ locationId: filtros.locationId });
+    }
+    if (filtros.status && filtros.status !== 'all') {
+      if (filtros.status === 'overdue') {
+        extras.push(this.whereOverdue());
+      } else {
+        extras.push({ status: filtros.status as WorkOrderStatus });
+      }
+    }
+    if (filtros.timeScope === 'overdue') {
+      extras.push(this.whereOverdue());
+    } else if (filtros.timeScope === 'today') {
+      extras.push(this.whereDueToday());
+    } else if (filtros.timeScope === 'week') {
+      const hoje = this.ymdHoje();
+      extras.push({
+        dueDate: {
+          gte: this.inicioDoDiaUtc(hoje),
+          lt: this.inicioDoDiaUtc(this.somarDiasYmd(hoje, 8)),
+        },
+      });
+    }
+    if (filtros.date) {
+      const day = filtros.date;
+      const next = this.somarDiasYmd(day, 1);
+      extras.push({
+        OR: [
+          {
+            dueDate: {
+              gte: this.inicioDoDiaUtc(day),
+              lt: this.inicioDoDiaUtc(next),
+            },
+          },
+          {
+            createdAt: {
+              gte: this.inicioDoDiaUtc(day),
+              lt: this.inicioDoDiaUtc(next),
+            },
+          },
+        ],
+      });
+    }
+    if (incluirAba && filtros.tab && filtros.tab !== 'all') {
+      if (filtros.tab === 'pending') {
+        extras.push({
+          status: { in: [WorkOrderStatus.PENDING, WorkOrderStatus.ASSIGNED] },
+        });
+      } else if (filtros.tab === 'in_progress') {
+        extras.push({ status: WorkOrderStatus.IN_PROGRESS });
+      } else if (filtros.tab === 'under_review') {
+        extras.push({ status: WorkOrderStatus.COMPLETED_UNDER_REVIEW });
+      } else if (filtros.tab === 'completed') {
+        extras.push({ status: WorkOrderStatus.COMPLETED });
+      }
+    }
+
+    const base = this.construirWhereLeituraOs();
+    if (extras.length === 0) return base;
+    return { AND: [base, ...extras] };
   }
 
   private async preloadCompanySlaConfig(): Promise<void> {
@@ -301,15 +459,28 @@ export class WorkOrdersService extends UniversalService<
     return this.mapWorkOrderResponse(this.transformData(entities));
   }
 
-  async buscarComPaginacao(page = 1, limit = 20, include?: any) {
+  async buscarComPaginacao(
+    page = 1,
+    limit = 20,
+    include?: any,
+    filtros: ListagemFiltros = {},
+  ) {
     await this.preloadCompanySlaConfig();
     this.permissionService.validarAction(this.entityNameCasl, 'read');
-    const whereClause = this.construirWhereLeituraOs() as Record<string, unknown>;
+    const safePage =
+      Number.isFinite(Number(page)) && Number(page) > 0
+        ? Math.floor(Number(page))
+        : 1;
+    const safeLimit =
+      Number.isFinite(Number(limit)) && Number(limit) > 0
+        ? Math.min(100, Math.floor(Number(limit)))
+        : 10;
+    const whereClause = this.construirWhereListagemOs(filtros, true);
     if (this.removeCompanyIdInWhereClause) {
-      delete whereClause.companyId;
+      delete (whereClause as Record<string, unknown>).companyId;
     }
     const includeConfig = include || this.getIncludeConfig();
-    const skip = (page - 1) * limit;
+    const skip = (safePage - 1) * safeLimit;
     const defaultOrderBy =
       this.getEntityConfig().orderBy ?? { createdAt: 'desc' };
     const [entities, total] = await Promise.all([
@@ -319,25 +490,88 @@ export class WorkOrdersService extends UniversalService<
         {
           orderBy: defaultOrderBy,
           skip,
-          take: limit,
+          take: safeLimit,
         },
         includeConfig,
       ),
       this.repository.contarTodos(this.entityName, whereClause),
     ]);
-    const totalPages = Math.ceil(total / limit);
+    const totalPages = Math.ceil(total / safeLimit) || 1;
     const transformedData = this.transformData(entities);
     return this.mapWorkOrderResponse({
       data: transformedData,
       pagination: {
-        page,
-        limit,
+        page: safePage,
+        limit: safeLimit,
         total,
         totalPages,
-        hasNextPage: page < totalPages,
-        hasPreviousPage: page > 1,
+        hasNextPage: safePage < totalPages,
+        hasPreviousPage: safePage > 1,
       },
     });
+  }
+
+  async buscarResumoListagem(filtros: ListagemFiltros = {}) {
+    await this.preloadCompanySlaConfig();
+    this.permissionService.validarAction(this.entityNameCasl, 'read');
+    const baseWhere = this.construirWhereListagemOs(filtros, false);
+    const overdueWhere = this.mesclarWhere(baseWhere, this.whereOverdue());
+    const dueTodayWhere = this.mesclarWhere(baseWhere, this.whereDueToday());
+
+    const [
+      total,
+      pending,
+      inProgress,
+      underReview,
+      completed,
+      overdue,
+      dueToday,
+    ] = await Promise.all([
+      this.repository.contarTodos(this.entityName, baseWhere),
+      this.repository.contarTodos(
+        this.entityName,
+        this.mesclarWhere(baseWhere, {
+          status: { in: [WorkOrderStatus.PENDING, WorkOrderStatus.ASSIGNED] },
+        }),
+      ),
+      this.repository.contarTodos(
+        this.entityName,
+        this.mesclarWhere(baseWhere, { status: WorkOrderStatus.IN_PROGRESS }),
+      ),
+      this.repository.contarTodos(
+        this.entityName,
+        this.mesclarWhere(baseWhere, {
+          status: WorkOrderStatus.COMPLETED_UNDER_REVIEW,
+        }),
+      ),
+      this.repository.contarTodos(
+        this.entityName,
+        this.mesclarWhere(baseWhere, { status: WorkOrderStatus.COMPLETED }),
+      ),
+      this.repository.contarTodos(this.entityName, overdueWhere),
+      this.repository.contarTodos(this.entityName, dueTodayWhere),
+    ]);
+
+    const completionRate =
+      total > 0 ? Math.round((completed / total) * 100) : 0;
+
+    return {
+      total,
+      dueToday,
+      pending,
+      inProgress,
+      underReview,
+      overdue,
+      completed,
+      completionRate,
+      tabs: {
+        all: total,
+        pending,
+        in_progress: inProgress,
+        under_review: underReview,
+        completed,
+      },
+    };
   }
 
   async buscarPorCampo(field: string, value: any, include?: any) {
@@ -2021,11 +2255,40 @@ export class WorkOrdersService extends UniversalService<
     const assignees =
       this.workOrderQueueUsersService.mapAssigneesPrismaShape(users);
 
-    const { workOrderQueues: _removed, ...rest } = record;
+    const {
+      workOrderQueues: _removed,
+      _count: countBag,
+      ...rest
+    } = record as Record<string, unknown> & {
+      _count?: {
+        checklistItems?: number;
+        comments?: number;
+        evidences?: number;
+      };
+    };
+    const checklistItems = Array.isArray(rest.checklistItems)
+      ? (rest.checklistItems as Array<Record<string, unknown>>)
+      : [];
+    const hasChecklistDetails = checklistItems.some(
+      (item) => 'isDone' in item || 'label' in item,
+    );
+    const subtasksDone = hasChecklistDetails
+      ? checklistItems.filter((item) => item.isDone === true).length
+      : checklistItems.length;
+    const subtasksTotal = countBag?.checklistItems ?? checklistItems.length;
+    if (!hasChecklistDetails) {
+      delete rest.checklistItems;
+    }
     let mapped: Record<string, unknown> = {
       ...rest,
       queues,
       assignees,
+      listExtras: {
+        subtasksTotal,
+        subtasksDone,
+        commentsCount: countBag?.comments ?? 0,
+        attachmentsCount: countBag?.evidences ?? 0,
+      },
     };
 
     if (

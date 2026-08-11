@@ -170,6 +170,22 @@ export interface EntityConfig {
   orderBy?: Record<string, 'asc' | 'desc'>;
 }
 
+/** Query opcional de GET / (Views). GET /all ignora estes filtros. */
+export type ListagemFiltros = {
+  search?: string;
+  status?: string;
+  city?: string;
+  regionalId?: string;
+  orderBy?: string;
+  [key: string]: string | undefined;
+};
+
+export type ListagemCounts = {
+  total: number;
+  active: number;
+  inactive: number;
+};
+
 // ============================================================================
 // 🔧 TIPOS EXISTENTES
 // ============================================================================

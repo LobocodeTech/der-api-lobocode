@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
 import { IpLocationService } from './ip-location.service';
 import { UniversalController } from 'src/shared/universal';
 import { CreateIpLocationDto } from './dto/create-ip-location-dto';
@@ -24,6 +24,23 @@ export class IpLocationController extends UniversalController<
 > {
   constructor(service: IpLocationService) {
     super(service);
+  }
+
+  @Get('grouped')
+  buscarAgrupado(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('ipPage') ipPage?: string,
+    @Query('ipLimit') ipLimit?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.service.buscarAgrupado({
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+      ipPage: ipPage ? Number(ipPage) : undefined,
+      ipLimit: ipLimit ? Number(ipLimit) : undefined,
+      search,
+    });
   }
 
   @Get('location/:locationId')

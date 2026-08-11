@@ -59,6 +59,56 @@ export class WorkOrdersController extends UniversalController<
     super(service);
   }
 
+  @Get()
+  buscarComPaginacao(
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+    @Query('search') search?: string,
+    @Query('status') status?: string,
+    @Query('priority') priority?: string,
+    @Query('type') type?: string,
+    @Query('regionalId') regionalId?: string,
+    @Query('locationId') locationId?: string,
+    @Query('date') date?: string,
+    @Query('timeScope') timeScope?: string,
+    @Query('tab') tab?: string,
+  ) {
+    return this.service.buscarComPaginacao(page, limit, undefined, {
+      search,
+      status,
+      priority,
+      type,
+      regionalId,
+      locationId,
+      date,
+      timeScope,
+      tab,
+    });
+  }
+
+  @Get('summary')
+  buscarResumo(
+    @Query('search') search?: string,
+    @Query('status') status?: string,
+    @Query('priority') priority?: string,
+    @Query('type') type?: string,
+    @Query('regionalId') regionalId?: string,
+    @Query('locationId') locationId?: string,
+    @Query('date') date?: string,
+    @Query('timeScope') timeScope?: string,
+  ) {
+    return this.service.buscarResumoListagem({
+      search,
+      status,
+      priority,
+      type,
+      regionalId,
+      locationId,
+      date,
+      timeScope,
+    });
+  }
+
   @Get('location/:locationId')
   async buscarPorLocalidade(@Param('locationId') locationId: string) {
     return this.service.buscarPorLocalidade(locationId);

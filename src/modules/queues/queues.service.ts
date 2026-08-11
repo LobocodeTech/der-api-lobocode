@@ -16,6 +16,7 @@ import {
   UniversalPermissionService,
   createEntityConfig,
   IncludeConfig,
+  ListagemFiltros,
 } from '../../shared/universal';
 import { ConflictError, NotFoundError } from '../../shared/common/errors';
 import { construirWhereQueueUserLegivel } from '../../shared/casl/casl-ability/casl-ability.service';
@@ -87,6 +88,21 @@ export class QueuesService extends UniversalService<
 
   protected getIncludeConfig(): IncludeConfig | undefined {
     return this.construirQueueInclude() as unknown as IncludeConfig;
+  }
+
+  protected construirFiltrosDeListagem(
+    filtros: ListagemFiltros,
+  ): Record<string, unknown> {
+    const extra = super.construirFiltrosDeListagem(filtros);
+    const search = filtros.search?.trim();
+    if (search) {
+      extra.title = { contains: search, mode: 'insensitive' };
+    }
+    return extra;
+  }
+
+  protected obterCountsDeListagem(whereClause: Record<string, unknown>) {
+    return this.contarStatusAtivoInativo(whereClause);
   }
 
   private construirQueueInclude(): Prisma.QueueInclude {
