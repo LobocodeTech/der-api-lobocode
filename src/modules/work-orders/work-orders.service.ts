@@ -522,6 +522,9 @@ export class WorkOrdersService extends UniversalService<
     const hoje = this.ymdHoje();
     const amanha = this.somarDiasYmd(hoje, 1);
     return {
+      status: {
+        notIn: [WorkOrderStatus.COMPLETED, WorkOrderStatus.CANCELLED],
+      },
       dueDate: {
         gte: this.inicioDoDiaUtc(hoje),
         lt: this.inicioDoDiaUtc(amanha),
