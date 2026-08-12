@@ -66,7 +66,38 @@ import {
   extrairDiaCivilDoPrazo,
 } from './utils/work-order-due-date.util';
 import { calcularSlaNegativoCorretiva } from './utils/work-order-negative-sla.util';
+import { calcularSlaStatusGeralPreventiva } from './utils/general-preventive-sla.util';
 import { WORK_ORDER_AUDIT_USER_INCLUDE } from './dto/work-order-audit.fields';
+
+const WORK_ORDER_OVERDUE_LIVE_SELECT = {
+  id: true,
+  type: true,
+  status: true,
+  completedAt: true,
+  finalApprovalCompletedAt: true,
+  dueDate: true,
+  slaStatus: true,
+  slaStartAt: true,
+  slaPausedAt: true,
+  slaResumedAt: true,
+  slaConsumedSeconds: true,
+  slaDeadlineAt: true,
+  slaDeadlineHours: true,
+  slaRemainingSeconds: true,
+  slaStatusExtended: true,
+  slaExceededAt: true,
+  company: {
+    select: {
+      correctiveSlaDefaultSeconds: true,
+      correctiveSlaWindowStart: true,
+      correctiveSlaWindowEnd: true,
+    },
+  },
+} satisfies Prisma.WorkOrderSelect;
+
+type WorkOrderOverdueLiveRecord = Prisma.WorkOrderGetPayload<{
+  select: typeof WORK_ORDER_OVERDUE_LIVE_SELECT;
+}>;
 
 @Injectable({ scope: Scope.REQUEST })
 export class WorkOrdersService extends UniversalService<
@@ -299,22 +330,22 @@ export class WorkOrdersService extends UniversalService<
 
   private whereOverdue(): Prisma.WorkOrderWhereInput {
     const hoje = this.ymdHoje();
+    const agora = new Date();
     return {
       status: { not: WorkOrderStatus.CANCELLED },
       OR: [
         {
-          slaStatusExtended: {
-            in: [
-              WorkOrderCorrectiveSlaStatus.BREACHED,
-              WorkOrderCorrectiveSlaStatus.COMPLETED_LATE,
-            ],
-          },
-        },
-        { slaExceededAt: { not: null } },
-        {
-          type: { in: [WorkOrderType.PREVENTIVE, WorkOrderType.GENERAL] },
+          type: WorkOrderType.CORRECTIVE,
           OR: [
-            { slaStatus: WorkOrderSlaStatus.OVERDUE },
+            {
+              slaStatusExtended: {
+                in: [
+                  WorkOrderCorrectiveSlaStatus.BREACHED,
+                  WorkOrderCorrectiveSlaStatus.COMPLETED_LATE,
+                ],
+              },
+            },
+            { slaExceededAt: { not: null } },
             {
               status: {
                 notIn: [
@@ -322,12 +353,169 @@ export class WorkOrdersService extends UniversalService<
                   WorkOrderStatus.CANCELLED,
                 ],
               },
-              dueDate: { lt: this.inicioDoDiaUtc(hoje) },
+              slaDeadlineAt: { lt: agora },
+            },
+            {
+              status: WorkOrderStatus.COMPLETED,
+              slaDeadlineAt: { not: null },
+              OR: [
+                { completedAt: { not: null } },
+                { finalApprovalCompletedAt: { not: null } },
+              ],
+            },
+            {
+              status: WorkOrderStatus.COMPLETED_UNDER_REVIEW,
+              slaDeadlineAt: { not: null },
+              OR: [
+                { completedAt: { not: null } },
+                { finalApprovalCompletedAt: { not: null } },
+                { slaDeadlineAt: { lt: agora } },
+              ],
+            },
+          ],
+        },
+        {
+          type: { in: [WorkOrderType.PREVENTIVE, WorkOrderType.GENERAL] },
+          OR: [
+            { slaStatus: WorkOrderSlaStatus.OVERDUE },
+            {
+              dueDate: { lt: diaCivilParaDatePostgres(hoje) },
+              OR: [
+                {
+                  status: {
+                    notIn: [
+                      WorkOrderStatus.COMPLETED,
+                      WorkOrderStatus.CANCELLED,
+                    ],
+                  },
+                },
+                {
+                  status: WorkOrderStatus.COMPLETED,
+                  completedAt: { not: null },
+                },
+              ],
             },
           ],
         },
       ],
     };
+  }
+
+  private registroEstaAtrasadoAoVivo(
+    registro: WorkOrderOverdueLiveRecord,
+    companyConfig: CorrectiveSlaCompanyConfig,
+    agora: Date,
+  ): boolean {
+    if (registro.status === WorkOrderStatus.CANCELLED) {
+      return false;
+    }
+
+    if (registro.type === WorkOrderType.CORRECTIVE) {
+      if (
+        registro.slaStatusExtended === WorkOrderCorrectiveSlaStatus.BREACHED ||
+        registro.slaStatusExtended ===
+          WorkOrderCorrectiveSlaStatus.COMPLETED_LATE ||
+        registro.slaExceededAt
+      ) {
+        return true;
+      }
+
+      const deadlineMs = registro.slaDeadlineAt?.getTime() ?? NaN;
+      const concludedMs =
+        (
+          registro.finalApprovalCompletedAt ?? registro.completedAt
+        )?.getTime() ?? NaN;
+
+      if (
+        !Number.isNaN(deadlineMs) &&
+        !Number.isNaN(concludedMs) &&
+        (registro.status === WorkOrderStatus.COMPLETED ||
+          registro.status === WorkOrderStatus.COMPLETED_UNDER_REVIEW ||
+          Boolean(registro.completedAt || registro.finalApprovalCompletedAt))
+      ) {
+        return concludedMs > deadlineMs;
+      }
+
+      if (
+        registro.status !== WorkOrderStatus.COMPLETED &&
+        !Number.isNaN(deadlineMs) &&
+        agora.getTime() > deadlineMs
+      ) {
+        return true;
+      }
+
+      const config = resolverConfigSlaDaOrdem(
+        this.extrairSnapshotSlaDaOrdem(registro),
+        companyConfig,
+      );
+      return calcularSlaNegativoCorretiva(
+        {
+          status: registro.status,
+          slaStartAt: registro.slaStartAt,
+          slaDeadlineAt: registro.slaDeadlineAt,
+          slaPausedAt: registro.slaPausedAt,
+          slaResumedAt: registro.slaResumedAt,
+          slaConsumedSeconds: registro.slaConsumedSeconds,
+          slaStatusExtended: registro.slaStatusExtended,
+          completedAt: registro.completedAt,
+          finalApprovalCompletedAt: registro.finalApprovalCompletedAt,
+        },
+        config,
+        config.correctiveSlaDefaultSeconds,
+        agora,
+      ).isOverdue;
+    }
+
+    if (
+      registro.type === WorkOrderType.PREVENTIVE ||
+      registro.type === WorkOrderType.GENERAL
+    ) {
+      if (!registro.dueDate) {
+        return false;
+      }
+      if (registro.slaStatus === WorkOrderSlaStatus.OVERDUE) {
+        return true;
+      }
+      const statusParaCalculo =
+        registro.status === WorkOrderStatus.COMPLETED ||
+        (registro.status === WorkOrderStatus.COMPLETED_UNDER_REVIEW &&
+          Boolean(registro.completedAt))
+          ? WorkOrderStatus.COMPLETED
+          : registro.status;
+      return (
+        calcularSlaStatusGeralPreventiva(
+          registro.dueDate,
+          statusParaCalculo,
+          agora,
+          registro.completedAt,
+        ) === WorkOrderSlaStatus.OVERDUE
+      );
+    }
+
+    return false;
+  }
+
+  private async buscarIdsAtrasadosAoVivo(
+    where: Prisma.WorkOrderWhereInput,
+    agora: Date = new Date(),
+  ): Promise<string[]> {
+    const registros = await this.prisma.workOrder.findMany({
+      where,
+      select: WORK_ORDER_OVERDUE_LIVE_SELECT,
+    });
+    return registros
+      .filter((registro) =>
+        this.registroEstaAtrasadoAoVivo(
+          registro,
+          normalizarConfigSlaEmpresa(registro.company ?? undefined),
+          agora,
+        ),
+      )
+      .map((registro) => registro.id);
+  }
+
+  private filtrosSolicitamAtraso(filtros: ListagemFiltros): boolean {
+    return filtros.status === 'overdue' || filtros.timeScope === 'overdue';
   }
 
   private whereDueToday(): Prisma.WorkOrderWhereInput {
@@ -486,9 +674,15 @@ export class WorkOrdersService extends UniversalService<
       Number.isFinite(Number(limit)) && Number(limit) > 0
         ? Math.min(100, Math.floor(Number(limit)))
         : 10;
-    const whereClause = this.construirWhereListagemOs(filtros, true);
+    let whereClause = this.construirWhereListagemOs(filtros, true);
     if (this.removeCompanyIdInWhereClause) {
       delete (whereClause as Record<string, unknown>).companyId;
+    }
+    if (this.filtrosSolicitamAtraso(filtros)) {
+      const overdueIds = await this.buscarIdsAtrasadosAoVivo(whereClause);
+      whereClause = this.mesclarWhere(whereClause, {
+        id: { in: overdueIds },
+      });
     }
     const includeConfig = include || this.getIncludeConfig();
     const skip = (safePage - 1) * safeLimit;
@@ -525,8 +719,14 @@ export class WorkOrdersService extends UniversalService<
   async buscarResumoListagem(filtros: ListagemFiltros = {}) {
     await this.preloadCompanySlaConfig();
     this.permissionService.validarAction(this.entityNameCasl, 'read');
-    const baseWhere = this.construirWhereListagemOs(filtros, false);
-    const overdueWhere = this.mesclarWhere(baseWhere, this.whereOverdue());
+    let baseWhere = this.construirWhereListagemOs(filtros, false);
+    let overdueIds: string[] | null = null;
+    if (this.filtrosSolicitamAtraso(filtros)) {
+      overdueIds = await this.buscarIdsAtrasadosAoVivo(baseWhere);
+      baseWhere = this.mesclarWhere(baseWhere, {
+        id: { in: overdueIds },
+      });
+    }
     const dueTodayWhere = this.mesclarWhere(baseWhere, this.whereDueToday());
 
     const [
@@ -535,7 +735,7 @@ export class WorkOrdersService extends UniversalService<
       inProgress,
       underReview,
       completed,
-      overdue,
+      resolvedOverdueIds,
       dueToday,
     ] = await Promise.all([
       this.repository.contarTodos(this.entityName, baseWhere),
@@ -559,9 +759,10 @@ export class WorkOrdersService extends UniversalService<
         this.entityName,
         this.mesclarWhere(baseWhere, { status: WorkOrderStatus.COMPLETED }),
       ),
-      this.repository.contarTodos(this.entityName, overdueWhere),
+      overdueIds ?? this.buscarIdsAtrasadosAoVivo(baseWhere),
       this.repository.contarTodos(this.entityName, dueTodayWhere),
     ]);
+    const overdue = resolvedOverdueIds.length;
 
     const completionRate =
       total > 0 ? Math.round((completed / total) * 100) : 0;
