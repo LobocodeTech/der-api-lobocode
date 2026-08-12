@@ -1,50 +1,77 @@
 import {
-  Prisma,
-  WorkOrderSlaStatus,
+  WorkOrderCorrectiveSlaStatus,
   WorkOrderStatus,
-  WorkOrderType,
 } from '@prisma/client';
 import { describe, expect, it } from '@jest/globals';
 import { WorkOrdersService } from './work-orders.service';
 
 describe('WorkOrdersService - filtro de SLA atrasado', () => {
-  it('não considera concluída no prazo como atrasada apenas porque o prazo já passou', () => {
-    const whereOverdue = (
+  const companyConfig = {
+    correctiveSlaDefaultSeconds: 43_200,
+    correctiveSlaWindowStart: '06:00',
+    correctiveSlaWindowEnd: '18:00',
+  };
+  const agora = new Date('2026-08-12T15:00:00.000Z');
+  const registroEstaAtrasadoAoVivo = (
+    (
       WorkOrdersService.prototype as unknown as {
-        whereOverdue(this: {
-          ymdHoje(): string;
-          inicioDoDiaUtc(ymd: string): Date;
-        }): Prisma.WorkOrderWhereInput;
+        registroEstaAtrasadoAoVivo?(
+          registro: Record<string, unknown>,
+          config: typeof companyConfig,
+          agora: Date,
+        ): boolean;
       }
-    ).whereOverdue;
+    ).registroEstaAtrasadoAoVivo
+  );
 
-    const where = whereOverdue.call({
-      ymdHoje: () => '2026-08-12',
-      inicioDoDiaUtc: (ymd: string) => new Date(`${ymd}T00:00:00.000Z`),
-    });
+  it('distingue preventiva concluída no prazo de preventiva concluída atrasada', () => {
+    const base = {
+      type: 'PREVENTIVE',
+      status: WorkOrderStatus.COMPLETED,
+      dueDate: new Date('2026-08-10T03:00:00.000Z'),
+      slaStatus: 'OK',
+    };
 
-    expect(where).toEqual(
-      expect.objectContaining({
-        OR: expect.arrayContaining([
-          {
-            type: {
-              in: [WorkOrderType.PREVENTIVE, WorkOrderType.GENERAL],
-            },
-            OR: [
-              { slaStatus: WorkOrderSlaStatus.OVERDUE },
-              {
-                status: {
-                  notIn: [
-                    WorkOrderStatus.COMPLETED,
-                    WorkOrderStatus.CANCELLED,
-                  ],
-                },
-                dueDate: { lt: new Date('2026-08-12T00:00:00.000Z') },
-              },
-            ],
-          },
-        ]),
-      }),
+    const concluidaNoPrazo = registroEstaAtrasadoAoVivo?.(
+      {
+        ...base,
+        completedAt: new Date('2026-08-10T20:00:00.000Z'),
+      },
+      companyConfig,
+      agora,
     );
+    const concluidaAtrasada = registroEstaAtrasadoAoVivo?.(
+      {
+        ...base,
+        completedAt: new Date('2026-08-11T03:00:00.000Z'),
+      },
+      companyConfig,
+      agora,
+    );
+
+    expect(concluidaNoPrazo).toBe(false);
+    expect(concluidaAtrasada).toBe(true);
+  });
+
+  it('conta corretiva ativa cujo limite venceu sem status persistido', () => {
+    const atrasada = registroEstaAtrasadoAoVivo?.(
+      {
+        type: 'CORRECTIVE',
+        status: WorkOrderStatus.IN_PROGRESS,
+        slaStartAt: new Date('2026-08-10T09:00:00.000Z'),
+        slaDeadlineAt: new Date('2026-08-11T15:00:00.000Z'),
+        slaPausedAt: null,
+        slaResumedAt: null,
+        slaConsumedSeconds: 10_800,
+        slaStatusExtended: WorkOrderCorrectiveSlaStatus.IN_PROGRESS,
+        slaExceededAt: null,
+        completedAt: null,
+        finalApprovalCompletedAt: null,
+      },
+      companyConfig,
+      agora,
+    );
+
+    expect(atrasada).toBe(true);
   });
 });
