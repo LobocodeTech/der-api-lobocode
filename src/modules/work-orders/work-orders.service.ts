@@ -313,7 +313,18 @@ export class WorkOrdersService extends UniversalService<
         { slaExceededAt: { not: null } },
         {
           type: { in: [WorkOrderType.PREVENTIVE, WorkOrderType.GENERAL] },
-          dueDate: { lt: this.inicioDoDiaUtc(hoje) },
+          OR: [
+            { slaStatus: WorkOrderSlaStatus.OVERDUE },
+            {
+              status: {
+                notIn: [
+                  WorkOrderStatus.COMPLETED,
+                  WorkOrderStatus.CANCELLED,
+                ],
+              },
+              dueDate: { lt: this.inicioDoDiaUtc(hoje) },
+            },
+          ],
         },
       ],
     };
