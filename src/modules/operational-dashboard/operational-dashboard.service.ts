@@ -8,6 +8,7 @@ import {
   WorkOrderStatus,
   WorkOrderPriority,
   WorkOrderType,
+  RegionalStatus,
 } from '@prisma/client';
 import { PrismaService } from 'src/shared/prisma/prisma.service';
 import { TenantService } from 'src/shared/tenant/tenant.service';
@@ -64,6 +65,12 @@ export class OperationalDashboardService {
       ...(userRole === Roles.C2C && { type: WorkOrderType.CORRECTIVE }),
     };
 
+    const activeLocationWhere: Prisma.LocationWhereInput = {
+      deletedAt: null,
+      status: RegionalStatus.ACTIVE,
+      ...(companyId && { companyId }),
+    };
+
     const [
       totalAssets,
       onlineAssets,
@@ -83,7 +90,7 @@ export class OperationalDashboardService {
       mttrRecords,
       monitoredEquipmentPairs,
       lastPreventiveByPair,
-      monitoredGeneralLocations,
+      activeLocationsForGeneralAging,
       lastGeneralByLocation,
     ] = await this.prisma.$transaction([
       this.prisma.asset.count({ where: assetWhere }),
@@ -261,26 +268,21 @@ export class OperationalDashboardService {
           updatedAt: true,
         },
       }),
-      this.prisma.workOrder.findMany({
-        where: workOrderWhere,
-        distinct: ['locationId'],
+      this.prisma.location.findMany({
+        where: activeLocationWhere,
         select: {
-          locationId: true,
-          location: {
+          id: true,
+          name: true,
+          code: true,
+          regional: {
             select: {
               id: true,
-              name: true,
-              code: true,
-              regional: {
-                select: {
-                  id: true,
-                  city: true,
-                  cgr: true,
-                },
-              },
+              city: true,
+              cgr: true,
             },
           },
         },
+        orderBy: { name: 'asc' },
       }),
       this.prisma.workOrder.groupBy({
         where: {
@@ -365,9 +367,9 @@ export class OperationalDashboardService {
         item._max?.completedAt ?? null,
       ]),
     );
-    const generalAgingByLocation = monitoredGeneralLocations
-      .map((row) => {
-        const locationId = row.locationId;
+    const generalAgingByLocation = activeLocationsForGeneralAging
+      .map((location) => {
+        const locationId = location.id;
         const generalAt = generalMap.get(locationId) ?? null;
         const daysSinceLastGeneral = generalAt
           ? this.calcularDiasDesde(generalAt)
@@ -375,9 +377,9 @@ export class OperationalDashboardService {
 
         return {
           locationId,
-          locationName: row.location?.name ?? 'Localidade',
-          locationCode: row.location?.code ?? null,
-          regionalName: row.location?.regional?.city ?? null,
+          locationName: location.name ?? 'Localidade',
+          locationCode: location.code ?? null,
+          regionalName: location.regional?.city ?? null,
           lastGeneralAt: generalAt?.toISOString() ?? null,
           daysSinceLastGeneral,
         };
