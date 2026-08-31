@@ -18,9 +18,10 @@ import {
 import { WorkOrderSlaService } from './services/work-order-sla.service';
 import { GeneralPreventiveSlaService } from './services/general-preventive-sla.service';
 import { WorkOrderCorrectiveSlaNotificationService } from './services/work-order-corrective-sla-notification.service';
+import { WorkOrderReportsModule } from '../reports/work-order-reports.module';
 
 @Module({
-  imports: [FilesModule, NotificationModule],
+  imports: [FilesModule, NotificationModule, WorkOrderReportsModule],
   controllers: [
     WorkOrdersController,
     WorkOrdersQueueUsersController,

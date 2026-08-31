@@ -13,6 +13,8 @@ import {
 import { PrismaService } from 'src/shared/prisma/prisma.service';
 import { TenantService } from 'src/shared/tenant/tenant.service';
 import { WorkOrdersService } from '../work-orders/work-orders.service';
+import { WorkOrderReportsService } from '../reports/work-order-reports.service';
+import { extrairTaxasCumprimento } from '../reports/utils/work-order-compliance-summary.util';
 
 @Injectable({ scope: Scope.REQUEST })
 export class OperationalDashboardService {
@@ -20,6 +22,7 @@ export class OperationalDashboardService {
     private readonly prisma: PrismaService,
     private readonly tenantService: TenantService,
     private readonly workOrdersService: WorkOrdersService,
+    private readonly workOrderReportsService: WorkOrderReportsService,
   ) {}
 
   async obterResumoOperacional(
@@ -139,6 +142,15 @@ export class OperationalDashboardService {
           title: true,
           priority: true,
           createdAt: true,
+          location: {
+            select: {
+              name: true,
+              code: true,
+              referenceKm: true,
+              city: true,
+              regional: { select: { city: true } },
+            },
+          },
         },
         orderBy: { createdAt: 'desc' },
         skip: (incidentsPage - 1) * listLimit,
@@ -176,6 +188,15 @@ export class OperationalDashboardService {
           type: true,
           slaStatusExtended: true,
           slaRemainingSeconds: true,
+          location: {
+            select: {
+              name: true,
+              code: true,
+              referenceKm: true,
+              city: true,
+              regional: { select: { city: true } },
+            },
+          },
         },
         orderBy: [{ createdAt: 'desc' }],
         skip: (pendingPage - 1) * listLimit,
@@ -242,6 +263,7 @@ export class OperationalDashboardService {
               id: true,
               name: true,
               code: true,
+              referenceKm: true,
               regional: {
                 select: {
                   id: true,
@@ -274,6 +296,7 @@ export class OperationalDashboardService {
           id: true,
           name: true,
           code: true,
+          referenceKm: true,
           regional: {
             select: {
               id: true,
@@ -298,16 +321,23 @@ export class OperationalDashboardService {
       }),
     ]);
 
-    const overdueSla = await this.workOrdersService.contarOsAtrasadasAoVivo();
+    const [overdueSla, reportSummary] = await Promise.all([
+      this.workOrdersService.contarOsAtrasadasAoVivo(),
+      this.workOrderReportsService.obterResumo({ period: 'all' }),
+    ]);
+    const compliance = extrairTaxasCumprimento(reportSummary);
 
     const availabilityRate =
       totalAssets > 0 ? Number(((onlineAssets / totalAssets) * 100).toFixed(1)) : 0;
 
     const criticalIncidents = recentCriticalWorkOrders.map((wo) => ({
       id: wo.id,
-      asset: 'Ordem de serviço',
-      rodovia: 'Não informado',
-      km: 0,
+      asset: wo.location?.name ?? 'Ordem de serviço',
+      rodovia: wo.location?.name ?? 'Não informado',
+      km: wo.location?.referenceKm ?? null,
+      locationCode: wo.location?.code ?? null,
+      referenceKm: wo.location?.referenceKm ?? null,
+      regionalName: wo.location?.regional?.city ?? wo.location?.city ?? null,
       issue: wo.title,
       severity:
         wo.priority === WorkOrderPriority.CRITICAL
@@ -329,6 +359,10 @@ export class OperationalDashboardService {
       type: order.type,
       slaStatusExtended: order.slaStatusExtended,
       slaRemainingSeconds: order.slaRemainingSeconds,
+      locationName: order.location?.name ?? null,
+      locationCode: order.location?.code ?? null,
+      referenceKm: order.location?.referenceKm ?? null,
+      regionalName: order.location?.regional?.city ?? order.location?.city ?? null,
     }));
     const preventiveMap = new Map(
       lastPreventiveByPair.map((item) => [
@@ -349,6 +383,7 @@ export class OperationalDashboardService {
           locationId: pair.locationId,
           locationName: pair.location?.name ?? 'Localidade',
           locationCode: pair.location?.code ?? null,
+          referenceKm: pair.location?.referenceKm ?? null,
           regionalName: pair.location?.regional?.city ?? null,
           equipmentType: pair.equipmentType,
           lastPreventiveAt: preventiveAt?.toISOString() ?? null,
@@ -379,6 +414,7 @@ export class OperationalDashboardService {
           locationId,
           locationName: location.name ?? 'Localidade',
           locationCode: location.code ?? null,
+          referenceKm: location.referenceKm ?? null,
           regionalName: location.regional?.city ?? null,
           lastGeneralAt: generalAt?.toISOString() ?? null,
           daysSinceLastGeneral,
@@ -407,6 +443,7 @@ export class OperationalDashboardService {
         slaWarning: warningSla,
         slaOverdue: overdueSla,
       },
+      compliance,
       criticalIncidents: {
         items: criticalIncidents,
         total: criticalIncidentsTotal,

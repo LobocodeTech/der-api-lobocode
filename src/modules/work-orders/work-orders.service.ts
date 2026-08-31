@@ -68,6 +68,9 @@ import {
 import { calcularSlaNegativoCorretiva } from './utils/work-order-negative-sla.util';
 import { calcularSlaStatusGeralPreventiva } from './utils/general-preventive-sla.util';
 import { WORK_ORDER_AUDIT_USER_INCLUDE } from './dto/work-order-audit.fields';
+import { WorkOrderReportsService } from '../reports/work-order-reports.service';
+import { mapListagemFiltrosToReportFiltros } from '../reports/utils/map-listagem-filtros-to-report-filtros.util';
+import { extrairTaxasCumprimento } from '../reports/utils/work-order-compliance-summary.util';
 
 const WORK_ORDER_OVERDUE_LIVE_SELECT = {
   id: true,
@@ -208,6 +211,7 @@ export class WorkOrdersService extends UniversalService<
     private readonly workOrderSlaService: WorkOrderSlaService,
     private readonly generalPreventiveSlaService: GeneralPreventiveSlaService,
     private readonly workOrderCorrectiveSlaNotificationService: WorkOrderCorrectiveSlaNotificationService,
+    private readonly workOrderReportsService: WorkOrderReportsService,
     @Optional() @Inject(REQUEST) request: any,
   ) {
     const { model, casl } = WorkOrdersService.entityConfig;
@@ -730,6 +734,7 @@ export class WorkOrdersService extends UniversalService<
         id: { in: overdueIds },
       });
     }
+    const reportFiltros = mapListagemFiltrosToReportFiltros(filtros);
     const dueTodayWhere = this.mesclarWhere(baseWhere, this.whereDueToday());
 
     const [
@@ -740,6 +745,7 @@ export class WorkOrdersService extends UniversalService<
       completed,
       resolvedOverdueIds,
       dueToday,
+      reportSummary,
     ] = await Promise.all([
       this.repository.contarTodos(this.entityName, baseWhere),
       this.repository.contarTodos(
@@ -764,7 +770,9 @@ export class WorkOrdersService extends UniversalService<
       ),
       overdueIds ?? this.buscarIdsAtrasadosAoVivo(baseWhere),
       this.repository.contarTodos(this.entityName, dueTodayWhere),
+      this.workOrderReportsService.obterResumo(reportFiltros),
     ]);
+    const compliance = extrairTaxasCumprimento(reportSummary);
     const overdue = resolvedOverdueIds.length;
 
     const completionRate =
@@ -779,6 +787,7 @@ export class WorkOrdersService extends UniversalService<
       overdue,
       completed,
       completionRate,
+      compliance,
       tabs: {
         all: total,
         pending,
