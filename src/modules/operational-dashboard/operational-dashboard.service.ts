@@ -29,11 +29,16 @@ export class OperationalDashboardService {
       preventivePage?: number;
       generalPage?: number;
       listLimit?: number;
+      agingListLimit?: number;
     } = {},
   ) {
     const listLimit = Math.min(
       50,
       Math.max(1, Number(listPages.listLimit) || 5),
+    );
+    const agingListLimit = Math.min(
+      50,
+      Math.max(1, Number(listPages.agingListLimit) || listLimit),
     );
     const incidentsPage = Math.max(1, Number(listPages.incidentsPage) || 1);
     const pendingPage = Math.max(1, Number(listPages.pendingPage) || 1);
@@ -410,15 +415,17 @@ export class OperationalDashboardService {
       },
       workOrdersTrend,
       mttrTrend,
-      preventiveAgingByLocationEquipment: this.paginarLista(
+      preventiveAgingByLocationEquipment: this.paginarListaComResumoAging(
         preventiveAgingByLocationEquipment,
         preventivePage,
-        listLimit,
+        agingListLimit,
+        (item) => item.daysSinceLastPreventive,
       ),
-      generalAgingByLocation: this.paginarLista(
+      generalAgingByLocation: this.paginarListaComResumoAging(
         generalAgingByLocation,
         generalPage,
-        listLimit,
+        agingListLimit,
+        (item) => item.daysSinceLastGeneral,
       ),
     };
   }
@@ -434,6 +441,24 @@ export class OperationalDashboardService {
     return {
       items: items.slice(start, start + limit),
       total,
+    };
+  }
+
+  private paginarListaComResumoAging<T>(
+    items: T[],
+    page: number,
+    limit: number,
+    extrairDias: (item: T) => number | null,
+  ) {
+    const paginated = this.paginarLista(items, page, limit);
+    const diasRegistrados = items
+      .map(extrairDias)
+      .filter((dias): dias is number => dias != null);
+
+    return {
+      ...paginated,
+      peakDays: diasRegistrados.length > 0 ? Math.max(...diasRegistrados) : null,
+      withoutDataCount: items.filter((item) => extrairDias(item) == null).length,
     };
   }
 
