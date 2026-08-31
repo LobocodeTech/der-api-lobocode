@@ -112,10 +112,21 @@ export class GlobalSearchService {
           where: {
             companyId: user.companyId,
             deletedAt: null,
-            OR: [{ name: contains }, { code: contains }, { city: contains }],
+            OR: [
+              { name: contains },
+              { code: contains },
+              { city: contains },
+              { referenceKm: contains },
+            ],
             AND: [accessibleBy(ability, 'read').Location],
           },
-          select: { id: true, name: true, code: true, regional: { select: { city: true } } },
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            referenceKm: true,
+            regional: { select: { city: true } },
+          },
           take: limit,
           orderBy: { updatedAt: 'desc' },
         }),
@@ -188,7 +199,7 @@ export class GlobalSearchService {
         id: item.id,
         type: 'location' as const,
         title: item.name,
-        subtitle: `${item.code} • ${item.regional?.city ?? 'Sem regional'}`,
+        subtitle: this.formatLocationSearchSubtitle(item),
         view: 'locations' as const,
         path: `/locations?search=${encodeURIComponent(item.name)}`,
       })),
@@ -220,6 +231,18 @@ export class GlobalSearchService {
     ];
 
     return { query: q, total: results.length, results };
+  }
+
+  private formatLocationSearchSubtitle(item: {
+    code: string;
+    referenceKm: string;
+    regional?: { city: string } | null;
+  }): string {
+    const parts = [item.code];
+    const km = item.referenceKm?.trim();
+    if (km) parts.push(`Km ${km}`);
+    parts.push(item.regional?.city ?? 'Sem regional');
+    return parts.join(' • ');
   }
 
   private searchViews(query: string): SearchResultItem[] {
