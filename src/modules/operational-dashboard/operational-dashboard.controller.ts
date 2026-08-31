@@ -26,6 +26,7 @@ export class OperationalDashboardController {
     @Query('preventivePage') preventivePage?: string,
     @Query('generalPage') generalPage?: string,
     @Query('listLimit') listLimit?: string,
+    @Query('agingListLimit') agingListLimit?: string,
   ) {
     return this.service.obterResumoOperacional(user.role, {
       incidentsPage: incidentsPage ? Number(incidentsPage) : undefined,
@@ -33,6 +34,7 @@ export class OperationalDashboardController {
       preventivePage: preventivePage ? Number(preventivePage) : undefined,
       generalPage: generalPage ? Number(generalPage) : undefined,
       listLimit: listLimit ? Number(listLimit) : undefined,
+      agingListLimit: agingListLimit ? Number(agingListLimit) : undefined,
     });
   }
 }
