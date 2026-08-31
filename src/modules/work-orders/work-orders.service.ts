@@ -71,6 +71,7 @@ import { WORK_ORDER_AUDIT_USER_INCLUDE } from './dto/work-order-audit.fields';
 import { WorkOrderReportsService } from '../reports/work-order-reports.service';
 import { mapListagemFiltrosToReportFiltros } from '../reports/utils/map-listagem-filtros-to-report-filtros.util';
 import { extrairTaxasCumprimento } from '../reports/utils/work-order-compliance-summary.util';
+import { isOperationalMapQuery } from 'src/shared/regional-scope/regional-scope.helper';
 
 const WORK_ORDER_OVERDUE_LIVE_SELECT = {
   id: true,
@@ -212,7 +213,7 @@ export class WorkOrdersService extends UniversalService<
     private readonly generalPreventiveSlaService: GeneralPreventiveSlaService,
     private readonly workOrderCorrectiveSlaNotificationService: WorkOrderCorrectiveSlaNotificationService,
     private readonly workOrderReportsService: WorkOrderReportsService,
-    @Optional() @Inject(REQUEST) request: any,
+    @Optional() @Inject(REQUEST) private readonly httpRequest: any,
   ) {
     const { model, casl } = WorkOrdersService.entityConfig;
     super(
@@ -220,7 +221,7 @@ export class WorkOrdersService extends UniversalService<
       queryService,
       permissionService,
       metricsService,
-      request,
+      httpRequest,
       model,
       casl,
     );
@@ -652,7 +653,71 @@ export class WorkOrdersService extends UniversalService<
     return this.buscarPorId(id, this.construirDetalhesInclude());
   }
 
+  /**
+   * Include enxuto para o mapa operacional: só o necessário para pinos/popup.
+   * Evita queues, checklist, audit e contagens que incham o GET /work-orders/all.
+   */
+  private getMapaOperacionalInclude(): Prisma.WorkOrderInclude {
+    return {
+      column: {
+        select: {
+          id: true,
+          name: true,
+          color: true,
+          regionalId: true,
+        },
+      },
+      location: {
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          latitude: true,
+          longitude: true,
+          referenceKm: true,
+          regionalId: true,
+          regional: {
+            select: {
+              id: true,
+              cgr: true,
+              city: true,
+              color: true,
+            },
+          },
+        },
+      },
+    };
+  }
+
+  /**
+   * Lista OS abertas/em andamento para o mapa.
+   * Concluídas e canceladas não viram pino — não vale carregar o payload completo.
+   */
+  private async buscarTodosParaMapaOperacional() {
+    this.permissionService.validarAction(this.entityNameCasl, 'read');
+    const whereClause = this.mesclarWhere(this.construirWhereLeituraOs(), {
+      status: {
+        notIn: [WorkOrderStatus.COMPLETED, WorkOrderStatus.CANCELLED],
+      },
+    });
+    const entities = await this.repository.buscarMuitos(
+      this.entityName,
+      whereClause,
+      { orderBy: this.getEntityConfig().orderBy ?? { createdAt: 'desc' } },
+      this.getMapaOperacionalInclude(),
+    );
+    return this.transformData(entities);
+  }
+
   async buscarTodos() {
+    if (
+      isOperationalMapQuery(
+        this.httpRequest?.query as Record<string, unknown> | undefined,
+      )
+    ) {
+      return this.buscarTodosParaMapaOperacional();
+    }
+
     await this.preloadCompanySlaConfig();
     this.permissionService.validarAction(this.entityNameCasl, 'read');
     const whereClause = this.construirWhereLeituraOs();
