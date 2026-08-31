@@ -789,6 +789,15 @@ export class WorkOrdersService extends UniversalService<
     };
   }
 
+  /** Mesmo critério ao vivo do card "SLA atrasado" da listagem de OS. */
+  async contarOsAtrasadasAoVivo(filtros: ListagemFiltros = {}): Promise<number> {
+    await this.preloadCompanySlaConfig();
+    this.permissionService.validarAction(this.entityNameCasl, 'read');
+    const baseWhere = this.construirWhereListagemOs(filtros, false);
+    const overdueIds = await this.buscarIdsAtrasadosAoVivo(baseWhere);
+    return overdueIds.length;
+  }
+
   async buscarPorCampo(field: string, value: any, include?: any) {
     this.permissionService.validarAction(this.entityNameCasl, 'read');
     const whereClause = this.construirWhereLeituraOs({ [field]: value });

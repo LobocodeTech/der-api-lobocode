@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Scope } from '@nestjs/common';
 import {
   AssetType,
   AssetStatus,
@@ -11,12 +11,14 @@ import {
 } from '@prisma/client';
 import { PrismaService } from 'src/shared/prisma/prisma.service';
 import { TenantService } from 'src/shared/tenant/tenant.service';
+import { WorkOrdersService } from '../work-orders/work-orders.service';
 
-@Injectable()
+@Injectable({ scope: Scope.REQUEST })
 export class OperationalDashboardService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tenantService: TenantService,
+    private readonly workOrdersService: WorkOrdersService,
   ) {}
 
   async obterResumoOperacional(
@@ -68,7 +70,6 @@ export class OperationalDashboardService {
       inProgressWorkOrders,
       completedWorkOrders,
       warningSla,
-      overdueSla,
       recentCriticalWorkOrders,
       criticalIncidentsTotal,
       pendingSlaWorkOrders,
@@ -111,16 +112,6 @@ export class OperationalDashboardService {
             notIn: [WorkOrderStatus.COMPLETED, WorkOrderStatus.CANCELLED],
           },
           slaStatusExtended: WorkOrderCorrectiveSlaStatus.NEAR_BREACH,
-        },
-      }),
-      this.prisma.workOrder.count({
-        where: {
-          ...workOrderWhere,
-          type: WorkOrderType.CORRECTIVE,
-          status: {
-            notIn: [WorkOrderStatus.COMPLETED, WorkOrderStatus.CANCELLED],
-          },
-          slaStatusExtended: WorkOrderCorrectiveSlaStatus.BREACHED,
         },
       }),
       this.prisma.workOrder.findMany({
@@ -299,6 +290,8 @@ export class OperationalDashboardService {
         },
       }),
     ]);
+
+    const overdueSla = await this.workOrdersService.contarOsAtrasadasAoVivo();
 
     const availabilityRate =
       totalAssets > 0 ? Number(((onlineAssets / totalAssets) * 100).toFixed(1)) : 0;
