@@ -13,6 +13,7 @@ import {
 } from '@prisma/client';
 import {
   construirClausulaOsVisivelParaUsuario,
+  construirClausulaRegionalVisivelParaUsuario,
   construirClausulaPlanningVisivelParaUsuario,
   isUsuarioAdministradorEmpresaOuSistema,
   deveIgnorarEscopoRegionalNaLeitura,
@@ -266,12 +267,19 @@ function aplicarRestricoesRegionaisNaoAdmin(
   const fieldTeamLeituraCadastroEmpresa = user.role === Roles.FIELD_TEAM;
   const workOrderPermitidoForaRegional =
     construirClausulaOsVisivelParaUsuario(user);
+  const regionalPermitida =
+    user.role === Roles.FIELD_TEAM
+      ? construirClausulaRegionalVisivelParaUsuario(user)
+      : null;
   const planningPermitido =
     construirClausulaPlanningVisivelParaUsuario(user);
 
   if (!user.regionalId) {
     if (!ignorarLeitura) {
-      cannot('read', 'Regional', { companyId: c });
+      cannot('read', 'Regional', {
+        companyId: c,
+        ...(regionalPermitida ? { NOT: regionalPermitida } : {}),
+      });
       if (!fieldTeamLeituraCadastroEmpresa) {
         cannot('read', 'Location', { companyId: c });
         cannot('read', 'Asset', { companyId: c });
@@ -316,7 +324,10 @@ function aplicarRestricoesRegionaisNaoAdmin(
 
   const r = user.regionalId;
   if (!ignorarLeitura) {
-    cannot('read', 'Regional', { companyId: c, NOT: { id: r } });
+    cannot('read', 'Regional', {
+      companyId: c,
+      NOT: regionalPermitida ?? { id: r },
+    });
     if (!fieldTeamLeituraCadastroEmpresa) {
       cannot('read', 'Location', { companyId: c, NOT: { regionalId: r } });
       cannot('read', 'Asset', {

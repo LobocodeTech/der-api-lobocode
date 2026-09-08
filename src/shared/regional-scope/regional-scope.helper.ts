@@ -80,6 +80,29 @@ export function construirClausulaOsVisivelParaUsuario(
   };
 }
 
+/** Regionais que o FIELD_TEAM pode usar como filtro por possuir OS associada. */
+export function construirClausulaRegionalVisivelParaUsuario(
+  user: Pick<User, 'id' | 'regionalId'>,
+): Prisma.RegionalWhereInput {
+  const regionalDaOsAssociada: Prisma.RegionalWhereInput = {
+    locations: {
+      some: {
+        workOrders: {
+          some: construirClausulaOsVisivelParaUsuario(user),
+        },
+      },
+    },
+  };
+
+  if (user.regionalId) {
+    return {
+      OR: [{ id: user.regionalId }, regionalDaOsAssociada],
+    };
+  }
+
+  return regionalDaOsAssociada;
+}
+
 /**
  * Planejamento visível para o usuário: regional do usuário ou responsável associado.
  * Mesma regra usada em `aplicarRestricoesRegionaisNaoAdmin` (CASL) e queries universais.
@@ -127,6 +150,9 @@ export function construirClausulaAndEscopoRegional(
 
   switch (entityName) {
     case 'Regional':
+      if (user.role === Roles.FIELD_TEAM) {
+        return construirClausulaRegionalVisivelParaUsuario(user);
+      }
       if (!user.regionalId) {
         return construirWhereImpossivel();
       }
