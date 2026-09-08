@@ -29,7 +29,6 @@ const ENTIDADES_ESCOPO_MAPA_OPERACIONAL: EntityNameCasl[] = [
   'Regional',
   'Location',
   'Asset',
-  'WorkOrder',
 ];
 
 /** FIELD_TEAM: leitura de cadastro operacional em toda a empresa (somente consulta). */
@@ -64,13 +63,13 @@ export function deveIgnorarEscopoRegionalNaLeituraDaEntidade(
 }
 
 /**
- * OS visível para o usuário: regional do usuário ou fila da OS na qual ele está.
+ * OS visível para o usuário: somente fila da OS na qual ele está associado.
  * Mesma regra usada em `aplicarRestricoesRegionaisNaoAdmin` (CASL) e notificações de OS.
  */
 export function construirClausulaOsVisivelParaUsuario(
-  user: Pick<User, 'id' | 'regionalId'>,
+  user: Pick<User, 'id'>,
 ): Prisma.WorkOrderWhereInput {
-  const membroDeFilaNaOs: Prisma.WorkOrderWhereInput = {
+  return {
     workOrderQueues: {
       some: {
         queue: {
@@ -79,14 +78,6 @@ export function construirClausulaOsVisivelParaUsuario(
       },
     },
   };
-
-  if (user.regionalId) {
-    return {
-      OR: [{ location: { regionalId: user.regionalId } }, membroDeFilaNaOs],
-    };
-  }
-
-  return membroDeFilaNaOs;
 }
 
 /**

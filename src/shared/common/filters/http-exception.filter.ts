@@ -57,6 +57,15 @@ export class HttpExceptionFilter
         }
         break;
       }
+      case HttpStatus.UNPROCESSABLE_ENTITY: {
+        errorCode = 'VALIDATION_ERROR';
+        const validationDetails = this.extractValidationErrors(exception);
+        clientMessage =
+          validationDetails ||
+          message ||
+          this.messagesService.getErrorMessage('VALIDATION', 'INVALID_DATA');
+        break;
+      }
       case HttpStatus.NOT_FOUND:
         errorCode = 'NOT_FOUND';
         clientMessage = this.messagesService.getErrorMessage(

@@ -15,8 +15,8 @@ export class WorkOrderNotificationScopeService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Destinatários de broadcast ao criar OS: admins (todas), C2C (somente corretivas),
-   * FIELD_TEAM (regional da OS ou membro de fila associada à OS).
+  * Destinatários de broadcast ao criar OS: admins (todas), C2C (somente corretivas),
+  * FIELD_TEAM membro de fila associada à OS.
    */
   async resolverDestinatariosBroadcastCriacaoOs(
     workOrderId: string,
@@ -26,7 +26,6 @@ export class WorkOrderNotificationScopeService {
       where: { id: workOrderId, companyId, deletedAt: null },
       select: {
         type: true,
-        location: { select: { regionalId: true } },
       },
     });
     if (!ordem) {
@@ -53,7 +52,7 @@ export class WorkOrderNotificationScopeService {
             select: { id: true },
           })
         : Promise.resolve([]),
-      this.buscarFieldTeamElegivelParaOs(workOrderId, companyId, ordem.location?.regionalId ?? null),
+      this.buscarFieldTeamElegivelParaOs(workOrderId, companyId),
     ]);
 
     return Array.from(
@@ -165,7 +164,6 @@ export class WorkOrderNotificationScopeService {
   private async buscarFieldTeamElegivelParaOs(
     workOrderId: string,
     companyId: string,
-    regionalIdOs: string | null,
   ): Promise<string[]> {
     const membroFilaNaOs: Prisma.UserWhereInput = {
       queueUsers: {
@@ -177,18 +175,13 @@ export class WorkOrderNotificationScopeService {
       },
     };
 
-    const or: Prisma.UserWhereInput[] = [membroFilaNaOs];
-    if (regionalIdOs) {
-      or.unshift({ regionalId: regionalIdOs });
-    }
-
     const usuarios = await this.prisma.user.findMany({
       where: {
         companyId,
         role: Roles.FIELD_TEAM,
         status: 'ACTIVE',
         deletedAt: null,
-        OR: or,
+        ...membroFilaNaOs,
       },
       select: { id: true },
     });
@@ -200,22 +193,6 @@ export class WorkOrderNotificationScopeService {
     workOrderId: string,
     userIds: string[],
   ): Promise<string[]> {
-    const ordem = await this.prisma.workOrder.findFirst({
-      where: { id: workOrderId, deletedAt: null },
-      select: {
-        type: true,
-        location: { select: { regionalId: true } },
-      },
-    });
-    if (!ordem) {
-      return [];
-    }
-
-    const usuarios = await this.prisma.user.findMany({
-      where: { id: { in: userIds } },
-      select: { id: true, regionalId: true },
-    });
-
     const naFila = await this.prisma.queueUser.findMany({
       where: {
         userId: { in: userIds },
@@ -225,19 +202,6 @@ export class WorkOrderNotificationScopeService {
       },
       select: { userId: true },
     });
-    const naFilaSet = new Set(naFila.map((row) => row.userId));
-    const regionalOs = ordem.location?.regionalId ?? null;
-
-    return usuarios
-      .filter((usuario) => {
-        if (naFilaSet.has(usuario.id)) {
-          return true;
-        }
-        if (!usuario.regionalId || !regionalOs) {
-          return false;
-        }
-        return usuario.regionalId === regionalOs;
-      })
-      .map((usuario) => usuario.id);
+    return Array.from(new Set(naFila.map((row) => row.userId)));
   }
 }

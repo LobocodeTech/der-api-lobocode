@@ -71,7 +71,10 @@ import { WORK_ORDER_AUDIT_USER_INCLUDE } from './dto/work-order-audit.fields';
 import { WorkOrderReportsService } from '../reports/work-order-reports.service';
 import { mapListagemFiltrosToReportFiltros } from '../reports/utils/map-listagem-filtros-to-report-filtros.util';
 import { extrairTaxasCumprimento } from '../reports/utils/work-order-compliance-summary.util';
-import { isOperationalMapQuery } from 'src/shared/regional-scope/regional-scope.helper';
+import {
+  construirClausulaOsVisivelParaUsuario,
+  isOperationalMapQuery,
+} from 'src/shared/regional-scope/regional-scope.helper';
 
 const WORK_ORDER_OVERDUE_LIVE_SELECT = {
   id: true,
@@ -672,6 +675,7 @@ export class WorkOrdersService extends UniversalService<
           id: true,
           name: true,
           code: true,
+          city: true,
           latitude: true,
           longitude: true,
           referenceKm: true,
@@ -959,6 +963,7 @@ export class WorkOrdersService extends UniversalService<
 
     const ordem = await this.buscarOrdemPorId(id);
     await this.validarFilasAssociadasParaIniciar(ordem.id);
+    const usuarioLogadoId = this.obterUsuarioLogadoId();
     const companyId = (ordem as { companyId?: string }).companyId ?? this.obterCompanyId();
     const recipientIds =
       await this.workOrderQueueUsersService.resolveUserIdsFromWorkOrderId(
@@ -969,6 +974,11 @@ export class WorkOrdersService extends UniversalService<
     if (recipientIds.length === 0) {
       throw new BadRequestException(
         'A ordem de serviço precisa ter ao menos uma fila com membros antes de iniciar.',
+      );
+    }
+    if (!usuarioLogadoId || !recipientIds.includes(usuarioLogadoId)) {
+      throw new BadRequestException(
+        'Você só pode iniciar uma ordem de serviço associada a uma fila da qual participa.',
       );
     }
 
@@ -992,7 +1002,6 @@ export class WorkOrdersService extends UniversalService<
     }
 
     const agoraInicio = new Date();
-    const usuarioLogadoId = this.obterUsuarioLogadoId();
     const updateData: Prisma.WorkOrderUpdateInput = {
       status: WorkOrderStatus.IN_PROGRESS,
       startedAt: ordem.startedAt ?? agoraInicio,
@@ -1331,12 +1340,16 @@ export class WorkOrdersService extends UniversalService<
 
   async moverParaColuna(id: string, dto: MoveWorkOrderColumnDto) {
     const companyId = this.obterCompanyId();
+    const usuario = this.obterUsuarioLogado();
     const ordem = await this.prisma.workOrder.findFirst({
       where: {
         id,
         deletedAt: null,
         completedClearedAt: null,
         ...(companyId && { companyId }),
+        ...(usuario?.role === Roles.FIELD_TEAM
+          ? construirClausulaOsVisivelParaUsuario(usuario)
+          : {}),
       },
       include: {
         location: {
@@ -2162,11 +2175,15 @@ export class WorkOrdersService extends UniversalService<
 
   private async buscarOrdemPorId(id: string) {
     const companyId = this.obterCompanyId();
+    const usuario = this.obterUsuarioLogado();
     const whereClause: Prisma.WorkOrderWhereInput = {
       id,
       deletedAt: null,
       completedClearedAt: null,
       ...(companyId && { companyId }),
+      ...(usuario?.role === Roles.FIELD_TEAM
+        ? construirClausulaOsVisivelParaUsuario(usuario)
+        : {}),
     };
 
     const ordem = await this.prisma.workOrder.findFirst({
