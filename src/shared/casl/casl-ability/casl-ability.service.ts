@@ -13,6 +13,7 @@ import {
 } from '@prisma/client';
 import {
   construirClausulaOsVisivelParaUsuario,
+  construirClausulaRegionalVisivelParaUsuario,
   construirClausulaPlanningVisivelParaUsuario,
   isUsuarioAdministradorEmpresaOuSistema,
   deveIgnorarEscopoRegionalNaLeitura,
@@ -249,7 +250,7 @@ function aplicarRestricaoGestaoEquipeC2c(user: User, { can, cannot }: any) {
  * regional), para consultar cadastro operacional em modo somente leitura.
  *
  * Notificações de OS para FIELD_TEAM: o modelo Notification não tem relação Prisma com
- * WorkOrder; o escopo (regional + fila associada) é aplicado em
+ * WorkOrder; o escopo (fila associada) é aplicado em
  * WorkOrderNotificationScopeService e NotificationService.
  */
 function aplicarRestricoesRegionaisNaoAdmin(
@@ -264,24 +265,36 @@ function aplicarRestricoesRegionaisNaoAdmin(
   const c = user.companyId;
   const ignorarLeitura = options?.ignorarEscopoRegionalLeitura === true;
   const fieldTeamLeituraCadastroEmpresa = user.role === Roles.FIELD_TEAM;
+  const workOrderPermitidoForaRegional =
+    construirClausulaOsVisivelParaUsuario(user);
+  const regionalPermitida =
+    user.role === Roles.FIELD_TEAM
+      ? construirClausulaRegionalVisivelParaUsuario(user)
+      : null;
   const planningPermitido =
     construirClausulaPlanningVisivelParaUsuario(user);
 
   if (!user.regionalId) {
     if (!ignorarLeitura) {
-      cannot('read', 'Regional', { companyId: c });
+      cannot('read', 'Regional', {
+        companyId: c,
+        ...(regionalPermitida ? { NOT: regionalPermitida } : {}),
+      });
       if (!fieldTeamLeituraCadastroEmpresa) {
         cannot('read', 'Location', { companyId: c });
         cannot('read', 'Asset', { companyId: c });
         cannot('read', 'IpLocation', { companyId: c });
       }
-      cannot('read', 'WorkOrder', { companyId: c });
       cannot('read', 'Planning', {
         companyId: c,
         NOT: planningPermitido,
       });
       cannot('read', 'User', { companyId: c, NOT: { id: user.id } });
     }
+    cannot('read', 'WorkOrder', {
+      companyId: c,
+      NOT: workOrderPermitidoForaRegional,
+    });
     for (const action of ['create', 'update', 'delete'] as const) {
       cannot(action, 'Regional', { companyId: c });
       cannot(action, 'Queue', { companyId: c });
@@ -310,11 +323,11 @@ function aplicarRestricoesRegionaisNaoAdmin(
   }
 
   const r = user.regionalId;
-  const workOrderPermitidoForaRegional =
-    construirClausulaOsVisivelParaUsuario(user);
-
   if (!ignorarLeitura) {
-    cannot('read', 'Regional', { companyId: c, NOT: { id: r } });
+    cannot('read', 'Regional', {
+      companyId: c,
+      NOT: regionalPermitida ?? { id: r },
+    });
     if (!fieldTeamLeituraCadastroEmpresa) {
       cannot('read', 'Location', { companyId: c, NOT: { regionalId: r } });
       cannot('read', 'Asset', {
@@ -326,10 +339,6 @@ function aplicarRestricoesRegionaisNaoAdmin(
         NOT: { location: { regionalId: r } },
       });
     }
-    cannot('read', 'WorkOrder', {
-      companyId: c,
-      NOT: workOrderPermitidoForaRegional,
-    });
     cannot('read', 'Planning', {
       companyId: c,
       NOT: planningPermitido,
@@ -339,6 +348,11 @@ function aplicarRestricoesRegionaisNaoAdmin(
       NOT: { OR: [{ id: user.id }, { regionalId: r }] },
     });
   }
+
+  cannot('read', 'WorkOrder', {
+    companyId: c,
+    NOT: workOrderPermitidoForaRegional,
+  });
 
   cannot(['create', 'update', 'delete'], 'Queue', { companyId: c });
 
