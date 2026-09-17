@@ -6,6 +6,7 @@ import { NotificationService } from './notification.service';
 import { ActivityNotificationPreferencesService } from './activity-notification-preferences.service';
 import { resolveActorDisplayName } from './activity-notification-actor';
 import { WorkOrderNotificationScopeService } from '../../../shared/regional-scope/work-order-notification-scope.service';
+import { getWorkOrderNotificationParts } from './work-order-location.util';
 
 export type WorkOrderLifecycleEventKind =
   | 'started'
@@ -36,6 +37,10 @@ export class WorkOrderActivityNotificationService {
     );
   }
 
+  private async getNotificationParts(workOrderId: string) {
+    return getWorkOrderNotificationParts(this.prisma, workOrderId);
+  }
+
   async notifyAssignment(params: {
     workOrderId: string;
     workOrderTitle: string;
@@ -58,9 +63,13 @@ export class WorkOrderActivityNotificationService {
       params.actorUserId,
     );
 
+    const { osLabel, locationString } = await this.getNotificationParts(
+      params.workOrderId,
+    );
+
     await this.notificationService.criar({
       title: 'Nova tarefa atribuída a você',
-      message: `${actorName} atribuiu você à OS "${params.workOrderTitle}".`,
+      message: `${actorName} atribuiu você à ${osLabel} "${params.workOrderTitle}"${locationString}.`,
       entityType: 'work-order',
       entityId: params.workOrderId,
       userId: params.actorUserId,
@@ -94,10 +103,13 @@ export class WorkOrderActivityNotificationService {
     );
     const fila = params.queueTitle.trim() || 'Fila';
     const os = params.workOrderTitle.trim() || `OS ${params.workOrderId}`;
+    const { osLabel, locationString } = await this.getNotificationParts(
+      params.workOrderId,
+    );
 
     await this.notificationService.criar({
       title: 'Nova tarefa atribuída a você',
-      message: `${actorName} associou você à OS "${os}" pela fila "${fila}".`,
+      message: `${actorName} associou você à ${osLabel} "${os}"${locationString} pela fila "${fila}".`,
       entityType: 'work-order',
       entityId: params.workOrderId,
       userId: params.actorUserId,
@@ -131,10 +143,13 @@ export class WorkOrderActivityNotificationService {
     );
     const fila = params.queueTitle.trim() || 'Fila';
     const os = params.workOrderTitle.trim() || `OS ${params.workOrderId}`;
+    const { osLabel, locationString } = await this.getNotificationParts(
+      params.workOrderId,
+    );
 
     await this.notificationService.criar({
       title: 'Você foi removido da tarefa',
-      message: `${actorName} removeu você da OS "${os}" (fila "${fila}" desvinculada).`,
+      message: `${actorName} removeu você da ${osLabel} "${os}"${locationString} (fila "${fila}" desvinculada).`,
       entityType: 'work-order-unassignment',
       entityId: params.workOrderId,
       userId: params.actorUserId,
@@ -166,9 +181,13 @@ export class WorkOrderActivityNotificationService {
       params.actorUserId,
     );
 
+    const { osLabel, locationString } = await this.getNotificationParts(
+      params.workOrderId,
+    );
+
     await this.notificationService.criar({
       title: 'Você foi removido da tarefa',
-      message: `${actorName} removeu você da OS "${params.workOrderTitle}".`,
+      message: `${actorName} removeu você da ${osLabel} "${params.workOrderTitle}"${locationString}.`,
       entityType: 'work-order-unassignment',
       entityId: params.workOrderId,
       userId: params.actorUserId,
@@ -203,9 +222,13 @@ export class WorkOrderActivityNotificationService {
       params.actorUserId,
     );
 
+    const { osLabel, locationString } = await this.getNotificationParts(
+      params.workOrderId,
+    );
+
     await this.notificationService.criar({
       title: 'Nova OS criada',
-      message: `${actorName} criou a OS "${params.workOrderTitle}".`,
+      message: `${actorName} criou a ${osLabel} "${params.workOrderTitle}"${locationString}.`,
       entityType: 'work-order',
       entityId: params.workOrderId,
       userId: params.actorUserId,
@@ -223,51 +246,53 @@ export class WorkOrderActivityNotificationService {
       message: (
         actorName: string,
         workOrderTitle: string,
+        osLabel: string,
+        locationString: string,
         rejectionReason?: string,
       ) => string;
     }
   > = {
     started: {
       title: 'OS iniciada',
-      message: (actor, title) =>
-        `${actor} iniciou a OS "${title}".`,
+      message: (actor, title, osLabel, location) =>
+        `${actor} iniciou a ${osLabel} "${title}"${location}.`,
     },
     paused: {
       title: 'OS pausada',
-      message: (actor, title) =>
-        `${actor} pausou a OS "${title}".`,
+      message: (actor, title, osLabel, location) =>
+        `${actor} pausou a ${osLabel} "${title}"${location}.`,
     },
     resumed: {
       title: 'OS retomada',
-      message: (actor, title) =>
-        `${actor} retomou a OS "${title}".`,
+      message: (actor, title, osLabel, location) =>
+        `${actor} retomou a ${osLabel} "${title}"${location}.`,
     },
     completed: {
       title: 'OS concluída',
-      message: (actor, title) =>
-        `${actor} concluiu a OS "${title}".`,
+      message: (actor, title, osLabel, location) =>
+        `${actor} concluiu a ${osLabel} "${title}"${location}.`,
     },
     submitted_for_review: {
       title: 'OS aguardando validação',
-      message: (actor, title) =>
-        `${actor} concluiu a OS "${title}" e enviou para análise.`,
+      message: (actor, title, osLabel, location) =>
+        `${actor} concluiu a ${osLabel} "${title}"${location} e enviou para análise.`,
     },
     approved: {
       title: 'OS aprovada',
-      message: (actor, title) =>
-        `${actor} aprovou e concluiu definitivamente a OS "${title}".`,
+      message: (actor, title, osLabel, location) =>
+        `${actor} aprovou e concluiu definitivamente a ${osLabel} "${title}"${location}.`,
     },
     rejected: {
       title: 'OS reprovada',
-      message: (actor, title, reason) =>
+      message: (actor, title, osLabel, location, reason) =>
         reason?.trim()
-          ? `${actor} reprovou a conclusão da OS "${title}". Motivo: ${reason.trim()}.`
-          : `${actor} reprovou a conclusão da OS "${title}".`,
+          ? `${actor} reprovou a conclusão da ${osLabel} "${title}"${location}. Motivo: ${reason.trim()}.`
+          : `${actor} reprovou a conclusão da ${osLabel} "${title}"${location}.`,
     },
     deleted: {
       title: 'OS excluída',
-      message: (actor, title) =>
-        `${actor} excluiu a OS "${title}".`,
+      message: (actor, title, osLabel, location) =>
+        `${actor} excluiu a ${osLabel} "${title}"${location}.`,
     },
   };
 
@@ -306,12 +331,17 @@ export class WorkOrderActivityNotificationService {
     const config = this.lifecycleMessages[params.kind];
     const workOrderTitle =
       params.workOrderTitle.trim() || `OS ${params.workOrderId}`;
+    const { osLabel, locationString } = await this.getNotificationParts(
+      params.workOrderId,
+    );
 
     await this.notificationService.criar({
       title: config.title,
       message: config.message(
         actorName,
         workOrderTitle,
+        osLabel,
+        locationString,
         params.rejectionReason,
       ),
       entityType: 'work-order',
@@ -348,9 +378,13 @@ export class WorkOrderActivityNotificationService {
       params.actorUserId,
     );
 
+    const { osLabel, locationString } = await this.getNotificationParts(
+      params.workOrderId,
+    );
+
     await this.notificationService.criar({
       title: 'Novo comentário em sua tarefa',
-      message: `${actorName} comentou na OS "${params.workOrderTitle}".`,
+      message: `${actorName} comentou na ${osLabel} "${params.workOrderTitle}"${locationString}.`,
       entityType: 'work-order',
       entityId: params.workOrderId,
       userId: params.actorUserId,
