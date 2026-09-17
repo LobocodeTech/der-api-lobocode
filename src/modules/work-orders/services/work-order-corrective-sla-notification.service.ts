@@ -18,6 +18,7 @@ import {
   normalizarConfigSlaEmpresa,
   resolverConfigSlaDaOrdem,
 } from '../utils/work-order-corrective-sla.util';
+import { getWorkOrderNotificationParts } from '../../notifications/shared/work-order-location.util';
 
 @Injectable()
 export class WorkOrderCorrectiveSlaNotificationService {
@@ -46,6 +47,11 @@ export class WorkOrderCorrectiveSlaNotificationService {
   }): Promise<void> {
     const updates: Record<string, Date> = {};
 
+    const { osLabel, locationString } = await getWorkOrderNotificationParts(
+      this.prisma,
+      params.workOrderId,
+    );
+
     if (
       this.workOrderSlaService.deveNotificarNearBreach(
         params.snapshot,
@@ -55,7 +61,7 @@ export class WorkOrderCorrectiveSlaNotificationService {
       await this.enviar(
         params,
         'SLA corretiva: 80% do prazo consumido',
-        `A OS "${params.workOrderTitle}" atingiu 80% do tempo de SLA.`,
+        `A ${osLabel} "${params.workOrderTitle}"${locationString} atingiu 80% do tempo de SLA.`,
       );
       updates.slaNearBreachNotifiedAt = new Date();
     }
@@ -69,7 +75,7 @@ export class WorkOrderCorrectiveSlaNotificationService {
       await this.enviar(
         params,
         'SLA corretiva: 1 hora restante',
-        `Falta aproximadamente 1 hora útil de SLA para a OS "${params.workOrderTitle}".`,
+        `Falta aproximadamente 1 hora útil de SLA para a ${osLabel} "${params.workOrderTitle}"${locationString}.`,
       );
       updates.slaOneHourLeftNotifiedAt = new Date();
     }
@@ -83,7 +89,7 @@ export class WorkOrderCorrectiveSlaNotificationService {
       await this.enviar(
         params,
         'SLA corretiva vencida',
-        `A OS "${params.workOrderTitle}" ultrapassou o prazo de SLA corretiva.`,
+        `A ${osLabel} "${params.workOrderTitle}"${locationString} ultrapassou o prazo de SLA corretiva.`,
       );
       updates.slaBreachedNotifiedAt = new Date();
     }
