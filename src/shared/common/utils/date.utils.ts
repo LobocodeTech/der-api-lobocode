@@ -25,7 +25,9 @@ export function withDateFields<T extends object>(
   dateKeys: (keyof T)[],
   emptyDefault?: Date,
 ): T {
-  const hasAnyDateKey = dateKeys.some((k) => (data as Record<string, unknown>)[k as string] !== undefined);
+  const hasAnyDateKey = dateKeys.some(
+    (k) => (data as Record<string, unknown>)[k as string] !== undefined,
+  );
   if (!hasAnyDateKey) return data;
 
   const out = { ...data } as Record<string, unknown>;

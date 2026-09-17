@@ -75,7 +75,7 @@ export class SecurityService {
   async analyzeLoginActivity(
     userId: string,
     request: Request,
-    success: boolean
+    success: boolean,
   ): Promise<SecurityEvent[]> {
     const events: SecurityEvent[] = [];
     const ipAddress = this.getClientIp(request);
@@ -83,7 +83,7 @@ export class SecurityService {
     // Verificar tentativas falhadas
     if (!success) {
       const failedAttempts = await this.getFailedLoginAttempts(ipAddress, 15);
-      
+
       if (failedAttempts >= 5) {
         events.push({
           userId,
@@ -98,8 +98,11 @@ export class SecurityService {
 
     // Verificar localização incomum
     if (success) {
-      const isUnusualLocation = await this.checkUnusualLocation(userId, ipAddress);
-      
+      const isUnusualLocation = await this.checkUnusualLocation(
+        userId,
+        ipAddress,
+      );
+
       if (isUnusualLocation) {
         events.push({
           userId,
@@ -120,14 +123,14 @@ export class SecurityService {
    */
   async analyzePasswordResetActivity(
     userId: string,
-    request: Request
+    request: Request,
   ): Promise<SecurityEvent[]> {
     const events: SecurityEvent[] = [];
     const ipAddress = this.getClientIp(request);
 
     // Verificar abuso de reset de senha
     const resetAttempts = await this.getPasswordResetAttempts(userId, 60);
-    
+
     if (resetAttempts >= 3) {
       events.push({
         userId,
@@ -147,13 +150,13 @@ export class SecurityService {
    */
   async analyzeRequestRate(
     ipAddress: string,
-    endpoint: string
+    endpoint: string,
   ): Promise<SecurityEvent[]> {
     const events: SecurityEvent[] = [];
 
     // Verificar rate limiting
     const requestCount = await this.getRequestCount(ipAddress, endpoint, 1);
-    
+
     if (requestCount >= 100) {
       events.push({
         ipAddress,
@@ -170,14 +173,17 @@ export class SecurityService {
   /**
    * Processa eventos de segurança
    */
-  async processSecurityEvents(events: SecurityEvent[], request: Request): Promise<void> {
+  async processSecurityEvents(
+    events: SecurityEvent[],
+    request: Request,
+  ): Promise<void> {
     for (const event of events) {
       // Log do evento
       await this.auditService.logSuspiciousActivity(
         event.userId || 'anonymous',
         request,
         event.eventType,
-        event.details
+        event.details,
       );
 
       // Aplicar ações baseadas na severidade
@@ -189,8 +195,8 @@ export class SecurityService {
    * Aplica ação de segurança
    */
   private async applySecurityAction(event: SecurityEvent): Promise<void> {
-    const rule = this.securityRules.find(r => r.id === event.eventType);
-    
+    const rule = this.securityRules.find((r) => r.id === event.eventType);
+
     if (!rule || !rule.enabled) {
       return;
     }
@@ -199,12 +205,12 @@ export class SecurityService {
       case 'log':
         this.logger.warn(`🔒 Security Event: ${event.eventType}`, event);
         break;
-        
+
       case 'block':
         this.logger.error(`🚫 Security Block: ${event.eventType}`, event);
         // TODO: Implementar bloqueio de IP
         break;
-        
+
       case 'notify':
         this.logger.warn(`📢 Security Alert: ${event.eventType}`, event);
         // TODO: Implementar notificação (email, Slack, etc.)
@@ -215,7 +221,10 @@ export class SecurityService {
   /**
    * Obtém tentativas de login falhadas
    */
-  private async getFailedLoginAttempts(ipAddress: string, minutes: number): Promise<number> {
+  private async getFailedLoginAttempts(
+    ipAddress: string,
+    minutes: number,
+  ): Promise<number> {
     // TODO: Implementar quando tivermos tabela de auditoria
     // Por enquanto, retorna mock
     return Math.floor(Math.random() * 3); // 0-2 tentativas
@@ -224,7 +233,10 @@ export class SecurityService {
   /**
    * Verifica localização incomum
    */
-  private async checkUnusualLocation(userId: string, ipAddress: string): Promise<boolean> {
+  private async checkUnusualLocation(
+    userId: string,
+    ipAddress: string,
+  ): Promise<boolean> {
     // TODO: Implementar verificação de localização
     // Por enquanto, retorna false (não é incomum)
     return false;
@@ -233,7 +245,10 @@ export class SecurityService {
   /**
    * Obtém tentativas de reset de senha
    */
-  private async getPasswordResetAttempts(userId: string, minutes: number): Promise<number> {
+  private async getPasswordResetAttempts(
+    userId: string,
+    minutes: number,
+  ): Promise<number> {
     // TODO: Implementar quando tivermos tabela de auditoria
     // Por enquanto, retorna mock
     return Math.floor(Math.random() * 2); // 0-1 tentativas
@@ -242,7 +257,11 @@ export class SecurityService {
   /**
    * Obtém contagem de requisições
    */
-  private async getRequestCount(ipAddress: string, endpoint: string, minutes: number): Promise<number> {
+  private async getRequestCount(
+    ipAddress: string,
+    endpoint: string,
+    minutes: number,
+  ): Promise<number> {
     // TODO: Implementar rate limiting real
     // Por enquanto, retorna mock
     return Math.floor(Math.random() * 50); // 0-49 requisições
@@ -253,8 +272,8 @@ export class SecurityService {
    */
   private getClientIp(request: Request): string {
     return (
-      request.headers['x-forwarded-for'] as string ||
-      request.headers['x-real-ip'] as string ||
+      (request.headers['x-forwarded-for'] as string) ||
+      (request.headers['x-real-ip'] as string) ||
       request.connection.remoteAddress ||
       request.socket.remoteAddress ||
       'unknown'
@@ -283,9 +302,12 @@ export class SecurityService {
    * Atualiza regra de segurança
    */
   updateSecurityRule(ruleId: string, updates: Partial<SecurityRule>): void {
-    const ruleIndex = this.securityRules.findIndex(r => r.id === ruleId);
+    const ruleIndex = this.securityRules.findIndex((r) => r.id === ruleId);
     if (ruleIndex !== -1) {
-      this.securityRules[ruleIndex] = { ...this.securityRules[ruleIndex], ...updates };
+      this.securityRules[ruleIndex] = {
+        ...this.securityRules[ruleIndex],
+        ...updates,
+      };
     }
   }
-} 
+}

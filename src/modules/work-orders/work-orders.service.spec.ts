@@ -13,16 +13,17 @@ describe('WorkOrdersService - filtro de SLA atrasado', () => {
     correctiveSlaWindowEnd: '18:00',
   };
   const agora = new Date('2026-08-12T15:00:00.000Z');
-  const registroEstaAtrasadoAoVivo = (
-    (
-      WorkOrdersService.prototype as unknown as {
-        registroEstaAtrasadoAoVivo?(
-          registro: Record<string, unknown>,
-          config: typeof companyConfig,
-          agora: Date,
-        ): boolean;
-      }
-    ).registroEstaAtrasadoAoVivo
+  type RegistroAtrasadoFn = (
+    registro: Record<string, unknown>,
+    config: typeof companyConfig,
+    agora: Date,
+  ) => boolean;
+  const registroEstaAtrasadoAoVivo: RegistroAtrasadoFn | undefined = (
+    WorkOrdersService.prototype as unknown as {
+      registroEstaAtrasadoAoVivo?: RegistroAtrasadoFn;
+    }
+  ).registroEstaAtrasadoAoVivo?.bind(
+    Object.create(WorkOrdersService.prototype) as WorkOrdersService,
   );
 
   it('distingue preventiva concluída no prazo de preventiva concluída atrasada', () => {
@@ -102,9 +103,7 @@ describe('WorkOrdersService - escopo de ações por fila', () => {
   ): Promise<unknown> =>
     (
       WorkOrdersService.prototype as unknown as {
-        buscarOrdemPorId(
-          id: string,
-        ): Promise<unknown>;
+        buscarOrdemPorId(id: string): Promise<unknown>;
       }
     ).buscarOrdemPorId.call(service, id);
 

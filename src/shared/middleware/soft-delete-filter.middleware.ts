@@ -9,7 +9,7 @@ export class SoftDeleteFilterMiddleware implements NestMiddleware {
       // Adiciona filtro para excluir registros com deletedAt
       req.query.deletedAt = 'null';
     }
-    
+
     next();
   }
-} 
+}

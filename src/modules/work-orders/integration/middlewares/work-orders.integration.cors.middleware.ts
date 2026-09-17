@@ -6,8 +6,9 @@ export class WorkOrdersIntegrationCorsMiddleware implements NestMiddleware {
   private readonly allowAnyOrigin =
     (process.env.INTEGRATION_CORS_ALLOW_ALL ?? 'true').toLowerCase() === 'true';
 
-  private readonly allowedOrigins = (process.env.INTEGRATION_CORS_ALLOWED_ORIGINS ??
-    '')
+  private readonly allowedOrigins = (
+    process.env.INTEGRATION_CORS_ALLOWED_ORIGINS ?? ''
+  )
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);

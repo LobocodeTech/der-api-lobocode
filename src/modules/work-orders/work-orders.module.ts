@@ -1,4 +1,9 @@
-import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
+import {
+  MiddlewareConsumer,
+  Module,
+  NestModule,
+  RequestMethod,
+} from '@nestjs/common';
 import { FilesModule } from 'src/shared/files/files.module';
 import { NotificationModule } from '../notifications/notification.module';
 import { WorkOrdersController } from './work-orders.controller';
@@ -59,4 +64,3 @@ export class WorkOrdersModule implements NestModule {
       );
   }
 }
-

@@ -23,20 +23,24 @@ export class PasswordService {
    * Gera senha aleatória
    */
   generateRandomPassword(length: number = 12): string {
-    const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
+    const charset =
+      'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
     let password = '';
-    
+
     for (let i = 0; i < length; i++) {
       password += charset.charAt(Math.floor(Math.random() * charset.length));
     }
-    
+
     return password;
   }
 
   /**
    * Valida força da senha
    */
-  validatePasswordStrength(password: string): { isValid: boolean; errors: string[] } {
+  validatePasswordStrength(password: string): {
+    isValid: boolean;
+    errors: string[];
+  } {
     const errors: string[] = [];
 
     if (password.length < 8) {
@@ -56,12 +60,14 @@ export class PasswordService {
     }
 
     if (!/[!@#$%^&*]/.test(password)) {
-      errors.push('Senha deve conter pelo menos um caractere especial (!@#$%^&*)');
+      errors.push(
+        'Senha deve conter pelo menos um caractere especial (!@#$%^&*)',
+      );
     }
 
     return {
       isValid: errors.length === 0,
-      errors
+      errors,
     };
   }
-} 
+}

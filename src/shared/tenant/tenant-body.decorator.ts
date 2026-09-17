@@ -9,4 +9,4 @@ export const TenantBody = createParamDecorator(
     const request = ctx.switchToHttp().getRequest();
     return request.body?.companyId;
   },
-); 
+);

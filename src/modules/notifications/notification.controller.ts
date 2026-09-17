@@ -14,7 +14,10 @@ import { NotificationService } from './shared/notification.service';
 import { PushNotificationService } from './shared/push-notification.service';
 import { AuthGuard } from '../../shared/auth/guards/auth.guard';
 import { NotificationFilters } from './shared/notification.types';
-import { PushSubscriptionDto, UnsubscribePushDto } from './dto/push-subscription.dto';
+import {
+  PushSubscriptionDto,
+  UnsubscribePushDto,
+} from './dto/push-subscription.dto';
 
 @Controller('notifications')
 @UseGuards(AuthGuard)
@@ -89,7 +92,10 @@ export class NotificationController {
   @Get('unread-count')
   async contarNaoLidas(@Request() req: any) {
     const userId = req.user.id;
-    const count = await this.notificationService.contarNaoLidas(userId, req.user);
+    const count = await this.notificationService.contarNaoLidas(
+      userId,
+      req.user,
+    );
 
     return { count };
   }
@@ -141,10 +147,7 @@ export class NotificationController {
    * POST /notifications/push/subscribe
    */
   @Post('push/subscribe')
-  async subscribePush(
-    @Request() req: any,
-    @Body() dto: PushSubscriptionDto,
-  ) {
+  async subscribePush(@Request() req: any, @Body() dto: PushSubscriptionDto) {
     const userId = req.user.id;
     await this.pushNotificationService.subscribe(userId, dto);
     return { success: true };
@@ -155,10 +158,7 @@ export class NotificationController {
    * POST /notifications/push/unsubscribe
    */
   @Post('push/unsubscribe')
-  async unsubscribePush(
-    @Request() req: any,
-    @Body() dto: UnsubscribePushDto,
-  ) {
+  async unsubscribePush(@Request() req: any, @Body() dto: UnsubscribePushDto) {
     const userId = req.user.id;
     await this.pushNotificationService.unsubscribe(userId, dto.endpoint);
     return { success: true };
@@ -176,7 +176,9 @@ export class NotificationController {
   ) {
     const userId = body?.userId || req.user.id;
     const title = body?.title || '🧪 Teste de Push Notification';
-    const message = body?.body || `Teste enviado em ${new Date().toLocaleString('pt-BR')} - Se você viu isso, está funcionando! 🎉`;
+    const message =
+      body?.body ||
+      `Teste enviado em ${new Date().toLocaleString('pt-BR')} - Se você viu isso, está funcionando! 🎉`;
 
     await this.pushNotificationService.sendPushNotification(userId, {
       title,
@@ -187,8 +189,8 @@ export class NotificationController {
       },
     });
 
-    return { 
-      success: true, 
+    return {
+      success: true,
       message: 'Push notification de teste enviada',
       details: {
         userId,

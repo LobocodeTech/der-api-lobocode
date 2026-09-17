@@ -40,7 +40,8 @@ export class OAuthRedirectExceptionFilter implements ExceptionFilter {
 
       if (response && typeof response === 'object') {
         const message = (response as { message?: unknown }).message;
-        if (Array.isArray(message) && message.length > 0) return String(message[0]);
+        if (Array.isArray(message) && message.length > 0)
+          return String(message[0]);
         if (typeof message === 'string') return message;
       }
     }
@@ -64,7 +65,10 @@ export class OAuthRedirectExceptionFilter implements ExceptionFilter {
     }
   }
 
-  private isAllowedFrontendOrigin(origin: string, fallbackOrigin: string): boolean {
+  private isAllowedFrontendOrigin(
+    origin: string,
+    fallbackOrigin: string,
+  ): boolean {
     if (origin === fallbackOrigin) return true;
 
     try {
@@ -105,7 +109,10 @@ export class OAuthRedirectExceptionFilter implements ExceptionFilter {
       this.extractCookieValue(req, 'oauth_frontend_url') ?? undefined,
     );
 
-    if (cookieOrigin && this.isAllowedFrontendOrigin(cookieOrigin, fallbackOrigin)) {
+    if (
+      cookieOrigin &&
+      this.isAllowedFrontendOrigin(cookieOrigin, fallbackOrigin)
+    ) {
       return cookieOrigin;
     }
 
@@ -113,7 +120,8 @@ export class OAuthRedirectExceptionFilter implements ExceptionFilter {
   }
 
   private clearOAuthFrontendCookie(res: Response): void {
-    const isProduction = this.configService.get<string>('NODE_ENV') === 'production';
+    const isProduction =
+      this.configService.get<string>('NODE_ENV') === 'production';
     res.clearCookie('oauth_frontend_url', {
       path: '/',
       sameSite: 'lax',

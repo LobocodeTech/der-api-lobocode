@@ -217,7 +217,8 @@ export const LOG_MESSAGES = {
   // Logs de segurança
   SECURITY: {
     UNAUTHORIZED_ACCESS: 'Tentativa de acesso não autorizado',
-    RATE_LIMIT_EXCEEDED: 'Limite de requisições excedido. Tente novamente em alguns minutos.',
+    RATE_LIMIT_EXCEEDED:
+      'Limite de requisições excedido. Tente novamente em alguns minutos.',
     SUSPICIOUS_ACTIVITY: 'Atividade suspeita detectada',
     PERMISSION_DENIED: 'Permissão negada',
   },
@@ -230,7 +231,8 @@ export const LOG_MESSAGES = {
 
 export const HISTORY_MESSAGES = {
   APPOINTMENT: {
-    CREATED: 'Agendamento criado para o cliente no sistema com o status {status}',
+    CREATED:
+      'Agendamento criado para o cliente no sistema com o status {status}',
     UPDATED: 'Agendamento atualizado para o cliente no sistema',
     DELETED: 'Agendamento deletado para o cliente no sistema',
   },

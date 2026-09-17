@@ -1,6 +1,6 @@
 /**
  * 🔧 CONTEXT BUILDER - MOTORCYCLE CHECKLIST
- * 
+ *
  * Constrói contexto rico para notificações de checklist de motocicletas.
  * Inclui dados relacionados como posto, motocicleta, usuário, etc.
  */
@@ -17,12 +17,18 @@ export class MotorcycleChecklistContextBuilder {
   /**
    * 🏍️ MOTORCYCLE CHECKLIST - Contexto para checklist de motocicletas
    */
-  async buildMotorcycleChecklistContext(checklistId: string, operation: string): Promise<NotificationContext> {
+  async buildMotorcycleChecklistContext(
+    checklistId: string,
+    operation: string,
+  ): Promise<NotificationContext> {
     const delegate = (this.prisma as any).motorcycleChecklist;
     if (!delegate) {
       return {
-        userName: '', postName: '', time: DateFormatter.formatDateTime(new Date()),
-        vehiclePlate: undefined, vehicleModel: undefined,
+        userName: '',
+        postName: '',
+        time: DateFormatter.formatDateTime(new Date()),
+        vehiclePlate: undefined,
+        vehicleModel: undefined,
       };
     }
     const checklist = await delegate.findUnique({

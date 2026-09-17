@@ -1,6 +1,6 @@
 /**
  * 🔧 CONTEXT BUILDER - OCCURRENCE
- * 
+ *
  * Constrói contexto rico para notificações de ocorrências.
  * Inclui dados relacionados como posto, usuário, etc.
  */
@@ -17,17 +17,24 @@ export class OccurrenceContextBuilder {
   /**
    * 🚨 OCCURRENCE - Contexto para ocorrências
    */
-  async buildOccurrenceContext(occurrenceId: string, operation: string): Promise<NotificationContext> {
+  async buildOccurrenceContext(
+    occurrenceId: string,
+    operation: string,
+  ): Promise<NotificationContext> {
     const occurrenceDelegate = (this.prisma as any).occurrence;
     if (!occurrenceDelegate) {
-      return { userName: '', postName: '', time: DateFormatter.formatDateTime(new Date()) };
+      return {
+        userName: '',
+        postName: '',
+        time: DateFormatter.formatDateTime(new Date()),
+      };
     }
     const occurrence = await occurrenceDelegate.findUnique({
       where: { id: occurrenceId },
       include: {
         post: { select: { name: true } },
-        user: { select: { name: true } }
-      }
+        user: { select: { name: true } },
+      },
     });
 
     if (!occurrence) {
@@ -36,7 +43,9 @@ export class OccurrenceContextBuilder {
 
     return {
       userName: (occurrence as any).user?.name ?? '',
-      postName: (occurrence as any).post?.name ? ` no posto ${(occurrence as any).post.name}` : '',
+      postName: (occurrence as any).post?.name
+        ? ` no posto ${(occurrence as any).post.name}`
+        : '',
       time: DateFormatter.formatDateTime(new Date()),
     };
   }

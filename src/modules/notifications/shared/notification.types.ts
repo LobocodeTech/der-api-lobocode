@@ -5,10 +5,10 @@
 export interface CreateNotificationData {
   title: string;
   message: string;
-  userId: string;        // quem criou a ação
+  userId: string; // quem criou a ação
   companyId?: string;
-  entityType?: string;   // tipo da entidade (occurrence, report, etc.)
-  entityId?: string;      // ID da entidade
+  entityType?: string; // tipo da entidade (occurrence, report, etc.)
+  entityId?: string; // ID da entidade
   priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'CRITICAL'; // prioridade da notificação
   recipients?: string[]; // destinatários específicos (opcional)
   /** Quando true, não envia e-mail (mantém WebSocket e push). Padrão: ver SKIP_NOTIFICATION_EMAIL_BY_DEFAULT. */
@@ -30,7 +30,7 @@ export interface NotificationFilters {
   entityType?: string;
   page?: number;
   limit?: number;
-  query?: string;  // Termo de busca (título, mensagem, entityType)
+  query?: string; // Termo de busca (título, mensagem, entityType)
 }
 
 // ============================================================================
@@ -48,28 +48,28 @@ export interface NotificationTemplate {
 // 🎯 TIPOS DE DESTINATÁRIOS FLEXÍVEIS
 // ============================================================================
 
-export type RecipientType = 
-  | 'ALL'                           // Todos os usuários da empresa
-  | 'ADMINS_ONLY'                   // Apenas administradores
-  | 'SUPERVISORS_ONLY'              // Apenas supervisores
-  | 'ADMINS_AND_SUPERVISORS'        // Administradores e supervisores
-  | 'ACTIVE_SUPERVISORS'            // Supervisores em turno ativo
+export type RecipientType =
+  | 'ALL' // Todos os usuários da empresa
+  | 'ADMINS_ONLY' // Apenas administradores
+  | 'SUPERVISORS_ONLY' // Apenas supervisores
+  | 'ADMINS_AND_SUPERVISORS' // Administradores e supervisores
+  | 'ACTIVE_SUPERVISORS' // Supervisores em turno ativo
   | 'ACTIVE_SUPERVISORS_AND_ADMINS' // Supervisores ativos + admins
-  | 'ACTIVE_SUPERVISORS_AND_ADMINS_AND_HR' // Supervisores ativos + admins + RH 
-  | 'HR_ONLY'                       // Apenas RH
-  | 'HR_AND_ADMINS'                 // RH + administradores
-  | 'GUARD_ONLY'                    // Apenas guarda específico
-  | 'GUARD_AND_SUPERVISORS'         // Guarda + supervisores
-  | 'GUARD_AND_ADMINS'              // Guarda + administradores
-  | 'GUARD_AND_ACTIVE_SUPERVISORS'  // Guarda + supervisores ativos
-  | 'GUARD_AND_ACTIVE_SUPERVISORS_AND_ADMINS'  // Guarda + supervisores ativos + admins
-  | 'SPECIFIC_USERS';               // Usuários específicos
+  | 'ACTIVE_SUPERVISORS_AND_ADMINS_AND_HR' // Supervisores ativos + admins + RH
+  | 'HR_ONLY' // Apenas RH
+  | 'HR_AND_ADMINS' // RH + administradores
+  | 'GUARD_ONLY' // Apenas guarda específico
+  | 'GUARD_AND_SUPERVISORS' // Guarda + supervisores
+  | 'GUARD_AND_ADMINS' // Guarda + administradores
+  | 'GUARD_AND_ACTIVE_SUPERVISORS' // Guarda + supervisores ativos
+  | 'GUARD_AND_ACTIVE_SUPERVISORS_AND_ADMINS' // Guarda + supervisores ativos + admins
+  | 'SPECIFIC_USERS'; // Usuários específicos
 
 export interface RecipientRule {
   type: RecipientType;
-  userIds?: string[];               // Para SPECIFIC_USERS
-  guardId?: string;                 // Para regras que envolvem guarda
-  includeAdmins?: boolean;          // Incluir admins nas regras
+  userIds?: string[]; // Para SPECIFIC_USERS
+  guardId?: string; // Para regras que envolvem guarda
+  includeAdmins?: boolean; // Incluir admins nas regras
   includeActiveSupervisors?: boolean; // Incluir supervisores ativos
 }
 

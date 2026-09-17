@@ -1,6 +1,6 @@
 /**
  * 📋 SUPPLY NOTIFICATIONS - EXPORTS
- * 
+ *
  * Exports centralizados para notificações de abastecimentos.
  */
 

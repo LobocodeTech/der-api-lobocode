@@ -1,6 +1,6 @@
 /**
  * 🔔 HELPER - OCCURRENCE DISPATCH
- * 
+ *
  * Helper específico para notificações de despacho de ocorrências.
  * Usa templates contextuais e sistema de destinatários inteligente.
  */
@@ -16,7 +16,7 @@ export class OccurrenceDispatchNotificationHelper {
   constructor(
     private notificationService: NotificationService,
     private contextBuilder: OccurrenceDispatchContextBuilder,
-    private recipientsService: NotificationRecipientsService
+    private recipientsService: NotificationRecipientsService,
   ) {}
 
   /**
@@ -29,30 +29,38 @@ export class OccurrenceDispatchNotificationHelper {
   ) {
     try {
       // 1. Construir contexto rico
-      const context = await this.contextBuilder.buildOccurrenceDispatchContext(dispatchId, 'created');
-      
+      const context = await this.contextBuilder.buildOccurrenceDispatchContext(
+        dispatchId,
+        'created',
+      );
+
       // 2. Obter template
       const template = OccurrenceDispatchTemplateService.getTemplate('created');
       if (!template) {
-        throw new Error('Template não encontrado para occurrenceDispatch.created');
+        throw new Error(
+          'Template não encontrado para occurrenceDispatch.created',
+        );
       }
 
       // 3. Renderizar template com contexto
-      const renderedTemplate = OccurrenceDispatchTemplateService.renderTemplate(template, context);
+      const renderedTemplate = OccurrenceDispatchTemplateService.renderTemplate(
+        template,
+        context,
+      );
 
       // 4. Obter destinatários
       console.log('🔍 DEBUG - OccurrenceDispatch Context:', {
         guardId: context.guardId,
         recipientType: template.recipients,
-        companyId
+        companyId,
       });
-      
+
       const recipients = await this.recipientsService.getRecipients(
-        companyId, 
+        companyId,
         template.recipients,
-        { type: template.recipients, guardId: context.guardId }
+        { type: template.recipients, guardId: context.guardId },
       );
-      
+
       console.log('🎯 DEBUG - Recipients encontrados:', recipients);
 
       // 5. Criar notificação
@@ -67,7 +75,10 @@ export class OccurrenceDispatchNotificationHelper {
         recipients,
       });
     } catch (error) {
-      console.error('Erro ao criar notificação de occurrenceDispatch criado:', error);
+      console.error(
+        'Erro ao criar notificação de occurrenceDispatch criado:',
+        error,
+      );
       throw error;
     }
   }
@@ -82,22 +93,30 @@ export class OccurrenceDispatchNotificationHelper {
   ) {
     try {
       // 1. Construir contexto rico
-      const context = await this.contextBuilder.buildOccurrenceDispatchContext(dispatchId, 'updated');
-      
+      const context = await this.contextBuilder.buildOccurrenceDispatchContext(
+        dispatchId,
+        'updated',
+      );
+
       // 2. Obter template
       const template = OccurrenceDispatchTemplateService.getTemplate('updated');
       if (!template) {
-        throw new Error('Template não encontrado para occurrenceDispatch.updated');
+        throw new Error(
+          'Template não encontrado para occurrenceDispatch.updated',
+        );
       }
 
       // 3. Renderizar template com contexto
-      const renderedTemplate = OccurrenceDispatchTemplateService.renderTemplate(template, context);
+      const renderedTemplate = OccurrenceDispatchTemplateService.renderTemplate(
+        template,
+        context,
+      );
 
       // 4. Obter destinatários
       const recipients = await this.recipientsService.getRecipients(
-        companyId, 
+        companyId,
         template.recipients,
-        { type: template.recipients, guardId: context.guardId }
+        { type: template.recipients, guardId: context.guardId },
       );
 
       // 5. Criar notificação
@@ -112,7 +131,10 @@ export class OccurrenceDispatchNotificationHelper {
         recipients,
       });
     } catch (error) {
-      console.error('Erro ao criar notificação de occurrenceDispatch atualizado:', error);
+      console.error(
+        'Erro ao criar notificação de occurrenceDispatch atualizado:',
+        error,
+      );
       throw error;
     }
   }
@@ -127,22 +149,31 @@ export class OccurrenceDispatchNotificationHelper {
   ) {
     try {
       // 1. Construir contexto rico
-      const context = await this.contextBuilder.buildOccurrenceDispatchContext(dispatchId, 'completed');
-      
+      const context = await this.contextBuilder.buildOccurrenceDispatchContext(
+        dispatchId,
+        'completed',
+      );
+
       // 2. Obter template
-      const template = OccurrenceDispatchTemplateService.getTemplate('completed');
+      const template =
+        OccurrenceDispatchTemplateService.getTemplate('completed');
       if (!template) {
-        throw new Error('Template não encontrado para occurrenceDispatch.completed');
+        throw new Error(
+          'Template não encontrado para occurrenceDispatch.completed',
+        );
       }
 
       // 3. Renderizar template com contexto
-      const renderedTemplate = OccurrenceDispatchTemplateService.renderTemplate(template, context);
+      const renderedTemplate = OccurrenceDispatchTemplateService.renderTemplate(
+        template,
+        context,
+      );
 
       // 4. Obter destinatários
       const recipients = await this.recipientsService.getRecipients(
-        companyId, 
+        companyId,
         template.recipients,
-        { type: template.recipients, guardId: context.guardId }
+        { type: template.recipients, guardId: context.guardId },
       );
 
       // 5. Criar notificação
@@ -157,7 +188,10 @@ export class OccurrenceDispatchNotificationHelper {
         recipients,
       });
     } catch (error) {
-      console.error('Erro ao criar notificação de occurrenceDispatch finalizado:', error);
+      console.error(
+        'Erro ao criar notificação de occurrenceDispatch finalizado:',
+        error,
+      );
       throw error;
     }
   }

@@ -1,6 +1,6 @@
 /**
  * 🔔 HELPER - MOTORCYCLE CHECKLIST
- * 
+ *
  * Helper específico para notificações de checklist de motocicletas.
  * Usa templates contextuais e sistema de destinatários inteligente.
  */
@@ -16,7 +16,7 @@ export class MotorcycleChecklistNotificationHelper {
   constructor(
     private notificationService: NotificationService,
     private contextBuilder: MotorcycleChecklistContextBuilder,
-    private recipientsService: NotificationRecipientsService
+    private recipientsService: NotificationRecipientsService,
   ) {}
 
   /**
@@ -29,19 +29,29 @@ export class MotorcycleChecklistNotificationHelper {
   ) {
     try {
       // 1. Construir contexto rico
-      const context = await this.contextBuilder.buildMotorcycleChecklistContext(checklistId, 'created');
-      
+      const context = await this.contextBuilder.buildMotorcycleChecklistContext(
+        checklistId,
+        'created',
+      );
+
       // 2. Obter template
-      const template = MotorcycleChecklistTemplateService.getTemplate('created');
+      const template =
+        MotorcycleChecklistTemplateService.getTemplate('created');
       if (!template) {
-        throw new Error('Template não encontrado para motorcycleChecklist.created');
+        throw new Error(
+          'Template não encontrado para motorcycleChecklist.created',
+        );
       }
 
       // 3. Renderizar template com contexto
-      const renderedTemplate = MotorcycleChecklistTemplateService.renderTemplate(template, context);
+      const renderedTemplate =
+        MotorcycleChecklistTemplateService.renderTemplate(template, context);
 
       // 4. Obter destinatários
-      const recipients = await this.recipientsService.getRecipients(companyId, template.recipients);
+      const recipients = await this.recipientsService.getRecipients(
+        companyId,
+        template.recipients,
+      );
 
       // 5. Criar notificação
       return this.notificationService.criar({
@@ -55,7 +65,10 @@ export class MotorcycleChecklistNotificationHelper {
         recipients,
       });
     } catch (error) {
-      console.error('Erro ao criar notificação de motorcycleChecklist criado:', error);
+      console.error(
+        'Erro ao criar notificação de motorcycleChecklist criado:',
+        error,
+      );
       throw error;
     }
   }
@@ -70,19 +83,29 @@ export class MotorcycleChecklistNotificationHelper {
   ) {
     try {
       // 1. Construir contexto rico
-      const context = await this.contextBuilder.buildMotorcycleChecklistContext(checklistId, 'updated');
-      
+      const context = await this.contextBuilder.buildMotorcycleChecklistContext(
+        checklistId,
+        'updated',
+      );
+
       // 2. Obter template
-      const template = MotorcycleChecklistTemplateService.getTemplate('updated');
+      const template =
+        MotorcycleChecklistTemplateService.getTemplate('updated');
       if (!template) {
-        throw new Error('Template não encontrado para motorcycleChecklist.updated');
+        throw new Error(
+          'Template não encontrado para motorcycleChecklist.updated',
+        );
       }
 
       // 3. Renderizar template com contexto
-      const renderedTemplate = MotorcycleChecklistTemplateService.renderTemplate(template, context);
+      const renderedTemplate =
+        MotorcycleChecklistTemplateService.renderTemplate(template, context);
 
       // 4. Obter destinatários
-      const recipients = await this.recipientsService.getRecipients(companyId, template.recipients);
+      const recipients = await this.recipientsService.getRecipients(
+        companyId,
+        template.recipients,
+      );
 
       // 5. Criar notificação
       return this.notificationService.criar({
@@ -96,7 +119,10 @@ export class MotorcycleChecklistNotificationHelper {
         recipients,
       });
     } catch (error) {
-      console.error('Erro ao criar notificação de motorcycleChecklist atualizado:', error);
+      console.error(
+        'Erro ao criar notificação de motorcycleChecklist atualizado:',
+        error,
+      );
       throw error;
     }
   }
@@ -111,19 +137,29 @@ export class MotorcycleChecklistNotificationHelper {
   ) {
     try {
       // 1. Construir contexto rico
-      const context = await this.contextBuilder.buildMotorcycleChecklistContext(checklistId, 'completed');
-      
+      const context = await this.contextBuilder.buildMotorcycleChecklistContext(
+        checklistId,
+        'completed',
+      );
+
       // 2. Obter template
-      const template = MotorcycleChecklistTemplateService.getTemplate('completed');
+      const template =
+        MotorcycleChecklistTemplateService.getTemplate('completed');
       if (!template) {
-        throw new Error('Template não encontrado para motorcycleChecklist.completed');
+        throw new Error(
+          'Template não encontrado para motorcycleChecklist.completed',
+        );
       }
 
       // 3. Renderizar template com contexto
-      const renderedTemplate = MotorcycleChecklistTemplateService.renderTemplate(template, context);
+      const renderedTemplate =
+        MotorcycleChecklistTemplateService.renderTemplate(template, context);
 
       // 4. Obter destinatários
-      const recipients = await this.recipientsService.getRecipients(companyId, template.recipients);
+      const recipients = await this.recipientsService.getRecipients(
+        companyId,
+        template.recipients,
+      );
 
       // 5. Criar notificação
       return this.notificationService.criar({
@@ -137,7 +173,10 @@ export class MotorcycleChecklistNotificationHelper {
         recipients,
       });
     } catch (error) {
-      console.error('Erro ao criar notificação de motorcycleChecklist finalizado:', error);
+      console.error(
+        'Erro ao criar notificação de motorcycleChecklist finalizado:',
+        error,
+      );
       throw error;
     }
   }

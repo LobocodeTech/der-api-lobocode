@@ -39,7 +39,9 @@ export class AuthService {
     const refreshResponse = this.refreshTokenService.refresh(refreshToken);
 
     // Validar se o usuário existe e está ativo
-    const user = await this.authValidator.validateUserExists(refreshResponse.userId);
+    const user = await this.authValidator.validateUserExists(
+      refreshResponse.userId,
+    );
 
     if (request) {
       await this.auditService.logTokenRefresh(user.id, request, true);
@@ -54,7 +56,7 @@ export class AuthService {
       //   id: user.id,
       //   name: user.name,
       //   email: user.email,
-      //   role: user.role, 
+      //   role: user.role,
       // },
     };
   }
@@ -96,19 +98,35 @@ export class AuthService {
     const { currentPassword, newPassword, confirmPassword } = dto;
 
     if (newPassword !== confirmPassword) {
-      throw new ValidationError('Confirmação de senha deve ser igual à nova senha');
+      throw new ValidationError(
+        'Confirmação de senha deve ser igual à nova senha',
+      );
     }
 
     if (currentPassword === newPassword) {
-      throw new ValidationError('A nova senha deve ser diferente da senha atual');
+      throw new ValidationError(
+        'A nova senha deve ser diferente da senha atual',
+      );
     }
 
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, name: true, email: true, status: true, password: true, deletedAt: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        status: true,
+        password: true,
+        deletedAt: true,
+      },
     });
 
-    if (!user || user.status !== 'ACTIVE' || !user.password || user.deletedAt !== null) {
+    if (
+      !user ||
+      user.status !== 'ACTIVE' ||
+      !user.password ||
+      user.deletedAt !== null
+    ) {
       throw new UnauthorizedError(
         this.messagesService.getErrorMessage('AUTH', 'USER_NOT_FOUND'),
       );

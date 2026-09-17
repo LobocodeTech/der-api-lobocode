@@ -132,9 +132,8 @@ export class RegionalsService extends UniversalService<
   }
 
   protected async antesDeCriar(data: CreateRegionalsDto): Promise<void> {
-    const existingRegional = await this.encontrarRegionalComCgrSemanticaDuplicada(
-      data.cgr,
-    );
+    const existingRegional =
+      await this.encontrarRegionalComCgrSemanticaDuplicada(data.cgr);
 
     if (existingRegional) {
       throw new ConflictError('CGR já está em uso por outra regional');
@@ -149,10 +148,8 @@ export class RegionalsService extends UniversalService<
       return;
     }
 
-    const existingRegional = await this.encontrarRegionalComCgrSemanticaDuplicada(
-      data.cgr,
-      id,
-    );
+    const existingRegional =
+      await this.encontrarRegionalComCgrSemanticaDuplicada(data.cgr, id);
 
     if (existingRegional) {
       throw new ConflictError('CGR já está em uso por outra regional');

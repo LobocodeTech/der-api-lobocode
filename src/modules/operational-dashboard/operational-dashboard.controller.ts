@@ -1,4 +1,10 @@
-import { Controller, Get, Query, UseGuards, UseInterceptors } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Query,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
 import { Roles, User } from '@prisma/client';
 import { AuthGuard } from 'src/shared/auth/guards/auth.guard';
 import { RoleByMethodGuard } from 'src/shared/auth/guards/role-by-method.guard';
@@ -14,9 +20,7 @@ import { OperationalDashboardService } from './operational-dashboard.service';
 })
 @Controller('dashboard/operational')
 export class OperationalDashboardController {
-  constructor(
-    private readonly service: OperationalDashboardService,
-  ) {}
+  constructor(private readonly service: OperationalDashboardService) {}
 
   @Get()
   async obterResumo(
@@ -38,4 +42,3 @@ export class OperationalDashboardController {
     });
   }
 }
-

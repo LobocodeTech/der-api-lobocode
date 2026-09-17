@@ -35,10 +35,12 @@ export class FilesService {
     this.bucketName =
       this.configService.get<string>('MINIO_BUCKET_NAME') ??
       'departamento-estadual-rodovias-files';
-    const isProduction = this.configService.get<string>('NODE_ENV') === 'production';
+    const isProduction =
+      this.configService.get<string>('NODE_ENV') === 'production';
     const legacyEndpoint = this.configService.get<string>('MINIO_ENDPOINT');
     const internalEndpoint =
-      this.configService.get<string>('MINIO_INTERNAL_ENDPOINT') ?? legacyEndpoint;
+      this.configService.get<string>('MINIO_INTERNAL_ENDPOINT') ??
+      legacyEndpoint;
 
     let endpointHost: string | undefined;
     let endpointPort: number | undefined;
@@ -106,7 +108,10 @@ export class FilesService {
     res: Response,
   ): Promise<boolean> {
     try {
-      const stat = await this.minioClient.statObject(this.bucketName, objectKey);
+      const stat = await this.minioClient.statObject(
+        this.bucketName,
+        objectKey,
+      );
       const meta = stat.metaData ?? {};
       const contentType =
         (meta['content-type'] as string | undefined) ||
@@ -123,11 +128,16 @@ export class FilesService {
         return true;
       }
 
-      const stream = await this.minioClient.getObject(this.bucketName, objectKey);
+      const stream = await this.minioClient.getObject(
+        this.bucketName,
+        objectKey,
+      );
       res.setHeader('Content-Type', contentType);
       res.setHeader('Cache-Control', 'public, max-age=86400');
       stream.on('error', (err) => {
-        this.logger.warn(`Stream MinIO ${objectKey}: ${err instanceof Error ? err.message : err}`);
+        this.logger.warn(
+          `Stream MinIO ${objectKey}: ${err instanceof Error ? err.message : err}`,
+        );
         if (!res.headersSent) {
           res.status(500).end();
         }
@@ -178,7 +188,9 @@ export class FilesService {
         return `https://${appHost}/files`;
       }
 
-      return configuredPublicEndpoint ?? internalEndpoint ?? 'http://localhost:3311';
+      return (
+        configuredPublicEndpoint ?? internalEndpoint ?? 'http://localhost:3311'
+      );
     }
 
     if (configuredPublicEndpoint && isLocalUrl(configuredPublicEndpoint)) {
@@ -188,7 +200,8 @@ export class FilesService {
       return internalEndpoint!;
     }
 
-    const minioHost = this.configService.get<string>('MINIO_HOST') ?? 'localhost';
+    const minioHost =
+      this.configService.get<string>('MINIO_HOST') ?? 'localhost';
     const minioPort = this.configService.get<string>('MINIO_PORT') ?? '3311';
     return `http://${minioHost}:${minioPort}`;
   }
@@ -222,7 +235,9 @@ export class FilesService {
         `Política de acesso público configurada para bucket '${this.bucketName}'`,
       );
     } catch (error) {
-      this.logger.error(`Erro ao inicializar bucket: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      this.logger.error(
+        `Erro ao inicializar bucket: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
   }
 
@@ -272,8 +287,12 @@ export class FilesService {
       this.logger.log(`Arquivo enviado com sucesso: ${fileRecord.id}`);
       return fileRecord;
     } catch (error) {
-      this.logger.error(`Erro ao fazer upload: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      throw new Error(`Falha no upload: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      this.logger.error(
+        `Erro ao fazer upload: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+      throw new Error(
+        `Falha no upload: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
   }
 
@@ -298,7 +317,9 @@ export class FilesService {
 
       return { files, total };
     } catch (error) {
-      this.logger.error(`Erro ao buscar arquivos: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      this.logger.error(
+        `Erro ao buscar arquivos: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
       throw error;
     }
   }
@@ -315,7 +336,9 @@ export class FilesService {
 
       return file;
     } catch (error) {
-      this.logger.error(`Erro ao buscar arquivo: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      this.logger.error(
+        `Erro ao buscar arquivo: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
       throw error;
     }
   }
@@ -364,7 +387,9 @@ export class FilesService {
 
       this.logger.log(`Arquivo deletado: ${id}`);
     } catch (error) {
-      this.logger.error(`Erro ao deletar arquivo: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      this.logger.error(
+        `Erro ao deletar arquivo: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
       throw error;
     }
   }

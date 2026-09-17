@@ -1,4 +1,10 @@
-import { Inject, Injectable, NotFoundException, Optional, Scope } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  NotFoundException,
+  Optional,
+  Scope,
+} from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 import {
   UniversalMetricsService,
@@ -135,12 +141,17 @@ export class WorkOrdersIntegrationService extends UniversalService<
   }
 
   private getWherePublicoBase() {
-    return { ...(this.getEntityConfig().where ?? {}) } as Record<string, unknown>;
+    return { ...(this.getEntityConfig().where ?? {}) } as Record<
+      string,
+      unknown
+    >;
   }
 
   async buscarTodos() {
     const includeConfig = this.getIncludeConfig();
-    const defaultOrderBy = this.getEntityConfig().orderBy ?? { createdAt: 'desc' };
+    const defaultOrderBy = this.getEntityConfig().orderBy ?? {
+      createdAt: 'desc',
+    };
     const entities = await this.repository.buscarMuitos(
       this.entityName,
       this.getWherePublicoBase(),
@@ -148,7 +159,7 @@ export class WorkOrdersIntegrationService extends UniversalService<
       includeConfig,
     );
 
-    if(entities.length === 0 || !entities) {
+    if (entities.length === 0 || !entities) {
       throw new NotFoundException('Nenhuma ordem de serviço encontrada');
     }
 

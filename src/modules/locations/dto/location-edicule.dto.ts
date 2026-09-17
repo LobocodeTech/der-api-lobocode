@@ -9,7 +9,8 @@ import { VALIDATION_MESSAGES } from '../../../shared/common/messages';
 
 type HasEdiculeCarrier = { hasEdicule?: boolean };
 
-const whenHasEdicule = (object: HasEdiculeCarrier) => object.hasEdicule === true;
+const whenHasEdicule = (object: HasEdiculeCarrier) =>
+  object.hasEdicule === true;
 
 export class LocationEdiculeDto {
   @ValidateIf(whenHasEdicule)

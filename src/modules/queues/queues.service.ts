@@ -323,7 +323,9 @@ export class QueuesService extends UniversalService<
 
     const userIds = this.normalizarUserIds(data.userIds ?? []);
     if (userIds.length === 0) {
-      throw new BadRequestException('Pelo menos um usuário deve ser selecionado na fila');
+      throw new BadRequestException(
+        'Pelo menos um usuário deve ser selecionado na fila',
+      );
     }
   }
 

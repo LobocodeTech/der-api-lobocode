@@ -26,8 +26,11 @@ export class ForgotPasswordResetDto {
   password: string;
 
   @IsString({ message: VALIDATION_MESSAGES.REQUIRED.PASSWORD })
-  @Validate((value: string, args: { object: ForgotPasswordResetDto }) => {
-    return value === args.object.password;
-  }, { message: 'Confirmação de senha deve ser igual à nova senha' })
+  @Validate(
+    (value: string, args: { object: ForgotPasswordResetDto }) => {
+      return value === args.object.password;
+    },
+    { message: 'Confirmação de senha deve ser igual à nova senha' },
+  )
   confirmPassword: string;
 }

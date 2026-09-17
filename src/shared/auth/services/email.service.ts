@@ -80,10 +80,12 @@ export class EmailService implements OnModuleInit {
     html: string,
     logContext?: string,
   ): void {
-    void this.sendHtmlEmail(to, subject, html, logContext).catch((error: unknown) => {
-      const message = error instanceof Error ? error.message : String(error);
-      this.handleSendFailure(to, subject, message, logContext);
-    });
+    void this.sendHtmlEmail(to, subject, html, logContext).catch(
+      (error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+        this.handleSendFailure(to, subject, message, logContext);
+      },
+    );
   }
 
   private async sendHtmlEmail(
@@ -151,7 +153,9 @@ export class EmailService implements OnModuleInit {
       this.logger.log(`SMTP pool aquecido em ${Date.now() - startedAt}ms`);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
-      this.logger.warn(`SMTP warmup: ${message} (primeiro envio pode demorar mais)`);
+      this.logger.warn(
+        `SMTP warmup: ${message} (primeiro envio pode demorar mais)`,
+      );
     }
   }
 
@@ -180,7 +184,8 @@ export class EmailService implements OnModuleInit {
 
     const port = Number(portRaw);
     const secure =
-      this.configService.get<string>('SMTP_SECURE', 'false').toLowerCase() === 'true';
+      this.configService.get<string>('SMTP_SECURE', 'false').toLowerCase() ===
+      'true';
 
     this.transporter = nodemailer.createTransport({
       host,
@@ -208,14 +213,18 @@ export class EmailService implements OnModuleInit {
     logContext?: string,
   ): void {
     const prefix = logContext ? `[${logContext}] ` : '';
-    const isAuthError = /535|authentication failed|invalid login/i.test(message);
+    const isAuthError = /535|authentication failed|invalid login/i.test(
+      message,
+    );
     if (isAuthError) {
       this.transporter = null;
       this.logger.error(
         `${prefix}SMTP autenticação rejeitada. Confira credenciais no hPanel Hostinger.`,
       );
     }
-    this.logger.error(`${prefix}Falha ao enviar e-mail para ${to} (${subject}): ${message}`);
+    this.logger.error(
+      `${prefix}Falha ao enviar e-mail para ${to} (${subject}): ${message}`,
+    );
   }
 
   private getLogoUrl(): string {

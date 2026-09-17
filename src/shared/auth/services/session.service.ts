@@ -16,9 +16,7 @@ export interface ISession {
 
 @Injectable()
 export class SessionService {
-  constructor(
-    private readonly prismaService: PrismaService,
-  ) {}
+  constructor(private readonly prismaService: PrismaService) {}
 
   /**
    * Cria uma nova sessão para o usuário
@@ -39,9 +37,11 @@ export class SessionService {
     // - Definir expiração
     // - Associar ao usuário
     // - Verificar limite de sessões ativas
-    
-    const expiresAt = new Date(Date.now() + AUTH_CONSTANTS.SECURITY.SESSION_TIMEOUT);
-    
+
+    const expiresAt = new Date(
+      Date.now() + AUTH_CONSTANTS.SECURITY.SESSION_TIMEOUT,
+    );
+
     // Mock implementation
     const session: ISession = {
       id: 'mock_session_id',
@@ -99,7 +99,7 @@ export class SessionService {
     // - Verificar se existe
     // - Verificar se está ativa
     // - Verificar se não expirou
-    
+
     return false;
   }
 
@@ -113,7 +113,7 @@ export class SessionService {
     // - Buscar sessões ativas do usuário
     // - Filtrar por expiração
     // - Ordenar por última atividade
-    
+
     return [];
   }
 
@@ -136,7 +136,7 @@ export class SessionService {
     // TODO: Implementar verificação de limite
     // - Contar sessões ativas
     // - Comparar com limite configurado
-    
+
     return false;
   }
-} 
+}

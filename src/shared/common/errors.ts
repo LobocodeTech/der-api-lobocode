@@ -1,4 +1,4 @@
-import { AUTH_MESSAGES } from "../auth/constants";
+import { AUTH_MESSAGES } from '../auth/constants';
 
 export class RequiredFieldError extends Error {
   constructor(field: string) {

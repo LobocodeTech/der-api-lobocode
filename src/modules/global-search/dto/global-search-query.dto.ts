@@ -12,4 +12,3 @@ export class GlobalSearchQueryDto {
   @Max(10)
   limitPerType?: number = 5;
 }
-

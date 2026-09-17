@@ -31,4 +31,9 @@ export type ManipulationAction = 'add' | 'remove' | 'insert' | 'extract';
 /**
  * União de todas as ações possíveis
  */
-export type AllActions = CrudAction | ExtendedCrudAction | ValidationAction | SearchAction | ManipulationAction; 
+export type AllActions =
+  | CrudAction
+  | ExtendedCrudAction
+  | ValidationAction
+  | SearchAction
+  | ManipulationAction;

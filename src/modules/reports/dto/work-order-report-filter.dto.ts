@@ -8,11 +8,7 @@ import {
   Max,
   Min,
 } from 'class-validator';
-import {
-  AssetType,
-  WorkOrderStatus,
-  WorkOrderType,
-} from '@prisma/client';
+import { AssetType, WorkOrderStatus, WorkOrderType } from '@prisma/client';
 import { IsCUID } from '../../../shared/validators';
 
 export const REPORT_PERIODS = [

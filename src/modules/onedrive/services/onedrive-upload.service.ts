@@ -213,10 +213,7 @@ export class OneDriveUploadService {
         itemId,
         token,
       );
-      if (
-        stillShared &&
-        stillShared === this.cachedFolderShare.url
-      ) {
+      if (stillShared && stillShared === this.cachedFolderShare.url) {
         return this.cachedFolderShare.url;
       }
       this.logger.warn(
@@ -412,8 +409,7 @@ export class OneDriveUploadService {
       if (response.ok && payload.id) {
         return payload.id;
       }
-      lastDetail =
-        payload.error?.message || `status ${response.status} sem id`;
+      lastDetail = payload.error?.message || `status ${response.status} sem id`;
       this.logger.warn(
         `Pasta ${pathFromRoot} ainda não resolvida: ${lastDetail}`,
       );
@@ -755,7 +751,8 @@ export class OneDriveUploadService {
     }
     if (!sessionResponse.ok || !sessionPayload.uploadUrl) {
       const detail =
-        sessionPayload.error?.message || 'não foi possível criar upload session';
+        sessionPayload.error?.message ||
+        'não foi possível criar upload session';
       this.logger.error(`Falha createUploadSession: ${detail}`);
       throw new ServiceUnavailableException(
         `Falha ao preparar upload no OneDrive: ${detail}`,
@@ -776,13 +773,18 @@ export class OneDriveUploadService {
         },
         body: new Uint8Array(chunk),
       });
-      const chunkPayload =
-        (await chunkResponse.json().catch(() => ({}))) as GraphDriveItemResponse;
+      const chunkPayload = (await chunkResponse
+        .json()
+        .catch(() => ({}))) as GraphDriveItemResponse;
       if (!chunkResponse.ok && chunkResponse.status !== 202) {
         if (this.ehConflitoNome(chunkResponse.status, chunkPayload)) {
           return this.mapearIgnorado(params.encodedPath);
         }
-        this.tratarErroGraph('upload session', chunkResponse.status, chunkPayload);
+        this.tratarErroGraph(
+          'upload session',
+          chunkResponse.status,
+          chunkPayload,
+        );
       }
       if (chunkResponse.status === 200 || chunkResponse.status === 201) {
         lastPayload = chunkPayload;
@@ -858,7 +860,9 @@ export class OneDriveUploadService {
     );
   }
 
-  private mapearResultado(payload: GraphDriveItemResponse): OneDriveUploadResult {
+  private mapearResultado(
+    payload: GraphDriveItemResponse,
+  ): OneDriveUploadResult {
     return {
       id: payload.id as string,
       name: payload.name || 'arquivo',
@@ -869,8 +873,7 @@ export class OneDriveUploadService {
 
   obterPastaDestino(): string {
     const raw =
-      this.configService.get<string>('ONEDRIVE_FOLDER_PATH', 'DER') ||
-      'DER';
+      this.configService.get<string>('ONEDRIVE_FOLDER_PATH', 'DER') || 'DER';
     return raw
       .replace(/^\/+|\/+$/g, '')
       .split('/')

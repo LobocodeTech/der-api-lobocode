@@ -5,10 +5,7 @@ import {
   MinLength,
   IsUrl,
 } from 'class-validator';
-import {
-  IsCNPJ,
-  IsPhoneNumberBR,
-} from '../../../shared/validators';
+import { IsCNPJ, IsPhoneNumberBR } from '../../../shared/validators';
 import { VALIDATION_MESSAGES } from '../../../shared/common/messages';
 
 export class CreateCompanyDto {

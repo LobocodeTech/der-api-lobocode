@@ -39,10 +39,7 @@ export class MetricsService {
   /**
    * Obtém métricas gerais de autenticação
    */
-  async getAuthMetrics(
-    startDate?: Date,
-    endDate?: Date
-  ): Promise<AuthMetrics> {
+  async getAuthMetrics(startDate?: Date, endDate?: Date): Promise<AuthMetrics> {
     const start = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // 30 dias atrás
     const end = endDate || new Date();
 
@@ -94,7 +91,7 @@ export class MetricsService {
    */
   async getSecurityMetrics(
     startDate?: Date,
-    endDate?: Date
+    endDate?: Date,
   ): Promise<{
     totalSecurityEvents: number;
     eventsByType: Record<string, number>;
@@ -106,16 +103,16 @@ export class MetricsService {
     return {
       totalSecurityEvents: 15,
       eventsByType: {
-        'failed_login_attempts': 8,
-        'unusual_location': 3,
-        'password_reset_abuse': 2,
-        'rapid_requests': 2,
+        failed_login_attempts: 8,
+        unusual_location: 3,
+        password_reset_abuse: 2,
+        rapid_requests: 2,
       },
       eventsBySeverity: {
-        'low': 2,
-        'medium': 8,
-        'high': 4,
-        'critical': 1,
+        low: 2,
+        medium: 8,
+        high: 4,
+        critical: 1,
       },
       blockedIPs: 3,
       suspiciousUsers: 2,
@@ -128,14 +125,16 @@ export class MetricsService {
   async getActivityReport(
     startDate: Date,
     endDate: Date,
-    groupBy: 'hour' | 'day' | 'week' | 'month' = 'day'
-  ): Promise<Array<{
-    period: string;
-    logins: number;
-    logouts: number;
-    failedAttempts: number;
-    securityEvents: number;
-  }>> {
+    groupBy: 'hour' | 'day' | 'week' | 'month' = 'day',
+  ): Promise<
+    Array<{
+      period: string;
+      logins: number;
+      logouts: number;
+      failedAttempts: number;
+      securityEvents: number;
+    }>
+  > {
     // TODO: Implementar quando tivermos tabela de auditoria
     return this.generateMockActivityReport(startDate, endDate, groupBy);
   }
@@ -143,12 +142,14 @@ export class MetricsService {
   /**
    * Obtém top usuários por atividade
    */
-  async getTopActiveUsers(limit: number = 10): Promise<Array<{
-    userId: string;
-    userName: string;
-    loginCount: number;
-    lastActivity: Date;
-  }>> {
+  async getTopActiveUsers(limit: number = 10): Promise<
+    Array<{
+      userId: string;
+      userName: string;
+      loginCount: number;
+      lastActivity: Date;
+    }>
+  > {
     // TODO: Implementar quando tivermos tabela de auditoria
     return [
       {
@@ -169,15 +170,17 @@ export class MetricsService {
   /**
    * Obtém alertas de segurança
    */
-  async getSecurityAlerts(): Promise<Array<{
-    id: string;
-    type: string;
-    severity: 'low' | 'medium' | 'high' | 'critical';
-    message: string;
-    timestamp: Date;
-    userId?: string;
-    ipAddress?: string;
-  }>> {
+  async getSecurityAlerts(): Promise<
+    Array<{
+      id: string;
+      type: string;
+      severity: 'low' | 'medium' | 'high' | 'critical';
+      message: string;
+      timestamp: Date;
+      userId?: string;
+      ipAddress?: string;
+    }>
+  > {
     // TODO: Implementar quando tivermos tabela de auditoria
     return [
       {
@@ -224,24 +227,27 @@ export class MetricsService {
   async exportMetrics(
     startDate: Date,
     endDate: Date,
-    format: 'json' | 'csv' = 'json'
+    format: 'json' | 'csv' = 'json',
   ): Promise<string> {
     const metrics = await this.getAuthMetrics(startDate, endDate);
-    
+
     if (format === 'csv') {
       return this.convertToCSV(metrics);
     }
-    
+
     return JSON.stringify(metrics, null, 2);
   }
 
   /**
    * Gera dados mock para trends
    */
-  private generateMockTrends(startDate: Date, endDate: Date): Array<{ date: string; count: number }> {
+  private generateMockTrends(
+    startDate: Date,
+    endDate: Date,
+  ): Array<{ date: string; count: number }> {
     const trends: Array<{ date: string; count: number }> = [];
     const currentDate = new Date(startDate);
-    
+
     while (currentDate <= endDate) {
       trends.push({
         date: currentDate.toISOString().split('T')[0],
@@ -249,7 +255,7 @@ export class MetricsService {
       });
       currentDate.setDate(currentDate.getDate() + 1);
     }
-    
+
     return trends;
   }
 
@@ -259,7 +265,7 @@ export class MetricsService {
   private generateMockActivityReport(
     startDate: Date,
     endDate: Date,
-    groupBy: 'hour' | 'day' | 'week' | 'month'
+    groupBy: 'hour' | 'day' | 'week' | 'month',
   ): Array<{
     period: string;
     logins: number;
@@ -275,7 +281,7 @@ export class MetricsService {
       securityEvents: number;
     }> = [];
     const currentDate = new Date(startDate);
-    
+
     while (currentDate <= endDate) {
       report.push({
         period: currentDate.toISOString().split('T')[0],
@@ -284,7 +290,7 @@ export class MetricsService {
         failedAttempts: Math.floor(Math.random() * 3),
         securityEvents: Math.floor(Math.random() * 2),
       });
-      
+
       switch (groupBy) {
         case 'hour':
           currentDate.setHours(currentDate.getHours() + 1);
@@ -300,7 +306,7 @@ export class MetricsService {
           break;
       }
     }
-    
+
     return report;
   }
 
@@ -308,25 +314,51 @@ export class MetricsService {
    * Converte métricas para CSV
    */
   private convertToCSV(metrics: AuthMetrics): string {
-    const headers = [
-      'Metric',
-      'Value',
-      'Generated At'
-    ];
-    
+    const headers = ['Metric', 'Value', 'Generated At'];
+
     const rows = [
-      ['Total Logins', metrics.totalLogins.toString(), new Date().toISOString()],
-      ['Successful Logins', metrics.successfulLogins.toString(), new Date().toISOString()],
-      ['Failed Logins', metrics.failedLogins.toString(), new Date().toISOString()],
-      ['Total Logouts', metrics.totalLogouts.toString(), new Date().toISOString()],
-      ['Password Resets', metrics.passwordResets.toString(), new Date().toISOString()],
-      ['Suspicious Activities', metrics.suspiciousActivities.toString(), new Date().toISOString()],
-      ['Unique Users', metrics.uniqueUsers.toString(), new Date().toISOString()],
-      ['Average Session Duration (minutes)', metrics.averageSessionDuration.toString(), new Date().toISOString()],
+      [
+        'Total Logins',
+        metrics.totalLogins.toString(),
+        new Date().toISOString(),
+      ],
+      [
+        'Successful Logins',
+        metrics.successfulLogins.toString(),
+        new Date().toISOString(),
+      ],
+      [
+        'Failed Logins',
+        metrics.failedLogins.toString(),
+        new Date().toISOString(),
+      ],
+      [
+        'Total Logouts',
+        metrics.totalLogouts.toString(),
+        new Date().toISOString(),
+      ],
+      [
+        'Password Resets',
+        metrics.passwordResets.toString(),
+        new Date().toISOString(),
+      ],
+      [
+        'Suspicious Activities',
+        metrics.suspiciousActivities.toString(),
+        new Date().toISOString(),
+      ],
+      [
+        'Unique Users',
+        metrics.uniqueUsers.toString(),
+        new Date().toISOString(),
+      ],
+      [
+        'Average Session Duration (minutes)',
+        metrics.averageSessionDuration.toString(),
+        new Date().toISOString(),
+      ],
     ];
-    
-    return [headers, ...rows]
-      .map(row => row.join(','))
-      .join('\n');
+
+    return [headers, ...rows].map((row) => row.join(',')).join('\n');
   }
-} 
+}

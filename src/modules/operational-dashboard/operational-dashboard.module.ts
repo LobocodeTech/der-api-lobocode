@@ -7,9 +7,13 @@ import { OperationalDashboardController } from './operational-dashboard.controll
 import { OperationalDashboardService } from './operational-dashboard.service';
 
 @Module({
-  imports: [PrismaModule, TenantModule, WorkOrdersModule, WorkOrderReportsModule],
+  imports: [
+    PrismaModule,
+    TenantModule,
+    WorkOrdersModule,
+    WorkOrderReportsModule,
+  ],
   controllers: [OperationalDashboardController],
   providers: [OperationalDashboardService],
 })
 export class OperationalDashboardModule {}
-

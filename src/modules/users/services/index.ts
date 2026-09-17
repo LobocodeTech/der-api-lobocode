@@ -12,4 +12,4 @@ export { PostSupervisorService } from './post-supervisor.service';
 
 //  Services existentes
 export { UserQueryService } from './user-query.service';
-export { UserPermissionService } from './user-permission.service'; 
+export { UserPermissionService } from './user-permission.service';

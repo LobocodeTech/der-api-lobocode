@@ -43,9 +43,10 @@ export class BaseUserService {
     const resolvedOrderDirection =
       scope === 'deleted' && orderBy === 'name' ? 'desc' : orderDirection;
 
-    const safePage = Number.isFinite(Number(page)) && Number(page) > 0
-      ? Math.floor(Number(page))
-      : 1;
+    const safePage =
+      Number.isFinite(Number(page)) && Number(page) > 0
+        ? Math.floor(Number(page))
+        : 1;
     const safeLimit =
       Number.isFinite(Number(limit)) && Number(limit) > 0
         ? Math.min(100, Math.floor(Number(limit)))
@@ -61,12 +62,12 @@ export class BaseUserService {
     const orderByConfig = {
       [resolvedOrderBy]: resolvedOrderDirection,
     };
-    
+
     const [users, total, counts, scopeCounts] = await Promise.all([
-      this.userRepository.buscarMuitos(whereClause, { 
-        skip, 
+      this.userRepository.buscarMuitos(whereClause, {
+        skip,
         take: safeLimit,
-        orderBy: orderByConfig
+        orderBy: orderByConfig,
       } as any),
       this.userRepository.contar(whereClause),
       this.contarUsuariosPorStatus(whereClause),
@@ -211,11 +212,17 @@ export class BaseUserService {
     const novoLoginNormalizado = updateData.login?.trim().toLowerCase();
 
     // Validações antes de atualizar (excluindo o próprio usuário)
-    if (novoEmailNormalizado && novoEmailNormalizado !== emailAtualNormalizado) {
+    if (
+      novoEmailNormalizado &&
+      novoEmailNormalizado !== emailAtualNormalizado
+    ) {
       await this.validarSeEmailEhUnico(novoEmailNormalizado, id);
       updateData.email = novoEmailNormalizado;
     }
-    if (novoLoginNormalizado && novoLoginNormalizado !== loginAtualNormalizado) {
+    if (
+      novoLoginNormalizado &&
+      novoLoginNormalizado !== loginAtualNormalizado
+    ) {
       await this.validarSeLoginEhUnico(novoLoginNormalizado, id);
       updateData.login = novoLoginNormalizado;
     }

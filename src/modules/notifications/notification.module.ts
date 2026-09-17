@@ -16,7 +16,7 @@ import { WorkOrderNotificationScopeService } from '../../shared/regional-scope/w
 
 /**
  * 🔔 MÓDULO GLOBAL DE NOTIFICAÇÕES
- * 
+ *
  * Módulo global que fornece funcionalidades de notificação para todo o sistema.
  * Inclui:
  * - NotificationService: Lógica principal de notificações

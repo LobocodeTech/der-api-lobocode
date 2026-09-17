@@ -16,4 +16,4 @@ export {
 } from './messages.constants';
 
 // Exportação da constante principal
-export { MESSAGES } from './messages.constants'; 
+export { MESSAGES } from './messages.constants';

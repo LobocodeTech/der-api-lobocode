@@ -14,7 +14,10 @@ import {
 export class MeCompanyService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async updateByUserId(userId: string, dto: UpdateMyCompanyDto): Promise<PublicCompany> {
+  async updateByUserId(
+    userId: string,
+    dto: UpdateMyCompanyDto,
+  ): Promise<PublicCompany> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { id: true, companyId: true, role: true },
@@ -84,10 +87,7 @@ export class MeCompanyService {
         dto.correctiveSlaDefaultHours !== undefined
           ? dto.correctiveSlaDefaultHours * 3600
           : current?.correctiveSlaDefaultSeconds;
-      if (
-        secondsToSave != null &&
-        secondsToSave < MIN_CORRECTIVE_SLA_SECONDS
-      ) {
+      if (secondsToSave != null && secondsToSave < MIN_CORRECTIVE_SLA_SECONDS) {
         throw new BadRequestException(
           'O SLA padrão deve ser de pelo menos 30 minutos.',
         );
@@ -99,8 +99,7 @@ export class MeCompanyService {
         correctiveSlaWindowEnd:
           dto.correctiveSlaWindowEnd ?? current?.correctiveSlaWindowEnd,
       });
-      data.correctiveSlaDefaultSeconds =
-        normalized.correctiveSlaDefaultSeconds;
+      data.correctiveSlaDefaultSeconds = normalized.correctiveSlaDefaultSeconds;
       data.correctiveSlaWindowStart = normalized.correctiveSlaWindowStart;
       data.correctiveSlaWindowEnd = normalized.correctiveSlaWindowEnd;
     }

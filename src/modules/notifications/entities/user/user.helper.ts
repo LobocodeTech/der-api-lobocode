@@ -1,6 +1,6 @@
 /**
  * 🔔 HELPER - USER
- * 
+ *
  * Helper específico para notificações de usuários.
  * Usa templates contextuais e sistema de destinatários inteligente.
  */
@@ -16,21 +16,20 @@ export class UserNotificationHelper {
   constructor(
     private notificationService: NotificationService,
     private contextBuilder: UserContextBuilder,
-    private recipientsService: NotificationRecipientsService
+    private recipientsService: NotificationRecipientsService,
   ) {}
 
   /**
    * 👥 USER CRIADO - Versão melhorada com templates
    */
-  async userCriado(
-    userId: string,
-    criadoPorUserId: string,
-    companyId: string,
-  ) {
+  async userCriado(userId: string, criadoPorUserId: string, companyId: string) {
     try {
       // 1. Construir contexto rico
-      const context = await this.contextBuilder.buildUserContext(userId, 'created');
-      
+      const context = await this.contextBuilder.buildUserContext(
+        userId,
+        'created',
+      );
+
       // 2. Obter template
       const template = UserTemplateService.getTemplate('created');
       if (!template) {
@@ -38,10 +37,16 @@ export class UserNotificationHelper {
       }
 
       // 3. Renderizar template com contexto
-      const renderedTemplate = UserTemplateService.renderTemplate(template, context);
+      const renderedTemplate = UserTemplateService.renderTemplate(
+        template,
+        context,
+      );
 
       // 4. Obter destinatários
-      const recipients = await this.recipientsService.getRecipients(companyId, template.recipients);
+      const recipients = await this.recipientsService.getRecipients(
+        companyId,
+        template.recipients,
+      );
 
       // 5. Criar notificação
       return this.notificationService.criar({
@@ -70,8 +75,11 @@ export class UserNotificationHelper {
   ) {
     try {
       // 1. Construir contexto rico
-      const context = await this.contextBuilder.buildUserContext(userId, 'updated');
-      
+      const context = await this.contextBuilder.buildUserContext(
+        userId,
+        'updated',
+      );
+
       // 2. Obter template
       const template = UserTemplateService.getTemplate('updated');
       if (!template) {
@@ -79,10 +87,16 @@ export class UserNotificationHelper {
       }
 
       // 3. Renderizar template com contexto
-      const renderedTemplate = UserTemplateService.renderTemplate(template, context);
+      const renderedTemplate = UserTemplateService.renderTemplate(
+        template,
+        context,
+      );
 
       // 4. Obter destinatários
-      const recipients = await this.recipientsService.getRecipients(companyId, template.recipients);
+      const recipients = await this.recipientsService.getRecipients(
+        companyId,
+        template.recipients,
+      );
 
       // 5. Criar notificação
       return this.notificationService.criar({
@@ -111,8 +125,11 @@ export class UserNotificationHelper {
   ) {
     try {
       // 1. Construir contexto rico
-      const context = await this.contextBuilder.buildUserContext(userId, 'deactivated');
-      
+      const context = await this.contextBuilder.buildUserContext(
+        userId,
+        'deactivated',
+      );
+
       // 2. Obter template
       const template = UserTemplateService.getTemplate('deactivated');
       if (!template) {
@@ -120,10 +137,16 @@ export class UserNotificationHelper {
       }
 
       // 3. Renderizar template com contexto
-      const renderedTemplate = UserTemplateService.renderTemplate(template, context);
+      const renderedTemplate = UserTemplateService.renderTemplate(
+        template,
+        context,
+      );
 
       // 4. Obter destinatários
-      const recipients = await this.recipientsService.getRecipients(companyId, template.recipients);
+      const recipients = await this.recipientsService.getRecipients(
+        companyId,
+        template.recipients,
+      );
 
       // 5. Criar notificação
       return this.notificationService.criar({

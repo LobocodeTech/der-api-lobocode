@@ -80,15 +80,8 @@ export class UserPermissionService {
       additionalContext?: Record<string, any>;
     },
   ): boolean {
-    return this.auditService.validarComAuditoria(
-      user,
-      action,
-      'User',
-      context,
-    );
+    return this.auditService.validarComAuditoria(user, action, 'User', context);
   }
-
-
 
   // ============================================================================
   // 🔧 MÉTODOS PÚBLICOS - VALIDAÇÃO CONTEXTUAL (Novo)
@@ -108,48 +101,41 @@ export class UserPermissionService {
     },
   ): boolean {
     const permissionContext = this.contextService.criarContexto(user, context);
-    
-    return this.contextService.validarPermissaoContextual(
-      permissionContext,
-      {
-        action,
-        subject: 'User',
-        conditions: {
-          companyId: context?.companyId,
-          postId: context?.postId,
-        },
-        timeRestrictions: context?.timeOfDay === 'night' ? {
-          startHour: 18,
-          endHour: 6,
-        } : undefined,
+
+    return this.contextService.validarPermissaoContextual(permissionContext, {
+      action,
+      subject: 'User',
+      conditions: {
+        companyId: context?.companyId,
+        postId: context?.postId,
       },
-    );
+      timeRestrictions:
+        context?.timeOfDay === 'night'
+          ? {
+              startHour: 18,
+              endHour: 6,
+            }
+          : undefined,
+    });
   }
 
   /**
    * Valida permissão para operações de RH (horário comercial)
    */
-  validarOperacaoRH(
-    user: User,
-    action: CrudAction,
-    context?: any,
-  ): boolean {
+  validarOperacaoRH(user: User, action: CrudAction, context?: any): boolean {
     const permissionContext = this.contextService.criarContexto(user, context);
-    
-    return this.contextService.validarPermissaoContextual(
-      permissionContext,
-      {
-        action,
-        subject: 'User',
-        timeRestrictions: {
-          startHour: 8,
-          endHour: 18,
-        },
-        conditions: {
-          role: { in: ['HR', 'ADMIN'] },
-        },
+
+    return this.contextService.validarPermissaoContextual(permissionContext, {
+      action,
+      subject: 'User',
+      timeRestrictions: {
+        startHour: 8,
+        endHour: 18,
       },
-    );
+      conditions: {
+        role: { in: ['HR', 'ADMIN'] },
+      },
+    });
   }
 
   // ============================================================================
@@ -167,10 +153,7 @@ export class UserPermissionService {
    * Obtém logs de auditoria de usuário
    */
   obterLogs(filtros?: any, limit = 100) {
-    return this.auditService.obterLogs(
-      { ...filtros, subject: 'User' },
-      limit,
-    );
+    return this.auditService.obterLogs({ ...filtros, subject: 'User' }, limit);
   }
 
   /**

@@ -1,48 +1,55 @@
 /**
  * 📋 TEMPLATES DE NOTIFICAÇÃO - SUPPLY
- * 
+ *
  * Templates específicos para abastecimentos (supplies).
  * Focado em empresa de segurança com informações contextuais.
  */
 
-import { NotificationTemplate, NotificationContext } from '../../shared/notification.types';
+import {
+  NotificationTemplate,
+  NotificationContext,
+} from '../../shared/notification.types';
 
 /**
  * 🚗 TEMPLATES PARA SUPPLY
  */
 export const SUPPLY_TEMPLATES: Record<string, NotificationTemplate> = {
   created: {
-    title: "Novo Cadastro de Abastecimento",
-    message: "{userName} registrou abastecimento de {postName} às {time} (Placa: {vehiclePlate}, Talão: {talaoNumber})",
-    priority: "NORMAL",
-    recipients: "ACTIVE_SUPERVISORS_AND_ADMINS" // Supervisores ativos + admins
+    title: 'Novo Cadastro de Abastecimento',
+    message:
+      '{userName} registrou abastecimento de {postName} às {time} (Placa: {vehiclePlate}, Talão: {talaoNumber})',
+    priority: 'NORMAL',
+    recipients: 'ACTIVE_SUPERVISORS_AND_ADMINS', // Supervisores ativos + admins
   },
   updated: {
-    title: "Cadastro de Abastecimento Atualizado", 
-    message: "{userName} atualizou o abastecimento de {postName} às {time} (Placa: {vehiclePlate}, Talão: {talaoNumber})",
-    priority: "NORMAL",
-    recipients: "ACTIVE_SUPERVISORS_AND_ADMINS" // Supervisores ativos + admins
+    title: 'Cadastro de Abastecimento Atualizado',
+    message:
+      '{userName} atualizou o abastecimento de {postName} às {time} (Placa: {vehiclePlate}, Talão: {talaoNumber})',
+    priority: 'NORMAL',
+    recipients: 'ACTIVE_SUPERVISORS_AND_ADMINS', // Supervisores ativos + admins
   },
   completed: {
-    title: "Cadastro de Abastecimento Concluído",
-    message: "{userName} concluiu abastecimento de {postName} às {time} (Placa: {vehiclePlate}, Talão: {talaoNumber})",
-    priority: "NORMAL",
-    recipients: "ACTIVE_SUPERVISORS_AND_ADMINS" // Supervisores ativos + admins
-  }
+    title: 'Cadastro de Abastecimento Concluído',
+    message:
+      '{userName} concluiu abastecimento de {postName} às {time} (Placa: {vehiclePlate}, Talão: {talaoNumber})',
+    priority: 'NORMAL',
+    recipients: 'ACTIVE_SUPERVISORS_AND_ADMINS', // Supervisores ativos + admins
+  },
 };
 
 /**
  * 🔧 SUPPLY TEMPLATE SERVICE
  */
 export class SupplyTemplateService {
-  
   /**
    * Obtém template por operação
    */
   static getTemplate(operation: string): NotificationTemplate | null {
     const template = SUPPLY_TEMPLATES[operation];
     if (!template) {
-      console.warn(`Template não encontrado para operação: supply.${operation}`);
+      console.warn(
+        `Template não encontrado para operação: supply.${operation}`,
+      );
       return null;
     }
     return template;
@@ -51,7 +58,10 @@ export class SupplyTemplateService {
   /**
    * Substitui variáveis no template
    */
-  static renderTemplate(template: NotificationTemplate, context: NotificationContext): NotificationTemplate {
+  static renderTemplate(
+    template: NotificationTemplate,
+    context: NotificationContext,
+  ): NotificationTemplate {
     const renderText = (text: string): string => {
       return text.replace(/\{(\w+)\}/g, (match, key) => {
         const value = context[key as keyof NotificationContext];
@@ -62,14 +72,17 @@ export class SupplyTemplateService {
     return {
       ...template,
       title: renderText(template.title),
-      message: renderText(template.message)
+      message: renderText(template.message),
     };
   }
 
   /**
    * Valida se todas as variáveis necessárias estão presentes
    */
-  static validateContext(template: NotificationTemplate, context: NotificationContext): string[] {
+  static validateContext(
+    template: NotificationTemplate,
+    context: NotificationContext,
+  ): string[] {
     const missingVars: string[] = [];
     const requiredVars = this.extractVariables(template);
 
@@ -88,10 +101,10 @@ export class SupplyTemplateService {
   private static extractVariables(template: NotificationTemplate): string[] {
     const variables = new Set<string>();
     const text = `${template.title} ${template.message}`;
-    
+
     const matches = text.match(/\{(\w+)\}/g);
     if (matches) {
-      matches.forEach(match => {
+      matches.forEach((match) => {
         variables.add(match.slice(1, -1)); // Remove { }
       });
     }

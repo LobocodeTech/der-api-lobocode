@@ -24,7 +24,9 @@ export class RefreshGuard implements CanActivate {
 
       // Por enquanto, aceita qualquer token não vazio
       if (!refreshToken || refreshToken.trim() === '') {
-        throw new UnauthorizedException(AUTH_MESSAGES.ERROR.REFRESH_TOKEN_INVALID);
+        throw new UnauthorizedException(
+          AUTH_MESSAGES.ERROR.REFRESH_TOKEN_INVALID,
+        );
       }
 
       return true;
@@ -32,7 +34,9 @@ export class RefreshGuard implements CanActivate {
       if (error instanceof UnauthorizedException) {
         throw error;
       }
-      throw new UnauthorizedException(AUTH_MESSAGES.ERROR.REFRESH_TOKEN_INVALID);
+      throw new UnauthorizedException(
+        AUTH_MESSAGES.ERROR.REFRESH_TOKEN_INVALID,
+      );
     }
   }
 
@@ -66,7 +70,9 @@ export class RefreshGuard implements CanActivate {
    */
   private validateRefreshTokenExists(refreshToken: string | undefined): void {
     if (!refreshToken) {
-      throw new UnauthorizedException(AUTH_MESSAGES.VALIDATION.REFRESH_TOKEN_REQUIRED);
+      throw new UnauthorizedException(
+        AUTH_MESSAGES.VALIDATION.REFRESH_TOKEN_REQUIRED,
+      );
     }
   }
-} 
+}

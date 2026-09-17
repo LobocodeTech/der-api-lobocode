@@ -60,110 +60,122 @@ export class GlobalSearchService {
     const contains = { contains: q, mode: 'insensitive' as const };
     const limit = Math.max(1, Math.min(10, limitPerType));
 
-    const [workOrders, users, assets, locations, regionals, plannings, documents] =
-      await Promise.all([
-        this.prisma.workOrder.findMany({
-          where: {
-            companyId: user.companyId,
-            deletedAt: null,
-            OR: [{ title: contains }, { description: contains }],
-            AND: [accessibleBy(ability, 'read').WorkOrder],
-          },
-          select: {
-            id: true,
-            title: true,
-            status: true,
-            location: { select: { name: true } },
-          },
-          take: limit,
-          orderBy: { updatedAt: 'desc' },
-        }),
-        this.prisma.user.findMany({
-          where: {
-            companyId: user.companyId,
-            deletedAt: null,
-            OR: [{ name: contains }, { email: contains }],
-            AND: [accessibleBy(ability, 'read').User],
-          },
-          select: { id: true, name: true, email: true, role: true },
-          take: limit,
-          orderBy: { updatedAt: 'desc' },
-        }),
-        this.prisma.asset.findMany({
-          where: {
-            companyId: user.companyId,
-            deletedAt: null,
-            OR: buildAssetTextSearchOr(contains),
-            AND: [accessibleBy(ability, 'read').Asset],
-          },
-          select: {
-            id: true,
-            name: true,
-            manufacturer: true,
-            model: true,
-            serialNumber: true,
-            type: true,
-            location: { select: { name: true } },
-          },
-          take: limit,
-          orderBy: { updatedAt: 'desc' },
-        }),
-        this.prisma.location.findMany({
-          where: {
-            companyId: user.companyId,
-            deletedAt: null,
-            OR: [
-              { name: contains },
-              { code: contains },
-              { city: contains },
-              { referenceKm: contains },
-            ],
-            AND: [accessibleBy(ability, 'read').Location],
-          },
-          select: {
-            id: true,
-            name: true,
-            code: true,
-            referenceKm: true,
-            regional: { select: { city: true } },
-          },
-          take: limit,
-          orderBy: { updatedAt: 'desc' },
-        }),
-        this.prisma.regional.findMany({
-          where: {
-            companyId: user.companyId,
-            deletedAt: null,
-            OR: [{ city: contains }, { cgr: contains }],
-            AND: [accessibleBy(ability, 'read').Regional],
-          },
-          select: { id: true, city: true, cgr: true },
-          take: limit,
-          orderBy: { updatedAt: 'desc' },
-        }),
-        this.prisma.planning.findMany({
-          where: {
-            companyId: user.companyId,
-            deletedAt: null,
-            OR: [{ title: contains }, { observation: contains }],
-            AND: [accessibleBy(ability, 'read').Planning],
-          },
-          select: { id: true, title: true, date: true, location: { select: { name: true } } },
-          take: limit,
-          orderBy: { updatedAt: 'desc' },
-        }),
-        this.prisma.document.findMany({
-          where: {
-            companyId: user.companyId,
-            deletedAt: null,
-            OR: [{ description: contains }],
-            AND: [accessibleBy(ability, 'read').Document],
-          },
-          select: { id: true, description: true, recipientType: true },
-          take: limit,
-          orderBy: { updatedAt: 'desc' },
-        }),
-      ]);
+    const [
+      workOrders,
+      users,
+      assets,
+      locations,
+      regionals,
+      plannings,
+      documents,
+    ] = await Promise.all([
+      this.prisma.workOrder.findMany({
+        where: {
+          companyId: user.companyId,
+          deletedAt: null,
+          OR: [{ title: contains }, { description: contains }],
+          AND: [accessibleBy(ability, 'read').WorkOrder],
+        },
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          location: { select: { name: true } },
+        },
+        take: limit,
+        orderBy: { updatedAt: 'desc' },
+      }),
+      this.prisma.user.findMany({
+        where: {
+          companyId: user.companyId,
+          deletedAt: null,
+          OR: [{ name: contains }, { email: contains }],
+          AND: [accessibleBy(ability, 'read').User],
+        },
+        select: { id: true, name: true, email: true, role: true },
+        take: limit,
+        orderBy: { updatedAt: 'desc' },
+      }),
+      this.prisma.asset.findMany({
+        where: {
+          companyId: user.companyId,
+          deletedAt: null,
+          OR: buildAssetTextSearchOr(contains),
+          AND: [accessibleBy(ability, 'read').Asset],
+        },
+        select: {
+          id: true,
+          name: true,
+          manufacturer: true,
+          model: true,
+          serialNumber: true,
+          type: true,
+          location: { select: { name: true } },
+        },
+        take: limit,
+        orderBy: { updatedAt: 'desc' },
+      }),
+      this.prisma.location.findMany({
+        where: {
+          companyId: user.companyId,
+          deletedAt: null,
+          OR: [
+            { name: contains },
+            { code: contains },
+            { city: contains },
+            { referenceKm: contains },
+          ],
+          AND: [accessibleBy(ability, 'read').Location],
+        },
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          referenceKm: true,
+          regional: { select: { city: true } },
+        },
+        take: limit,
+        orderBy: { updatedAt: 'desc' },
+      }),
+      this.prisma.regional.findMany({
+        where: {
+          companyId: user.companyId,
+          deletedAt: null,
+          OR: [{ city: contains }, { cgr: contains }],
+          AND: [accessibleBy(ability, 'read').Regional],
+        },
+        select: { id: true, city: true, cgr: true },
+        take: limit,
+        orderBy: { updatedAt: 'desc' },
+      }),
+      this.prisma.planning.findMany({
+        where: {
+          companyId: user.companyId,
+          deletedAt: null,
+          OR: [{ title: contains }, { observation: contains }],
+          AND: [accessibleBy(ability, 'read').Planning],
+        },
+        select: {
+          id: true,
+          title: true,
+          date: true,
+          location: { select: { name: true } },
+        },
+        take: limit,
+        orderBy: { updatedAt: 'desc' },
+      }),
+      this.prisma.document.findMany({
+        where: {
+          companyId: user.companyId,
+          deletedAt: null,
+          OR: [{ description: contains }],
+          AND: [accessibleBy(ability, 'read').Document],
+        },
+        select: { id: true, description: true, recipientType: true },
+        take: limit,
+        orderBy: { updatedAt: 'desc' },
+      }),
+    ]);
 
     const viewResults = this.searchViews(q);
 
@@ -247,12 +259,42 @@ export class GlobalSearchService {
 
   private searchViews(query: string): SearchResultItem[] {
     const normalized = query.toLowerCase();
-    const views: Array<{ title: string; terms: string[]; view: SearchResultItem['view']; path: string }> = [
-      { title: 'Kanban', terms: ['kanban', 'quadro'], view: 'kanban', path: '/kanban' },
-      { title: 'Mapa', terms: ['mapa', 'camera', 'câmera', 'equipamento'], view: 'map', path: '/map' },
-      { title: 'Relatórios', terms: ['relatorio', 'relatórios', 'relatorio'], view: 'reports', path: '/reports' },
-      { title: 'Planejamento', terms: ['planejamento', 'agenda', 'calendario'], view: 'schedule', path: '/schedule' },
-      { title: 'Ordens de Serviço', terms: ['os', 'ordem', 'tarefa'], view: 'work-orders', path: '/work-orders' },
+    const views: Array<{
+      title: string;
+      terms: string[];
+      view: SearchResultItem['view'];
+      path: string;
+    }> = [
+      {
+        title: 'Kanban',
+        terms: ['kanban', 'quadro'],
+        view: 'kanban',
+        path: '/kanban',
+      },
+      {
+        title: 'Mapa',
+        terms: ['mapa', 'camera', 'câmera', 'equipamento'],
+        view: 'map',
+        path: '/map',
+      },
+      {
+        title: 'Relatórios',
+        terms: ['relatorio', 'relatórios', 'relatorio'],
+        view: 'reports',
+        path: '/reports',
+      },
+      {
+        title: 'Planejamento',
+        terms: ['planejamento', 'agenda', 'calendario'],
+        view: 'schedule',
+        path: '/schedule',
+      },
+      {
+        title: 'Ordens de Serviço',
+        terms: ['os', 'ordem', 'tarefa'],
+        view: 'work-orders',
+        path: '/work-orders',
+      },
     ];
 
     return views
@@ -267,4 +309,3 @@ export class GlobalSearchService {
       }));
   }
 }
-

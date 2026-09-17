@@ -1,6 +1,6 @@
 /**
  * 🔔 HELPER - ARMAMENT CHECKLIST
- * 
+ *
  * Helper específico para notificações de checklist de armamento.
  * Usa templates contextuais e sistema de destinatários inteligente.
  */
@@ -16,7 +16,7 @@ export class ArmamentChecklistNotificationHelper {
   constructor(
     private notificationService: NotificationService,
     private contextBuilder: ArmamentChecklistContextBuilder,
-    private recipientsService: NotificationRecipientsService
+    private recipientsService: NotificationRecipientsService,
   ) {}
 
   /**
@@ -29,19 +29,30 @@ export class ArmamentChecklistNotificationHelper {
   ) {
     try {
       // 1. Construir contexto rico
-      const context = await this.contextBuilder.buildArmamentChecklistContext(checklistId, 'created');
-      
+      const context = await this.contextBuilder.buildArmamentChecklistContext(
+        checklistId,
+        'created',
+      );
+
       // 2. Obter template
       const template = ArmamentChecklistTemplateService.getTemplate('created');
       if (!template) {
-        throw new Error('Template não encontrado para armamentChecklist.created');
+        throw new Error(
+          'Template não encontrado para armamentChecklist.created',
+        );
       }
 
       // 3. Renderizar template com contexto
-      const renderedTemplate = ArmamentChecklistTemplateService.renderTemplate(template, context);
+      const renderedTemplate = ArmamentChecklistTemplateService.renderTemplate(
+        template,
+        context,
+      );
 
       // 4. Obter destinatários
-      const recipients = await this.recipientsService.getRecipients(companyId, template.recipients);
+      const recipients = await this.recipientsService.getRecipients(
+        companyId,
+        template.recipients,
+      );
 
       // 5. Criar notificação
       return this.notificationService.criar({
@@ -55,7 +66,10 @@ export class ArmamentChecklistNotificationHelper {
         recipients,
       });
     } catch (error) {
-      console.error('Erro ao criar notificação de armamentChecklist criado:', error);
+      console.error(
+        'Erro ao criar notificação de armamentChecklist criado:',
+        error,
+      );
       throw error;
     }
   }
@@ -70,19 +84,30 @@ export class ArmamentChecklistNotificationHelper {
   ) {
     try {
       // 1. Construir contexto rico
-      const context = await this.contextBuilder.buildArmamentChecklistContext(checklistId, 'updated');
-      
+      const context = await this.contextBuilder.buildArmamentChecklistContext(
+        checklistId,
+        'updated',
+      );
+
       // 2. Obter template
       const template = ArmamentChecklistTemplateService.getTemplate('updated');
       if (!template) {
-        throw new Error('Template não encontrado para armamentChecklist.updated');
+        throw new Error(
+          'Template não encontrado para armamentChecklist.updated',
+        );
       }
 
       // 3. Renderizar template com contexto
-      const renderedTemplate = ArmamentChecklistTemplateService.renderTemplate(template, context);
+      const renderedTemplate = ArmamentChecklistTemplateService.renderTemplate(
+        template,
+        context,
+      );
 
       // 4. Obter destinatários
-      const recipients = await this.recipientsService.getRecipients(companyId, template.recipients);
+      const recipients = await this.recipientsService.getRecipients(
+        companyId,
+        template.recipients,
+      );
 
       // 5. Criar notificação
       return this.notificationService.criar({
@@ -96,7 +121,10 @@ export class ArmamentChecklistNotificationHelper {
         recipients,
       });
     } catch (error) {
-      console.error('Erro ao criar notificação de armamentChecklist atualizado:', error);
+      console.error(
+        'Erro ao criar notificação de armamentChecklist atualizado:',
+        error,
+      );
       throw error;
     }
   }
@@ -111,19 +139,31 @@ export class ArmamentChecklistNotificationHelper {
   ) {
     try {
       // 1. Construir contexto rico
-      const context = await this.contextBuilder.buildArmamentChecklistContext(checklistId, 'completed');
-      
+      const context = await this.contextBuilder.buildArmamentChecklistContext(
+        checklistId,
+        'completed',
+      );
+
       // 2. Obter template
-      const template = ArmamentChecklistTemplateService.getTemplate('completed');
+      const template =
+        ArmamentChecklistTemplateService.getTemplate('completed');
       if (!template) {
-        throw new Error('Template não encontrado para armamentChecklist.completed');
+        throw new Error(
+          'Template não encontrado para armamentChecklist.completed',
+        );
       }
 
       // 3. Renderizar template com contexto
-      const renderedTemplate = ArmamentChecklistTemplateService.renderTemplate(template, context);
+      const renderedTemplate = ArmamentChecklistTemplateService.renderTemplate(
+        template,
+        context,
+      );
 
       // 4. Obter destinatários
-      const recipients = await this.recipientsService.getRecipients(companyId, template.recipients);
+      const recipients = await this.recipientsService.getRecipients(
+        companyId,
+        template.recipients,
+      );
 
       // 5. Criar notificação
       return this.notificationService.criar({
@@ -137,7 +177,10 @@ export class ArmamentChecklistNotificationHelper {
         recipients,
       });
     } catch (error) {
-      console.error('Erro ao criar notificação de armamentChecklist finalizado:', error);
+      console.error(
+        'Erro ao criar notificação de armamentChecklist finalizado:',
+        error,
+      );
       throw error;
     }
   }

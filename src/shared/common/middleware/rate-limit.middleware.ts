@@ -1,4 +1,9 @@
-import { Injectable, NestMiddleware, HttpException, HttpStatus } from '@nestjs/common';
+import {
+  Injectable,
+  NestMiddleware,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 
 interface RateLimitStore {
@@ -11,10 +16,10 @@ interface RateLimitStore {
 @Injectable()
 export class RateLimitMiddleware implements NestMiddleware {
   private store: RateLimitStore = {};
-  
+
   // Configuração baseada no ambiente
   private readonly windowMs = 15 * 60 * 1000; // 15 minutos
-  
+
   // Limites configuráveis por variável de ambiente
   private readonly maxRequests = this.getMaxRequests();
 
@@ -26,9 +31,9 @@ export class RateLimitMiddleware implements NestMiddleware {
         return parsed;
       }
     }
-    
-    return process.env.NODE_ENV === 'production' 
-      ? 20000  // 20000 req/15min ≈ 1333 req/min (produção; IP compartilhado)
+
+    return process.env.NODE_ENV === 'production'
+      ? 20000 // 20000 req/15min ≈ 1333 req/min (produção; IP compartilhado)
       : 50000; // 50000 req/15min ≈ 3333 req/min (desenvolvimento)
   }
 
@@ -74,7 +79,10 @@ export class RateLimitMiddleware implements NestMiddleware {
 
     // Adicionar headers de rate limit
     res.setHeader('X-RateLimit-Limit', this.maxRequests);
-    res.setHeader('X-RateLimit-Remaining', this.maxRequests - this.store[key].count);
+    res.setHeader(
+      'X-RateLimit-Remaining',
+      this.maxRequests - this.store[key].count,
+    );
     res.setHeader('X-RateLimit-Reset', this.store[key].resetTime);
 
     next();
@@ -88,10 +96,10 @@ export class RateLimitMiddleware implements NestMiddleware {
 
   private cleanup() {
     const now = Date.now();
-    Object.keys(this.store).forEach(key => {
+    Object.keys(this.store).forEach((key) => {
       if (now > this.store[key].resetTime) {
         delete this.store[key];
       }
     });
   }
-} 
+}

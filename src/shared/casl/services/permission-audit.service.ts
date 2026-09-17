@@ -116,10 +116,13 @@ export class PermissionAuditService {
     },
   ): boolean {
     try {
-      const success = this.caslService.validarAction(action, subject as EntityNameCasl);
-      
+      const success = this.caslService.validarAction(
+        action,
+        subject as EntityNameCasl,
+      );
+
       this.registrarTentativa(user, action, subject, success, context);
-      
+
       return success;
     } catch (error) {
       this.registrarTentativa(user, action, subject, false, context);
@@ -136,18 +139,20 @@ export class PermissionAuditService {
     // Filtrar por período se especificado
     if (periodo) {
       logs = logs.filter(
-        log => log.timestamp >= periodo.inicio && log.timestamp <= periodo.fim,
+        (log) =>
+          log.timestamp >= periodo.inicio && log.timestamp <= periodo.fim,
       );
     }
 
     const totalRequests = logs.length;
-    const successfulRequests = logs.filter(log => log.success).length;
+    const successfulRequests = logs.filter((log) => log.success).length;
     const failedRequests = totalRequests - successfulRequests;
-    const successRate = totalRequests > 0 ? (successfulRequests / totalRequests) * 100 : 0;
+    const successRate =
+      totalRequests > 0 ? (successfulRequests / totalRequests) * 100 : 0;
 
     // Ações mais solicitadas
     const actionCounts = new Map<string, number>();
-    logs.forEach(log => {
+    logs.forEach((log) => {
       const key = `${log.action}:${log.subject}`;
       actionCounts.set(key, (actionCounts.get(key) || 0) + 1);
     });
@@ -162,10 +167,12 @@ export class PermissionAuditService {
 
     // Ações mais negadas
     const deniedActionCounts = new Map<string, number>();
-    logs.filter(log => !log.success).forEach(log => {
-      const key = `${log.action}:${log.subject}`;
-      deniedActionCounts.set(key, (deniedActionCounts.get(key) || 0) + 1);
-    });
+    logs
+      .filter((log) => !log.success)
+      .forEach((log) => {
+        const key = `${log.action}:${log.subject}`;
+        deniedActionCounts.set(key, (deniedActionCounts.get(key) || 0) + 1);
+      });
 
     const mostDeniedActions = Array.from(deniedActionCounts.entries())
       .map(([key, count]) => {
@@ -177,15 +184,16 @@ export class PermissionAuditService {
 
     // Requisições por role
     const requestsByRole: Record<string, number> = {};
-    logs.forEach(log => {
+    logs.forEach((log) => {
       requestsByRole[log.userRole] = (requestsByRole[log.userRole] || 0) + 1;
     });
 
     // Requisições por empresa
     const requestsByCompany: Record<string, number> = {};
-    logs.forEach(log => {
+    logs.forEach((log) => {
       if (log.companyId) {
-        requestsByCompany[log.companyId] = (requestsByCompany[log.companyId] || 0) + 1;
+        requestsByCompany[log.companyId] =
+          (requestsByCompany[log.companyId] || 0) + 1;
       }
     });
 
@@ -221,35 +229,35 @@ export class PermissionAuditService {
 
     // Aplicar filtros
     if (filtros?.userId) {
-      logs = logs.filter(log => log.userId === filtros.userId);
+      logs = logs.filter((log) => log.userId === filtros.userId);
     }
 
     if (filtros?.userRole) {
-      logs = logs.filter(log => log.userRole === filtros.userRole);
+      logs = logs.filter((log) => log.userRole === filtros.userRole);
     }
 
     if (filtros?.action) {
-      logs = logs.filter(log => log.action === filtros.action);
+      logs = logs.filter((log) => log.action === filtros.action);
     }
 
     if (filtros?.subject) {
-      logs = logs.filter(log => log.subject === filtros.subject);
+      logs = logs.filter((log) => log.subject === filtros.subject);
     }
 
     if (filtros?.success !== undefined) {
-      logs = logs.filter(log => log.success === filtros.success);
+      logs = logs.filter((log) => log.success === filtros.success);
     }
 
     if (filtros?.companyId) {
-      logs = logs.filter(log => log.companyId === filtros.companyId);
+      logs = logs.filter((log) => log.companyId === filtros.companyId);
     }
 
     if (filtros?.inicio) {
-      logs = logs.filter(log => log.timestamp >= filtros.inicio!);
+      logs = logs.filter((log) => log.timestamp >= filtros.inicio!);
     }
 
     if (filtros?.fim) {
-      logs = logs.filter(log => log.timestamp <= filtros.fim!);
+      logs = logs.filter((log) => log.timestamp <= filtros.fim!);
     }
 
     // Ordenar por timestamp (mais recente primeiro)
@@ -265,9 +273,13 @@ export class PermissionAuditService {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - dias);
 
-    this.auditLogs = this.auditLogs.filter(log => log.timestamp >= cutoffDate);
-    
-    this.logger.log(`Logs antigos removidos. ${this.auditLogs.length} logs mantidos.`);
+    this.auditLogs = this.auditLogs.filter(
+      (log) => log.timestamp >= cutoffDate,
+    );
+
+    this.logger.log(
+      `Logs antigos removidos. ${this.auditLogs.length} logs mantidos.`,
+    );
   }
 
   /**
@@ -321,7 +333,7 @@ export class PermissionAuditService {
 
     const csvRows = [headers.join(',')];
 
-    this.auditLogs.forEach(log => {
+    this.auditLogs.forEach((log) => {
       const row = [
         log.userId,
         log.userRole,
@@ -341,4 +353,4 @@ export class PermissionAuditService {
 
     return csvRows.join('\n');
   }
-} 
+}

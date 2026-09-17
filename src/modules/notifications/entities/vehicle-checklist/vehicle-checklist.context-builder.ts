@@ -1,6 +1,6 @@
 /**
  * 🔧 CONTEXT BUILDER - VEHICLE CHECKLIST
- * 
+ *
  * Constrói contexto rico para notificações de checklist de veículos.
  * Inclui dados relacionados como posto, veículo, usuário, etc.
  */
@@ -17,22 +17,31 @@ export class VehicleChecklistContextBuilder {
   /**
    * 🚗 VEHICLE CHECKLIST - Contexto para checklist de veículos
    */
-  async buildVehicleChecklistContext(checklistId: string, operation: string): Promise<NotificationContext> {
+  async buildVehicleChecklistContext(
+    checklistId: string,
+    operation: string,
+  ): Promise<NotificationContext> {
     const checklistDelegate = (this.prisma as any).vehicleChecklist;
     if (!checklistDelegate) {
-      return { userName: '', postName: '', time: DateFormatter.formatDateTime(new Date()), vehiclePlate: undefined, vehicleModel: undefined };
+      return {
+        userName: '',
+        postName: '',
+        time: DateFormatter.formatDateTime(new Date()),
+        vehiclePlate: undefined,
+        vehicleModel: undefined,
+      };
     }
     const checklist = await checklistDelegate.findUnique({
       where: { id: checklistId },
       include: {
         vehicle: { select: { plate: true, model: true } },
         user: { select: { name: true } },
-        shift: { 
-          include: { 
-            post: { select: { name: true } } 
-          } 
-        }
-      }
+        shift: {
+          include: {
+            post: { select: { name: true } },
+          },
+        },
+      },
     });
 
     if (!checklist) {

@@ -229,23 +229,19 @@ export class WorkOrderActivityNotificationService {
   > = {
     started: {
       title: 'OS iniciada',
-      message: (actor, title) =>
-        `${actor} iniciou a OS "${title}".`,
+      message: (actor, title) => `${actor} iniciou a OS "${title}".`,
     },
     paused: {
       title: 'OS pausada',
-      message: (actor, title) =>
-        `${actor} pausou a OS "${title}".`,
+      message: (actor, title) => `${actor} pausou a OS "${title}".`,
     },
     resumed: {
       title: 'OS retomada',
-      message: (actor, title) =>
-        `${actor} retomou a OS "${title}".`,
+      message: (actor, title) => `${actor} retomou a OS "${title}".`,
     },
     completed: {
       title: 'OS concluída',
-      message: (actor, title) =>
-        `${actor} concluiu a OS "${title}".`,
+      message: (actor, title) => `${actor} concluiu a OS "${title}".`,
     },
     submitted_for_review: {
       title: 'OS aguardando validação',
@@ -266,8 +262,7 @@ export class WorkOrderActivityNotificationService {
     },
     deleted: {
       title: 'OS excluída',
-      message: (actor, title) =>
-        `${actor} excluiu a OS "${title}".`,
+      message: (actor, title) => `${actor} excluiu a OS "${title}".`,
     },
   };
 
@@ -283,9 +278,7 @@ export class WorkOrderActivityNotificationService {
   }) {
     const uniqueRecipients = Array.from(
       new Set(
-        params.recipientUserIds.filter(
-          (id) => id && id !== params.actorUserId,
-        ),
+        params.recipientUserIds.filter((id) => id && id !== params.actorUserId),
       ),
     );
     if (uniqueRecipients.length === 0) return;

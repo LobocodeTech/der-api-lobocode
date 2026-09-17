@@ -16,9 +16,13 @@ export interface GoogleProfile {
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   private readonly logger = new Logger(GoogleStrategy.name);
 
-  private static resolveGoogleCallbackUrl(configService: ConfigService): string {
+  private static resolveGoogleCallbackUrl(
+    configService: ConfigService,
+  ): string {
     const isProduction = configService.get<string>('NODE_ENV') === 'production';
-    const explicitCallback = configService.get<string>('GOOGLE_CALLBACK_URL')?.trim();
+    const explicitCallback = configService
+      .get<string>('GOOGLE_CALLBACK_URL')
+      ?.trim();
     if (explicitCallback) {
       const isLocalhostExplicit =
         explicitCallback.includes('://localhost') ||
@@ -70,7 +74,10 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     profile: GoogleProfile,
     done: VerifyCallback,
   ): Promise<void> {
-    if (!this.configService.get<string>('GOOGLE_CLIENT_ID') || !this.configService.get<string>('GOOGLE_CLIENT_SECRET')) {
+    if (
+      !this.configService.get<string>('GOOGLE_CLIENT_ID') ||
+      !this.configService.get<string>('GOOGLE_CLIENT_SECRET')
+    ) {
       done(new Error('Google OAuth configuration is missing'));
       return;
     }

@@ -28,8 +28,8 @@ export class MicrosoftGraphAuthService {
   isConfigurado(): boolean {
     return Boolean(
       this.obterClientId() &&
-        this.obterClientSecret() &&
-        this.obterRefreshTokenAtual(),
+      this.obterClientSecret() &&
+      this.obterRefreshTokenAtual(),
     );
   }
 
@@ -100,18 +100,14 @@ export class MicrosoftGraphAuthService {
   }
 
   private obterClientSecret(): string {
-    return this.configService
-      .get<string>('MICROSOFT_CLIENT_SECRET', '')
-      .trim();
+    return this.configService.get<string>('MICROSOFT_CLIENT_SECRET', '').trim();
   }
 
   private obterRefreshTokenAtual(): string {
     if (this.runtimeRefreshToken) {
       return this.runtimeRefreshToken;
     }
-    return this.configService
-      .get<string>('MICROSOFT_REFRESH_TOKEN', '')
-      .trim();
+    return this.configService.get<string>('MICROSOFT_REFRESH_TOKEN', '').trim();
   }
 
   /**

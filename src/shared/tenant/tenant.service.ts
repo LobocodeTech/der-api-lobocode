@@ -30,7 +30,7 @@ export class TenantService {
       id: companyId,
       name: companyName,
       isGlobal: false,
-      isTemporary: true
+      isTemporary: true,
     };
   }
 

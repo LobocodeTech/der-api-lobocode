@@ -1,6 +1,6 @@
 /**
  * 🔧 CONTEXT BUILDER - MOTORIZED SERVICE
- * 
+ *
  * Constrói contexto rico para notificações de serviços motorizados.
  * Inclui dados relacionados como posto, usuário, etc.
  */
@@ -17,10 +17,17 @@ export class MotorizedServiceContextBuilder {
   /**
    * 🚛 MOTORIZED SERVICE - Contexto para serviços motorizados
    */
-  async buildMotorizedServiceContext(serviceId: string, operation: string): Promise<NotificationContext> {
+  async buildMotorizedServiceContext(
+    serviceId: string,
+    operation: string,
+  ): Promise<NotificationContext> {
     const delegate = (this.prisma as any).motorizedService;
     if (!delegate) {
-      return { userName: '', postName: '', time: DateFormatter.formatDateTime(new Date()) };
+      return {
+        userName: '',
+        postName: '',
+        time: DateFormatter.formatDateTime(new Date()),
+      };
     }
     const service = await delegate.findUnique({
       where: { id: serviceId },

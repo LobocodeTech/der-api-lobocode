@@ -21,8 +21,7 @@ export function extrairTaxasCumprimento(
     summary.generalSla.nearDue +
     summary.generalSla.overdue;
 
-  const corrective =
-    correctiveEligible > 0 ? summary.sla.complianceRate : null;
+  const corrective = correctiveEligible > 0 ? summary.sla.complianceRate : null;
   const preventive =
     preventiveEligible > 0 ? summary.preventiveSla.complianceRate : null;
   const general =

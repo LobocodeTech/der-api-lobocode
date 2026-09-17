@@ -5,4 +5,4 @@ export {
   PASSWORD_RESET_TOKEN_TTL_MS,
   PASSWORD_RESET_TOKEN_LENGTH,
   PASSWORD_RESET_LOGO_URL,
-} from './auth.constants'; 
+} from './auth.constants';

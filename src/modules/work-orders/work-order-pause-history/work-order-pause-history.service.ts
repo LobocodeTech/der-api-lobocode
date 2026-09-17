@@ -34,7 +34,8 @@ export class WorkOrderPauseHistoryService {
 
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
-    @Inject(WorkOrdersService) private readonly workOrdersService: WorkOrdersService,
+    @Inject(WorkOrdersService)
+    private readonly workOrdersService: WorkOrdersService,
     private readonly workOrderQueueUsersService: WorkOrderQueueUsersService,
     private readonly workOrderActivityNotificationService: WorkOrderActivityNotificationService,
     private readonly workOrderSlaService: WorkOrderSlaService,
@@ -85,12 +86,13 @@ export class WorkOrderPauseHistoryService {
 
     const agora = new Date();
     const slaPayload = await this.buildPauseSlaUpdate(workOrder, agora);
-    const colunaPausa = await this.workOrdersService.obterColunaPorStatusDestino(
-      workOrder.companyId,
-      workOrder.location?.regionalId ?? null,
-      WorkOrderStatus.PAUSED,
-      workOrder.type,
-    );
+    const colunaPausa =
+      await this.workOrdersService.obterColunaPorStatusDestino(
+        workOrder.companyId,
+        workOrder.location?.regionalId ?? null,
+        WorkOrderStatus.PAUSED,
+        workOrder.type,
+      );
 
     await this.prisma.$transaction(async (tx) => {
       await tx.workOrderPauseHistory.create({
@@ -101,8 +103,7 @@ export class WorkOrderPauseHistoryService {
           eventType: WorkOrderPauseHistoryEventType.PAUSE,
           effectiveSlaConsumedSeconds:
             slaPayload?.slaConsumedSeconds ?? undefined,
-          slaStatusExtendedAtEvent:
-            slaPayload?.slaStatusExtended ?? undefined,
+          slaStatusExtendedAtEvent: slaPayload?.slaStatusExtended ?? undefined,
         },
       });
 
@@ -133,9 +134,7 @@ export class WorkOrderPauseHistoryService {
     }
 
     if (workOrder.status !== WorkOrderStatus.PAUSED) {
-      throw new BadRequestException(
-        'Somente OS pausadas podem ser retomadas.',
-      );
+      throw new BadRequestException('Somente OS pausadas podem ser retomadas.');
     }
 
     if (!isWorkOrderResumePresetReason(dto.presetReason)) {
@@ -168,8 +167,7 @@ export class WorkOrderPauseHistoryService {
           eventType: WorkOrderPauseHistoryEventType.RESUME,
           effectiveSlaConsumedSeconds:
             slaPayload?.slaConsumedSeconds ?? undefined,
-          slaStatusExtendedAtEvent:
-            slaPayload?.slaStatusExtended ?? undefined,
+          slaStatusExtendedAtEvent: slaPayload?.slaStatusExtended ?? undefined,
         },
       });
 
@@ -394,5 +392,4 @@ export class WorkOrderPauseHistoryService {
   private getCurrentUserId() {
     return this.request?.user?.id as string | undefined;
   }
-
 }

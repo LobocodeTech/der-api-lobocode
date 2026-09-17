@@ -261,17 +261,12 @@ export type WorkOrderReportSortField =
   | 'completedAt'
   | 'type';
 
-export const CORRECTIVE_SLA_POSITIVE_STATUSES: WorkOrderCorrectiveSlaStatus[] = [
-  'IN_PROGRESS',
-  'PAUSED',
-  'COMPLETED_ON_TIME',
-];
+export const CORRECTIVE_SLA_POSITIVE_STATUSES: WorkOrderCorrectiveSlaStatus[] =
+  ['IN_PROGRESS', 'PAUSED', 'COMPLETED_ON_TIME'];
 
 export const CORRECTIVE_SLA_NEAR_STATUSES: WorkOrderCorrectiveSlaStatus[] = [
   'NEAR_BREACH',
 ];
 
-export const CORRECTIVE_SLA_NEGATIVE_STATUSES: WorkOrderCorrectiveSlaStatus[] = [
-  'BREACHED',
-  'COMPLETED_LATE',
-];
+export const CORRECTIVE_SLA_NEGATIVE_STATUSES: WorkOrderCorrectiveSlaStatus[] =
+  ['BREACHED', 'COMPLETED_LATE'];

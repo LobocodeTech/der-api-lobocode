@@ -10,12 +10,7 @@ import { LocationsService } from './locations.service';
 
 @UseGuards(AuthGuard, RoleByMethodGuard)
 @RoleByMethod({
-  GET: [
-    Roles.SYSTEM_ADMIN,
-    Roles.ADMIN,
-    Roles.FIELD_TEAM,
-    Roles.C2C,
-  ],
+  GET: [Roles.SYSTEM_ADMIN, Roles.ADMIN, Roles.FIELD_TEAM, Roles.C2C],
   POST: [Roles.SYSTEM_ADMIN, Roles.ADMIN, Roles.C2C],
   PATCH: [Roles.SYSTEM_ADMIN, Roles.ADMIN, Roles.C2C],
   DELETE: [Roles.SYSTEM_ADMIN, Roles.ADMIN],
@@ -30,4 +25,3 @@ export class LocationsController extends UniversalController<
     super(service);
   }
 }
-

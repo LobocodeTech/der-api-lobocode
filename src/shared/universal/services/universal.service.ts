@@ -143,9 +143,10 @@ export abstract class UniversalService<DtoCreate, DtoUpdate> {
   ) {
     this.permissionService.validarAction(this.entityNameCasl, 'read');
 
-    const safePage = Number.isFinite(Number(page)) && Number(page) > 0
-      ? Math.floor(Number(page))
-      : 1;
+    const safePage =
+      Number.isFinite(Number(page)) && Number(page) > 0
+        ? Math.floor(Number(page))
+        : 1;
     const safeLimit =
       Number.isFinite(Number(limit)) && Number(limit) > 0
         ? Math.min(100, Math.floor(Number(limit)))
@@ -162,10 +163,8 @@ export abstract class UniversalService<DtoCreate, DtoUpdate> {
     const includeConfig = include || this.getIncludeConfig();
 
     const skip = (safePage - 1) * safeLimit;
-    const defaultOrderBy =
-      this.resolverOrderByListagem(filtros) ??
-      this.getEntityConfig().orderBy ??
-      { createdAt: 'desc' };
+    const defaultOrderBy = this.resolverOrderByListagem(filtros) ??
+      this.getEntityConfig().orderBy ?? { createdAt: 'desc' };
     const [entities, total] = await Promise.all([
       this.repository.buscarMuitos(
         this.entityName,
@@ -282,7 +281,9 @@ export abstract class UniversalService<DtoCreate, DtoUpdate> {
     );
 
     const includeConfig = include || this.getIncludeConfig();
-    const defaultOrderBy = this.getEntityConfig().orderBy ?? { createdAt: 'desc' };
+    const defaultOrderBy = this.getEntityConfig().orderBy ?? {
+      createdAt: 'desc',
+    };
 
     const entities = await this.repository.buscarMuitos(
       this.entityName,
@@ -328,7 +329,9 @@ export abstract class UniversalService<DtoCreate, DtoUpdate> {
     );
 
     const includeConfig = include || this.getIncludeConfig();
-    const defaultOrderBy = this.getEntityConfig().orderBy ?? { createdAt: 'desc' };
+    const defaultOrderBy = this.getEntityConfig().orderBy ?? {
+      createdAt: 'desc',
+    };
 
     const entities = await this.repository.buscarMuitos(
       this.entityName,
@@ -544,7 +547,7 @@ export abstract class UniversalService<DtoCreate, DtoUpdate> {
    */
   async validarExistencia(id: string, deletedAt: boolean = false) {
     const where: any = { id };
-    
+
     // Só adiciona deletedAt se a entidade tiver soft delete
     if (this.hasSoftDelete()) {
       where.deletedAt = deletedAt ? { not: null } : null;
@@ -597,28 +600,30 @@ export abstract class UniversalService<DtoCreate, DtoUpdate> {
 
         // Aplica flatten (mapeia campos de relacionamento para campos planos)
         if (config.flatten) {
-          Object.entries(config.flatten).forEach(([relation, flattenConfig]) => {
-            if (transformed[relation]) {
-              if (typeof flattenConfig === 'string') {
-                // Configuração simples: relation -> targetField
-                transformed[flattenConfig] = transformed[relation];
-                delete transformed[relation];
-              } else {
-                // Configuração específica: extrai campo específico do relacionamento
-                const { field, target, keep } = flattenConfig;
-                if (
-                  transformed[relation] &&
-                  typeof transformed[relation] === 'object'
-                ) {
-                  transformed[target] = transformed[relation][field];
-                  // Só deleta o objeto se keep não for true
-                  if (!keep) {
-                    delete transformed[relation];
+          Object.entries(config.flatten).forEach(
+            ([relation, flattenConfig]) => {
+              if (transformed[relation]) {
+                if (typeof flattenConfig === 'string') {
+                  // Configuração simples: relation -> targetField
+                  transformed[flattenConfig] = transformed[relation];
+                  delete transformed[relation];
+                } else {
+                  // Configuração específica: extrai campo específico do relacionamento
+                  const { field, target, keep } = flattenConfig;
+                  if (
+                    transformed[relation] &&
+                    typeof transformed[relation] === 'object'
+                  ) {
+                    transformed[target] = transformed[relation][field];
+                    // Só deleta o objeto se keep não for true
+                    if (!keep) {
+                      delete transformed[relation];
+                    }
                   }
                 }
               }
-            }
-          });
+            },
+          );
         }
 
         // Aplica transformação customizada
@@ -777,7 +782,7 @@ export abstract class UniversalService<DtoCreate, DtoUpdate> {
     deletedAt: boolean = false,
   ) {
     const whereClause: any = { ...where };
-    
+
     // Só adiciona deletedAt se a entidade tiver soft delete
     if (this.hasSoftDelete()) {
       whereClause.deletedAt = deletedAt ? { not: null } : null;

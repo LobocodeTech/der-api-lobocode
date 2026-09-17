@@ -13,7 +13,7 @@ export const ROLE_BY_METHOD_KEY = 'roleByMethod';
 
 /**
  * Decorator para definir roles diferentes por método HTTP
- * 
+ *
  * @example
  * @RoleByMethod({
  *   GET: [Roles.ADMIN, Roles.HR, Roles.GUARD, Roles.SUPERVISOR],

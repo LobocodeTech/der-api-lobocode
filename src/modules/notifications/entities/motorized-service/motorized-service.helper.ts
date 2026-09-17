@@ -1,6 +1,6 @@
 /**
  * 🔔 HELPER - MOTORIZED SERVICE
- * 
+ *
  * Helper específico para notificações de serviços motorizados.
  * Usa templates contextuais e sistema de destinatários inteligente.
  */
@@ -16,7 +16,7 @@ export class MotorizedServiceNotificationHelper {
   constructor(
     private notificationService: NotificationService,
     private contextBuilder: MotorizedServiceContextBuilder,
-    private recipientsService: NotificationRecipientsService
+    private recipientsService: NotificationRecipientsService,
   ) {}
 
   /**
@@ -29,19 +29,30 @@ export class MotorizedServiceNotificationHelper {
   ) {
     try {
       // 1. Construir contexto rico
-      const context = await this.contextBuilder.buildMotorizedServiceContext(serviceId, 'created');
-      
+      const context = await this.contextBuilder.buildMotorizedServiceContext(
+        serviceId,
+        'created',
+      );
+
       // 2. Obter template
       const template = MotorizedServiceTemplateService.getTemplate('created');
       if (!template) {
-        throw new Error('Template não encontrado para motorizedService.created');
+        throw new Error(
+          'Template não encontrado para motorizedService.created',
+        );
       }
 
       // 3. Renderizar template com contexto
-      const renderedTemplate = MotorizedServiceTemplateService.renderTemplate(template, context);
+      const renderedTemplate = MotorizedServiceTemplateService.renderTemplate(
+        template,
+        context,
+      );
 
       // 4. Obter destinatários
-      const recipients = await this.recipientsService.getRecipients(companyId, template.recipients);
+      const recipients = await this.recipientsService.getRecipients(
+        companyId,
+        template.recipients,
+      );
 
       // 5. Criar notificação
       return this.notificationService.criar({
@@ -55,7 +66,10 @@ export class MotorizedServiceNotificationHelper {
         recipients,
       });
     } catch (error) {
-      console.error('Erro ao criar notificação de motorizedService criado:', error);
+      console.error(
+        'Erro ao criar notificação de motorizedService criado:',
+        error,
+      );
       throw error;
     }
   }
@@ -70,19 +84,30 @@ export class MotorizedServiceNotificationHelper {
   ) {
     try {
       // 1. Construir contexto rico
-      const context = await this.contextBuilder.buildMotorizedServiceContext(serviceId, 'updated');
-      
+      const context = await this.contextBuilder.buildMotorizedServiceContext(
+        serviceId,
+        'updated',
+      );
+
       // 2. Obter template
       const template = MotorizedServiceTemplateService.getTemplate('updated');
       if (!template) {
-        throw new Error('Template não encontrado para motorizedService.updated');
+        throw new Error(
+          'Template não encontrado para motorizedService.updated',
+        );
       }
 
       // 3. Renderizar template com contexto
-      const renderedTemplate = MotorizedServiceTemplateService.renderTemplate(template, context);
+      const renderedTemplate = MotorizedServiceTemplateService.renderTemplate(
+        template,
+        context,
+      );
 
       // 4. Obter destinatários
-      const recipients = await this.recipientsService.getRecipients(companyId, template.recipients);
+      const recipients = await this.recipientsService.getRecipients(
+        companyId,
+        template.recipients,
+      );
 
       // 5. Criar notificação
       return this.notificationService.criar({
@@ -96,7 +121,10 @@ export class MotorizedServiceNotificationHelper {
         recipients,
       });
     } catch (error) {
-      console.error('Erro ao criar notificação de motorizedService atualizado:', error);
+      console.error(
+        'Erro ao criar notificação de motorizedService atualizado:',
+        error,
+      );
       throw error;
     }
   }
@@ -111,19 +139,30 @@ export class MotorizedServiceNotificationHelper {
   ) {
     try {
       // 1. Construir contexto rico
-      const context = await this.contextBuilder.buildMotorizedServiceContext(serviceId, 'completed');
-      
+      const context = await this.contextBuilder.buildMotorizedServiceContext(
+        serviceId,
+        'completed',
+      );
+
       // 2. Obter template
       const template = MotorizedServiceTemplateService.getTemplate('completed');
       if (!template) {
-        throw new Error('Template não encontrado para motorizedService.completed');
+        throw new Error(
+          'Template não encontrado para motorizedService.completed',
+        );
       }
 
       // 3. Renderizar template com contexto
-      const renderedTemplate = MotorizedServiceTemplateService.renderTemplate(template, context);
+      const renderedTemplate = MotorizedServiceTemplateService.renderTemplate(
+        template,
+        context,
+      );
 
       // 4. Obter destinatários
-      const recipients = await this.recipientsService.getRecipients(companyId, template.recipients);
+      const recipients = await this.recipientsService.getRecipients(
+        companyId,
+        template.recipients,
+      );
 
       // 5. Criar notificação
       return this.notificationService.criar({
@@ -137,7 +176,10 @@ export class MotorizedServiceNotificationHelper {
         recipients,
       });
     } catch (error) {
-      console.error('Erro ao criar notificação de motorizedService finalizado:', error);
+      console.error(
+        'Erro ao criar notificação de motorizedService finalizado:',
+        error,
+      );
       throw error;
     }
   }

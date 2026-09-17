@@ -39,9 +39,7 @@ export class DocumentsService {
 
     // Verificar se o arquivo pertence à mesma empresa
     if (companyId && file.companyId !== companyId) {
-      throw new BadRequestException(
-        'Arquivo não pertence à mesma empresa',
-      );
+      throw new BadRequestException('Arquivo não pertence à mesma empresa');
     }
 
     // Criar o documento
@@ -77,12 +75,7 @@ export class DocumentsService {
   /**
    * Lista documentos enviados pelo usuário
    */
-  async findSent(
-    senderId: string,
-    companyId?: string,
-    page = 1,
-    limit = 20,
-  ) {
+  async findSent(senderId: string, companyId?: string, page = 1, limit = 20) {
     const skip = (page - 1) * limit;
 
     const where: any = {
@@ -236,9 +229,7 @@ export class DocumentsService {
 
     // Verificar se pertence à mesma empresa
     if (companyId && document.companyId !== companyId) {
-      throw new BadRequestException(
-        'Documento não pertence à mesma empresa',
-      );
+      throw new BadRequestException('Documento não pertence à mesma empresa');
     }
 
     return document;
@@ -422,7 +413,9 @@ export class DocumentsService {
         roles = [Roles.ADMIN, Roles.SYSTEM_ADMIN];
         break;
       default:
-        this.logger.warn(`Tipo de destinatário não reconhecido: ${recipientType}`);
+        this.logger.warn(
+          `Tipo de destinatário não reconhecido: ${recipientType}`,
+        );
         return [];
     }
 

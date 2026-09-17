@@ -1,4 +1,4 @@
-import { IsEnum, IsString, IsOptional } from 'class-validator'
+import { IsEnum, IsString, IsOptional } from 'class-validator';
 import { IsCUID } from '../../../shared/validators';
 import { DocumentRecipientType } from '@prisma/client';
 import { VALIDATION_MESSAGES } from '../../../shared/common/messages';

@@ -6,7 +6,11 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { Request } from 'express';
-import { AUTH_MESSAGES, AUTH_CONSTANTS, PASSWORD_RESET_RATE_LIMIT } from '../constants';
+import {
+  AUTH_MESSAGES,
+  AUTH_CONSTANTS,
+  PASSWORD_RESET_RATE_LIMIT,
+} from '../constants';
 
 interface RateLimitEntry {
   count: number;

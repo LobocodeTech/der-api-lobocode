@@ -148,11 +148,13 @@ export class IpLocationService extends UniversalService<
       }))
       .filter((row) => {
         if (!search) return true;
-        const locationMatches = `${row.location.name} ${row.location.code} ${row.location.city} ${row.location.referenceKm ?? ''}`
-          .toLowerCase()
-          .includes(search);
+        const locationMatches =
+          `${row.location.name} ${row.location.code} ${row.location.city} ${row.location.referenceKm ?? ''}`
+            .toLowerCase()
+            .includes(search);
         return row.ipCount > 0
-          ? locationMatches || (matchingIpLocationIds?.has(row.location.id) ?? false)
+          ? locationMatches ||
+              (matchingIpLocationIds?.has(row.location.id) ?? false)
           : locationMatches;
       })
       .sort((a, b) => {
@@ -166,7 +168,8 @@ export class IpLocationService extends UniversalService<
 
     const groups = await Promise.all(
       pageItems.map(async ({ location, ipCount }) => {
-        const label = `${location.name} ${location.code} ${location.city} ${location.referenceKm ?? ''}`.toLowerCase();
+        const label =
+          `${location.name} ${location.code} ${location.city} ${location.referenceKm ?? ''}`.toLowerCase();
         const locationMatches = !search || label.includes(search);
         const ipListWhere = {
           ...ipWhere,
@@ -404,11 +407,9 @@ export class IpLocationService extends UniversalService<
 
     await Promise.all(
       finalOrderIds.map((id, index) =>
-        this.repository.atualizar(
-          this.entityName,
-          { id },
-          { sortOrder: index + 1 } as UpdateIpLocationDto,
-        ),
+        this.repository.atualizar(this.entityName, { id }, {
+          sortOrder: index + 1,
+        } as UpdateIpLocationDto),
       ),
     );
 

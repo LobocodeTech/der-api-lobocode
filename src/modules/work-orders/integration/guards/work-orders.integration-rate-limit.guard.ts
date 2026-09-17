@@ -96,7 +96,10 @@ export class WorkOrdersIntegrationRateLimitGuard implements CanActivate {
     });
   }
 
-  private toPositiveInt(rawValue: string | undefined, fallback: number): number {
+  private toPositiveInt(
+    rawValue: string | undefined,
+    fallback: number,
+  ): number {
     const parsed = Number.parseInt(String(rawValue ?? ''), 10);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
   }

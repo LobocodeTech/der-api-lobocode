@@ -38,15 +38,15 @@ export class TenantInterceptor implements NestInterceptor {
     }
 
     try {
-    const request = context.switchToHttp().getRequest();
+      const request = context.switchToHttp().getRequest();
       const user = this.extractUserFromRequest(request);
 
       // Valida se usuário tem empresa (exceto SYSTEM_ADMIN)
       this.validateUserHasCompany(user);
-      
+
       // Configura tenant baseado no contexto (body ou query)
       await this.setupTenantContext(request, user);
-      
+
       return next.handle();
     } catch (error) {
       this.handleTenantError(error);
@@ -67,7 +67,7 @@ export class TenantInterceptor implements NestInterceptor {
   // Validar se usuário tem empresa (exceto master)
   private validateUserHasCompany(user: any): void {
     const ability = this.abilityService.ability;
-    
+
     // Verifica se usuário pode acessar dados globais (SYSTEM_ADMIN)
     if (ability.can('manage', 'all')) {
       return;
@@ -91,7 +91,7 @@ export class TenantInterceptor implements NestInterceptor {
       // Valida se apenas SYSTEM_ADMIN pode especificar companyId
       if (!ability.can('manage', 'all')) {
         throw new ForbiddenException(
-          'Somente administradores de plataforma podem especificar companyId em solicitações'
+          'Somente administradores de plataforma podem especificar companyId em solicitações',
         );
       }
 
@@ -108,7 +108,7 @@ export class TenantInterceptor implements NestInterceptor {
   // Buscar e validar empresa no banco
   private async findAndValidateCompany(companyIdOrUser: any) {
     const ability = this.abilityService.ability;
-    
+
     // Se for SYSTEM_ADMIN sem especificar companyId, retorna tenant global
     if (ability.can('manage', 'all') && typeof companyIdOrUser !== 'string') {
       return { id: 'global', name: 'Global Tenant', isGlobal: true };
@@ -137,7 +137,7 @@ export class TenantInterceptor implements NestInterceptor {
     }
 
     return { ...company, isGlobal: false };
-    }
+  }
 
   // Tratar erros de tenant de forma padronizada
   private handleTenantError(error: any): never {

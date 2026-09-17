@@ -47,12 +47,17 @@ export class MetricsInterceptor implements NestInterceptor {
 
         // Log slow requests
         if (duration > 1) {
-          console.warn(`Slow request: ${method} ${path} took ${duration.toFixed(2)}s`);
+          console.warn(
+            `Slow request: ${method} ${path} took ${duration.toFixed(2)}s`,
+          );
         }
       }),
       catchError((error) => {
         const duration = (Date.now() - startTime) / 1000;
-        const status = error instanceof HttpException ? error.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
+        const status =
+          error instanceof HttpException
+            ? error.getStatus()
+            : HttpStatus.INTERNAL_SERVER_ERROR;
 
         this.httpRequestsTotal.inc({ method, path, status });
         this.httpRequestDuration.observe({ method, path }, duration);
@@ -62,4 +67,4 @@ export class MetricsInterceptor implements NestInterceptor {
       }),
     );
   }
-} 
+}

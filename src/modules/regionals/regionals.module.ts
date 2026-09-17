@@ -8,5 +8,4 @@ import { RegionalsService } from './regionals.service';
   providers: [RegionalsService],
   exports: [RegionalsService],
 })
-export class RegionalsModule { }
-
+export class RegionalsModule {}

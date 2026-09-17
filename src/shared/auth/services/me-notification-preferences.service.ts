@@ -54,7 +54,8 @@ export class MeNotificationPreferencesService {
     );
     if (dto.activitiesNotification) {
       const p = dto.activitiesNotification;
-      if (p.assignments !== undefined) mergedActivities.assignments = p.assignments;
+      if (p.assignments !== undefined)
+        mergedActivities.assignments = p.assignments;
       if (p.comments !== undefined) mergedActivities.comments = p.comments;
       if (p.deadlines !== undefined) mergedActivities.deadlines = p.deadlines;
       if (p.reports !== undefined) mergedActivities.reports = p.reports;

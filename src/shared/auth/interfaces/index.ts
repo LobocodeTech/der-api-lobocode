@@ -6,4 +6,4 @@ export {
   ILogoutResponse,
   IForgotPasswordResponse,
   IResetPasswordResponse,
-} from './auth-response.interface'; 
+} from './auth-response.interface';

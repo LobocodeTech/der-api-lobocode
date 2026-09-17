@@ -1,5 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { MESSAGES, VALIDATION_MESSAGES, ERROR_MESSAGES, SUCCESS_MESSAGES, LOG_MESSAGES } from './messages.constants';
+import {
+  MESSAGES,
+  VALIDATION_MESSAGES,
+  ERROR_MESSAGES,
+  SUCCESS_MESSAGES,
+  LOG_MESSAGES,
+} from './messages.constants';
 
 export interface MessageContext {
   resource?: string;
@@ -15,7 +21,11 @@ export class MessagesService {
   /**
    * Obtém uma mensagem de validação
    */
-  getValidationMessage(category: keyof typeof VALIDATION_MESSAGES, key: string, context?: MessageContext): string {
+  getValidationMessage(
+    category: keyof typeof VALIDATION_MESSAGES,
+    key: string,
+    context?: MessageContext,
+  ): string {
     const message = VALIDATION_MESSAGES[category]?.[key];
     return this.interpolateMessage(message, context);
   }
@@ -23,7 +33,11 @@ export class MessagesService {
   /**
    * Obtém uma mensagem de erro
    */
-getErrorMessage(category: keyof typeof ERROR_MESSAGES, key: string, context?: MessageContext): string {
+  getErrorMessage(
+    category: keyof typeof ERROR_MESSAGES,
+    key: string,
+    context?: MessageContext,
+  ): string {
     const message = ERROR_MESSAGES[category]?.[key];
     return this.interpolateMessage(message, context);
   }
@@ -31,7 +45,11 @@ getErrorMessage(category: keyof typeof ERROR_MESSAGES, key: string, context?: Me
   /**
    * Obtém uma mensagem de sucesso
    */
-  getSuccessMessage(category: keyof typeof SUCCESS_MESSAGES, key: string, context?: MessageContext): string {
+  getSuccessMessage(
+    category: keyof typeof SUCCESS_MESSAGES,
+    key: string,
+    context?: MessageContext,
+  ): string {
     const message = SUCCESS_MESSAGES[category]?.[key];
     return this.interpolateMessage(message, context);
   }
@@ -39,7 +57,11 @@ getErrorMessage(category: keyof typeof ERROR_MESSAGES, key: string, context?: Me
   /**
    * Obtém uma mensagem de log
    */
-  getLogMessage(category: keyof typeof LOG_MESSAGES, key: string, context?: MessageContext): string {
+  getLogMessage(
+    category: keyof typeof LOG_MESSAGES,
+    key: string,
+    context?: MessageContext,
+  ): string {
     const message = LOG_MESSAGES[category]?.[key];
     return this.interpolateMessage(message, context);
   }
@@ -47,7 +69,11 @@ getErrorMessage(category: keyof typeof ERROR_MESSAGES, key: string, context?: Me
   /**
    * Obtém uma mensagem específica por recurso
    */
-  getResourceMessage(resource: string, action: string, context?: MessageContext): string {
+  getResourceMessage(
+    resource: string,
+    action: string,
+    context?: MessageContext,
+  ): string {
     const resourceMessages = {
       user: {
         created: 'Usuário criado com sucesso',
@@ -86,14 +112,19 @@ getErrorMessage(category: keyof typeof ERROR_MESSAGES, key: string, context?: Me
       },
     };
 
-    const message = resourceMessages[resource]?.[action] || `${resource} ${action}`;
+    const message =
+      resourceMessages[resource]?.[action] || `${resource} ${action}`;
     return this.interpolateMessage(message, context);
   }
 
   /**
    * Obtém uma mensagem de validação específica por campo
    */
-  getFieldValidationMessage(field: string, type: string, context?: MessageContext): string {
+  getFieldValidationMessage(
+    field: string,
+    type: string,
+    context?: MessageContext,
+  ): string {
     const fieldMessages = {
       name: {
         required: 'Nome é obrigatório',
@@ -159,7 +190,10 @@ getErrorMessage(category: keyof typeof ERROR_MESSAGES, key: string, context?: Me
   /**
    * Interpola variáveis em uma mensagem
    */
-  private interpolateMessage(message: string, context?: MessageContext): string {
+  private interpolateMessage(
+    message: string,
+    context?: MessageContext,
+  ): string {
     if (!message || !context) return message;
 
     return message.replace(/\{(\w+)\}/g, (match, key) => {
@@ -194,7 +228,7 @@ getErrorMessage(category: keyof typeof ERROR_MESSAGES, key: string, context?: Me
   getStructuredLogMessage(
     action: string,
     resource: string,
-    context: MessageContext
+    context: MessageContext,
   ): { message: string; metadata: any } {
     const message = `${action} ${resource}`;
     const metadata = {
@@ -206,4 +240,4 @@ getErrorMessage(category: keyof typeof ERROR_MESSAGES, key: string, context?: Me
 
     return { message, metadata };
   }
-} 
+}

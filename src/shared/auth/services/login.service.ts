@@ -19,7 +19,7 @@ export class LoginService {
     private readonly refreshTokenService: RefreshTokenService,
     private readonly auditService: AuditService,
     private readonly securityService: SecurityService,
-    private readonly authValidator: AuthValidator
+    private readonly authValidator: AuthValidator,
   ) {}
 
   /**
@@ -93,4 +93,4 @@ export class LoginService {
       throw error;
     }
   }
-} 
+}

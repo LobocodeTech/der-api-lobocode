@@ -37,7 +37,8 @@ async function bootstrap() {
       }),
     );
 
-    const corsAllowAll = (process.env.CORS_ALLOW_ALL ?? 'true').toLowerCase() === 'true';
+    const corsAllowAll =
+      (process.env.CORS_ALLOW_ALL ?? 'true').toLowerCase() === 'true';
     const allowedOrigins = [
       'https://api.departamento-estadual-rodovias.com.br',
       'https://api.departamento-estadual-rodovias.com',
@@ -93,7 +94,6 @@ async function bootstrap() {
     logger.log(
       `📊 Health check disponível em http://localhost:${port}/health`,
       'Bootstrap',
-      
     );
     logger.log(
       `📈 Métricas disponíveis em http://localhost:${port}/metrics`,

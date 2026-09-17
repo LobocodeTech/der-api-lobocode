@@ -24,7 +24,7 @@ export class UniversalPermissionService {
    * Agora com auditoria automática integrada
    */
   validarAction(
-    entityName: EntityNameCasl, 
+    entityName: EntityNameCasl,
     action: CrudAction,
     context?: {
       resourceId?: string;
@@ -32,9 +32,9 @@ export class UniversalPermissionService {
       ipAddress?: string;
       userAgent?: string;
       skipAudit?: boolean;
-    }
+    },
   ): boolean {
-    // TODO: Implementar quando método getCurrentUser estiver disponível
+    // TODO: Implementar auditoria quando getCurrentUser estiver disponível
     // const user = this.contextService.getCurrentUser();
     let success = false;
     let errorMessage: string | undefined;
@@ -43,10 +43,15 @@ export class UniversalPermissionService {
       success = this.caslService.validarAction(action, entityName);
       return success;
     } catch (error) {
-      errorMessage = error instanceof Error ? error.message : 'Permission denied';
+      errorMessage =
+        error instanceof Error ? error.message : 'Permission denied';
       throw error;
     } finally {
-
+      // Placeholder: registrar via auditService quando getCurrentUser existir
+      // (success / errorMessage / context / skipAudit)
+      void success;
+      void errorMessage;
+      void context;
     }
   }
 

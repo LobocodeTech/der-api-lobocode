@@ -1,6 +1,6 @@
 /**
  * 🔧 CONTEXT BUILDER - SUPPLY
- * 
+ *
  * Constrói contexto rico para notificações de abastecimentos.
  * Inclui dados relacionados como posto, veículo, usuário, etc.
  */
@@ -17,12 +17,20 @@ export class SupplyContextBuilder {
   /**
    * 📋 SUPPLY - Contexto para abastecimentos
    */
-  async buildSupplyContext(supplyId: string, operation: string): Promise<NotificationContext> {
+  async buildSupplyContext(
+    supplyId: string,
+    operation: string,
+  ): Promise<NotificationContext> {
     const delegate = (this.prisma as any).supply;
     if (!delegate) {
       return {
-        userName: '', postName: '', time: DateFormatter.formatDateTime(new Date()),
-        liters: 0, talaoNumber: undefined, vehiclePlate: undefined, vehicleModel: undefined,
+        userName: '',
+        postName: '',
+        time: DateFormatter.formatDateTime(new Date()),
+        liters: 0,
+        talaoNumber: undefined,
+        vehiclePlate: undefined,
+        vehicleModel: undefined,
       };
     }
     const supply = await delegate.findUnique({
@@ -47,5 +55,4 @@ export class SupplyContextBuilder {
       vehicleModel: s.vehicle?.model,
     };
   }
-
 }

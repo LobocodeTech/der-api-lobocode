@@ -5,4 +5,4 @@ export class RefreshDto {
   @IsString({ message: VALIDATION_MESSAGES.REQUIRED.FIELD })
   @IsNotEmpty({ message: VALIDATION_MESSAGES.REQUIRED.FIELD })
   refreshToken: string;
-} 
+}

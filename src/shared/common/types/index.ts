@@ -1,1 +1,1 @@
-export * from './crud-actions.type'; 
+export * from './crud-actions.type';

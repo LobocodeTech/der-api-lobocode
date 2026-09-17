@@ -37,7 +37,9 @@ export function parseActivitiesNotification(
   const o = raw as Record<string, unknown>;
   return {
     assignments: Boolean(
-      o.assignments !== undefined ? o.assignments : DEFAULT_ACTIVITIES.assignments,
+      o.assignments !== undefined
+        ? o.assignments
+        : DEFAULT_ACTIVITIES.assignments,
     ),
     comments: Boolean(
       o.comments !== undefined ? o.comments : DEFAULT_ACTIVITIES.comments,

@@ -36,7 +36,10 @@ export function diasRestantesCivisAtePrazo(
   dueDate: Date,
   agora: Date = new Date(),
 ): number {
-  return Math.max(0, diffDiasCivisYmd(ymdAgoraCivilBrt(agora), ymdFromCampoDate(dueDate)));
+  return Math.max(
+    0,
+    diffDiasCivisYmd(ymdAgoraCivilBrt(agora), ymdFromCampoDate(dueDate)),
+  );
 }
 
 export function calcularSlaStatusGeralPreventiva(

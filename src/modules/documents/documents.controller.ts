@@ -74,10 +74,7 @@ export class DocumentsController {
   }
 
   @Get(':id')
-  async findOne(
-    @Param('id') id: string,
-    @CurrentUser() user: any,
-  ) {
+  async findOne(@Param('id') id: string, @CurrentUser() user: any) {
     return this.documentsService.findOne(id, user.id, user.companyId);
   }
 
@@ -110,10 +107,7 @@ export class DocumentsController {
   }
 
   @Delete(':id')
-  async remove(
-    @Param('id') id: string,
-    @CurrentUser() user: any,
-  ) {
+  async remove(@Param('id') id: string, @CurrentUser() user: any) {
     return this.documentsService.remove(id, user.id, user.companyId);
   }
 }
