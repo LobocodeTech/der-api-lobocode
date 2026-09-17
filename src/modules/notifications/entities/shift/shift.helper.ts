@@ -1,6 +1,6 @@
 /**
  * 🔔 HELPER - SHIFT
- * 
+ *
  * Helper específico para notificações de turnos.
  * Usa templates contextuais e sistema de destinatários inteligente.
  */
@@ -17,7 +17,7 @@ export class ShiftNotificationHelper {
   constructor(
     private notificationService: NotificationService,
     private contextBuilder: ShiftContextBuilder,
-    private recipientsService: NotificationRecipientsService
+    private recipientsService: NotificationRecipientsService,
   ) {}
 
   /**
@@ -30,8 +30,11 @@ export class ShiftNotificationHelper {
   ) {
     try {
       // 1. Construir contexto rico
-      const context = await this.contextBuilder.buildShiftContext(turnoId, 'started');
-      
+      const context = await this.contextBuilder.buildShiftContext(
+        turnoId,
+        'started',
+      );
+
       // 2. Obter template
       const template = ShiftTemplateService.getTemplate('started');
       if (!template) {
@@ -39,10 +42,16 @@ export class ShiftNotificationHelper {
       }
 
       // 3. Renderizar template com contexto
-      const renderedTemplate = ShiftTemplateService.renderTemplate(template, context);
+      const renderedTemplate = ShiftTemplateService.renderTemplate(
+        template,
+        context,
+      );
 
       // 4. Obter destinatários
-      const recipients = await this.recipientsService.getRecipients(companyId, template.recipients);
+      const recipients = await this.recipientsService.getRecipients(
+        companyId,
+        template.recipients,
+      );
 
       // 5. Criar notificação
       return this.notificationService.criar({
@@ -71,8 +80,11 @@ export class ShiftNotificationHelper {
   ) {
     try {
       // 1. Construir contexto rico
-      const context = await this.contextBuilder.buildShiftContext(turnoId, 'finished');
-      
+      const context = await this.contextBuilder.buildShiftContext(
+        turnoId,
+        'finished',
+      );
+
       // 2. Obter template
       const template = ShiftTemplateService.getTemplate('finished');
       if (!template) {
@@ -80,10 +92,16 @@ export class ShiftNotificationHelper {
       }
 
       // 3. Renderizar template com contexto
-      const renderedTemplate = ShiftTemplateService.renderTemplate(template, context);
+      const renderedTemplate = ShiftTemplateService.renderTemplate(
+        template,
+        context,
+      );
 
       // 4. Obter destinatários
-      const recipients = await this.recipientsService.getRecipients(companyId, template.recipients);
+      const recipients = await this.recipientsService.getRecipients(
+        companyId,
+        template.recipients,
+      );
 
       // 5. Criar notificação
       return this.notificationService.criar({
@@ -112,8 +130,11 @@ export class ShiftNotificationHelper {
   ) {
     try {
       // 1. Construir contexto rico
-      const context = await this.contextBuilder.buildShiftContext(turnoId, 'break_started');
-      
+      const context = await this.contextBuilder.buildShiftContext(
+        turnoId,
+        'break_started',
+      );
+
       // 2. Obter template
       const template = ShiftTemplateService.getTemplate('break_started');
       if (!template) {
@@ -121,10 +142,16 @@ export class ShiftNotificationHelper {
       }
 
       // 3. Renderizar template com contexto
-      const renderedTemplate = ShiftTemplateService.renderTemplate(template, context);
+      const renderedTemplate = ShiftTemplateService.renderTemplate(
+        template,
+        context,
+      );
 
       // 4. Obter destinatários
-      const recipients = await this.recipientsService.getRecipients(companyId, template.recipients);
+      const recipients = await this.recipientsService.getRecipients(
+        companyId,
+        template.recipients,
+      );
 
       // 5. Criar notificação
       return this.notificationService.criar({
@@ -153,8 +180,11 @@ export class ShiftNotificationHelper {
   ) {
     try {
       // 1. Construir contexto rico
-      const context = await this.contextBuilder.buildShiftContext(turnoId, 'break_finished');
-      
+      const context = await this.contextBuilder.buildShiftContext(
+        turnoId,
+        'break_finished',
+      );
+
       // 2. Obter template
       const template = ShiftTemplateService.getTemplate('break_finished');
       if (!template) {
@@ -162,10 +192,16 @@ export class ShiftNotificationHelper {
       }
 
       // 3. Renderizar template com contexto
-      const renderedTemplate = ShiftTemplateService.renderTemplate(template, context);
+      const renderedTemplate = ShiftTemplateService.renderTemplate(
+        template,
+        context,
+      );
 
       // 4. Obter destinatários
-      const recipients = await this.recipientsService.getRecipients(companyId, template.recipients);
+      const recipients = await this.recipientsService.getRecipients(
+        companyId,
+        template.recipients,
+      );
 
       // 5. Criar notificação
       return this.notificationService.criar({
@@ -179,7 +215,10 @@ export class ShiftNotificationHelper {
         recipients,
       });
     } catch (error) {
-      console.error('Erro ao criar notificação de intervalo finalizado:', error);
+      console.error(
+        'Erro ao criar notificação de intervalo finalizado:',
+        error,
+      );
       throw error;
     }
   }

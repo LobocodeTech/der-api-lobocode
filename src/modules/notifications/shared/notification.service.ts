@@ -1,4 +1,9 @@
-import { Injectable, Inject, forwardRef, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  forwardRef,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../../shared/prisma/prisma.service';
 import {
   CreateNotificationData,
@@ -28,7 +33,9 @@ export class NotificationService {
   /**
    * Criar uma notificação simples
    */
-  async criar(data: CreateNotificationData): Promise<NotificationResponse | null> {
+  async criar(
+    data: CreateNotificationData,
+  ): Promise<NotificationResponse | null> {
     const hasExplicitRecipients =
       Array.isArray(data.recipients) && data.recipients.length > 0;
 
@@ -157,15 +164,17 @@ export class NotificationService {
     };
 
     const [notifications, total] = await Promise.all([
-      this.prisma.notification.findMany(queryOptions) as unknown as Promise<Array<{
-        id: string;
-        title: string;
-        message: string;
-        entityType: string | null;
-        entityId: string | null;
-        createdAt: Date;
-        recipients: { isRead: boolean }[];
-      }>>,
+      this.prisma.notification.findMany(queryOptions) as unknown as Promise<
+        Array<{
+          id: string;
+          title: string;
+          message: string;
+          entityType: string | null;
+          entityId: string | null;
+          createdAt: Date;
+          recipients: { isRead: boolean }[];
+        }>
+      >,
       this.prisma.notification.count({ where }),
     ]);
 
@@ -208,18 +217,19 @@ export class NotificationService {
         : {};
 
     // Buscar as últimas 200 notificações do usuário
-    const ultimasNotificacoes = await this.prisma.notificationRecipient.findMany({
-      where: {
-        userId,
-        notification: filtroOs,
-      },
-      orderBy: { notification: { createdAt: 'desc' } },
-      take: MAX_LIMIT,
-      select: { isRead: true },
-    });
+    const ultimasNotificacoes =
+      await this.prisma.notificationRecipient.findMany({
+        where: {
+          userId,
+          notification: filtroOs,
+        },
+        orderBy: { notification: { createdAt: 'desc' } },
+        take: MAX_LIMIT,
+        select: { isRead: true },
+      });
 
     // Contar quantas não foram lidas
-    return ultimasNotificacoes.filter(n => !n.isRead).length;
+    return ultimasNotificacoes.filter((n) => !n.isRead).length;
   }
 
   /**
@@ -227,15 +237,18 @@ export class NotificationService {
    */
   async marcarComoLida(notificationId: string, userId: string): Promise<void> {
     // Verificar se a notificação pertence ao usuário
-    const notificationRecipient = await this.prisma.notificationRecipient.findFirst({
-      where: {
-        notificationId,
-        userId,
-      },
-    });
+    const notificationRecipient =
+      await this.prisma.notificationRecipient.findFirst({
+        where: {
+          notificationId,
+          userId,
+        },
+      });
 
     if (!notificationRecipient) {
-      throw new NotFoundException('Notificação não encontrada ou não pertence ao usuário');
+      throw new NotFoundException(
+        'Notificação não encontrada ou não pertence ao usuário',
+      );
     }
 
     await this.prisma.notificationRecipient.updateMany({
@@ -269,17 +282,23 @@ export class NotificationService {
   /**
    * Deletar notificação (apenas para o usuário específico)
    */
-  async deletarNotificacao(notificationId: string, userId: string): Promise<void> {
+  async deletarNotificacao(
+    notificationId: string,
+    userId: string,
+  ): Promise<void> {
     // Verificar se a notificação pertence ao usuário
-    const notificationRecipient = await this.prisma.notificationRecipient.findFirst({
-      where: {
-        notificationId,
-        userId,
-      },
-    });
+    const notificationRecipient =
+      await this.prisma.notificationRecipient.findFirst({
+        where: {
+          notificationId,
+          userId,
+        },
+      });
 
     if (!notificationRecipient) {
-      throw new NotFoundException('Notificação não encontrada ou não pertence ao usuário');
+      throw new NotFoundException(
+        'Notificação não encontrada ou não pertence ao usuário',
+      );
     }
 
     // Deletar apenas o registro do usuário específico

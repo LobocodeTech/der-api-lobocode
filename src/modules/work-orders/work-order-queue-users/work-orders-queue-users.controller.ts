@@ -34,12 +34,7 @@ const EVIDENCE_MAX_FILES = 30;
 const EVIDENCE_MAX_FILE_BYTES = 100 * 1024 * 1024;
 @UseGuards(AuthGuard, RoleByMethodGuard)
 @RoleByMethod({
-  GET: [
-    Roles.SYSTEM_ADMIN,
-    Roles.ADMIN,
-    Roles.FIELD_TEAM,
-    Roles.C2C,
-  ],
+  GET: [Roles.SYSTEM_ADMIN, Roles.ADMIN, Roles.FIELD_TEAM, Roles.C2C],
   POST: [Roles.SYSTEM_ADMIN, Roles.ADMIN, Roles.FIELD_TEAM, Roles.C2C],
   PATCH: [Roles.SYSTEM_ADMIN, Roles.ADMIN, Roles.FIELD_TEAM, Roles.C2C],
   DELETE: [Roles.SYSTEM_ADMIN, Roles.ADMIN, Roles.C2C],
@@ -61,12 +56,7 @@ export class WorkOrdersQueueUsersController extends UniversalController<
 
   @Delete(':id/checklist-items/:itemId')
   @RoleByMethod({
-    DELETE: [
-      Roles.SYSTEM_ADMIN,
-      Roles.ADMIN,
-      Roles.FIELD_TEAM,
-      Roles.C2C,
-    ],
+    DELETE: [Roles.SYSTEM_ADMIN, Roles.ADMIN, Roles.FIELD_TEAM, Roles.C2C],
   })
   async removerItemDoChecklist(
     @Param('id') id: string,
@@ -149,4 +139,3 @@ export class WorkOrdersQueueUsersController extends UniversalController<
     return this.service.adicionarEvidencia(id, files, description);
   }
 }
-

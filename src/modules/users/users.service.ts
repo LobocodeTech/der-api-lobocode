@@ -358,8 +358,7 @@ export class UsersService extends BaseUserService {
     //  - Já era FIELD_TEAM (ou voltou com membros no payload) → aplica diff.
     const roleFinal = dadosParaAtualizar.role ?? userBefore?.role;
     const voltandoParaFieldTeam =
-      roleFinal === Roles.FIELD_TEAM &&
-      userBefore?.role !== Roles.FIELD_TEAM;
+      roleFinal === Roles.FIELD_TEAM && userBefore?.role !== Roles.FIELD_TEAM;
 
     if (roleFinal !== Roles.FIELD_TEAM) {
       await this.softDeleteAllMembers(id);
@@ -414,8 +413,7 @@ export class UsersService extends BaseUserService {
     const result = await super.desativar(id);
 
     const eraAtivo =
-      userBefore?.status === UserStatus.ACTIVE &&
-      userBefore.deletedAt === null;
+      userBefore?.status === UserStatus.ACTIVE && userBefore.deletedAt === null;
 
     if (eraAtivo) {
       this.notificationService.revogarSessaoUsuario(id);

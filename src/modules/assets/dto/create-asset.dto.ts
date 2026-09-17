@@ -25,10 +25,16 @@ export class CreateAssetDto {
   companyId?: string;
 
   /** ATDB (ID) e PMV (nome); não usado em câmeras. */
-  @ValidateIf((o: CreateAssetDto) => o.type === AssetType.ATDB || o.type === AssetType.PMV)
+  @ValidateIf(
+    (o: CreateAssetDto) =>
+      o.type === AssetType.ATDB || o.type === AssetType.PMV,
+  )
   @IsNotEmpty({ message: VALIDATION_MESSAGES.REQUIRED.FIELD })
   @IsString({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
-  @ValidateIf((o: CreateAssetDto) => o.type !== AssetType.ATDB && o.type !== AssetType.PMV)
+  @ValidateIf(
+    (o: CreateAssetDto) =>
+      o.type !== AssetType.ATDB && o.type !== AssetType.PMV,
+  )
   @IsOptional()
   @IsString({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
   name?: string;

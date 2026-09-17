@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { IpLocationService } from './ip-location.service';
 import { UniversalController } from 'src/shared/universal';
 import { CreateIpLocationDto } from './dto/create-ip-location-dto';
@@ -50,6 +58,9 @@ export class IpLocationController extends UniversalController<
 
   @Patch('reorder')
   async reordenar(@Body() body: ReorderIpLocationsDto) {
-    return this.service.reordenarPorLocalidade(body.locationId, body.orderedIds);
+    return this.service.reordenarPorLocalidade(
+      body.locationId,
+      body.orderedIds,
+    );
   }
 }

@@ -1,6 +1,6 @@
 /**
  * 🚶 PATROL NOTIFICATION HELPER
- * 
+ *
  * Helper específico para notificações de Rondas.
  * Integra com o sistema de templates e destinatários.
  */
@@ -16,7 +16,7 @@ export class PatrolNotificationHelper {
   constructor(
     private notificationService: NotificationService,
     private contextBuilder: PatrolContextBuilder,
-    private recipientsService: NotificationRecipientsService
+    private recipientsService: NotificationRecipientsService,
   ) {}
 
   /**
@@ -29,8 +29,11 @@ export class PatrolNotificationHelper {
   ) {
     try {
       // 1. Construir contexto rico
-      const context = await this.contextBuilder.buildPatrolContext(patrolId, 'started');
-      
+      const context = await this.contextBuilder.buildPatrolContext(
+        patrolId,
+        'started',
+      );
+
       // 2. Obter template
       const template = PatrolTemplateService.getTemplate('started');
       if (!template) {
@@ -38,13 +41,16 @@ export class PatrolNotificationHelper {
       }
 
       // 3. Renderizar template com contexto
-      const renderedTemplate = PatrolTemplateService.renderTemplate(template, context);
+      const renderedTemplate = PatrolTemplateService.renderTemplate(
+        template,
+        context,
+      );
 
       // 4. Obter destinatários
       const recipients = await this.recipientsService.getRecipients(
-        companyId, 
+        companyId,
         template.recipients,
-        { type: template.recipients }
+        { type: template.recipients },
       );
 
       // 5. Criar notificação
@@ -74,8 +80,11 @@ export class PatrolNotificationHelper {
   ) {
     try {
       // 1. Construir contexto rico
-      const context = await this.contextBuilder.buildPatrolContext(patrolId, 'completed');
-      
+      const context = await this.contextBuilder.buildPatrolContext(
+        patrolId,
+        'completed',
+      );
+
       // 2. Obter template
       const template = PatrolTemplateService.getTemplate('completed');
       if (!template) {
@@ -83,13 +92,16 @@ export class PatrolNotificationHelper {
       }
 
       // 3. Renderizar template com contexto
-      const renderedTemplate = PatrolTemplateService.renderTemplate(template, context);
+      const renderedTemplate = PatrolTemplateService.renderTemplate(
+        template,
+        context,
+      );
 
       // 4. Obter destinatários
       const recipients = await this.recipientsService.getRecipients(
-        companyId, 
+        companyId,
         template.recipients,
-        { type: template.recipients }
+        { type: template.recipients },
       );
 
       // 5. Criar notificação
@@ -120,22 +132,31 @@ export class PatrolNotificationHelper {
   ) {
     try {
       // 1. Construir contexto rico
-      const context = await this.contextBuilder.buildPatrolCheckpointContext(patrolId, checkpointName, 'checkpoint_reached');
-      
+      const context = await this.contextBuilder.buildPatrolCheckpointContext(
+        patrolId,
+        checkpointName,
+        'checkpoint_reached',
+      );
+
       // 2. Obter template
       const template = PatrolTemplateService.getTemplate('checkpoint_reached');
       if (!template) {
-        throw new Error('Template não encontrado para patrol.checkpoint_reached');
+        throw new Error(
+          'Template não encontrado para patrol.checkpoint_reached',
+        );
       }
 
       // 3. Renderizar template com contexto
-      const renderedTemplate = PatrolTemplateService.renderTemplate(template, context);
+      const renderedTemplate = PatrolTemplateService.renderTemplate(
+        template,
+        context,
+      );
 
       // 4. Obter destinatários
       const recipients = await this.recipientsService.getRecipients(
-        companyId, 
+        companyId,
         template.recipients,
-        { type: template.recipients }
+        { type: template.recipients },
       );
 
       // 5. Criar notificação
@@ -150,7 +171,10 @@ export class PatrolNotificationHelper {
         recipients,
       });
     } catch (error) {
-      console.error('Erro ao criar notificação de checkpoint alcançado:', error);
+      console.error(
+        'Erro ao criar notificação de checkpoint alcançado:',
+        error,
+      );
       throw error;
     }
   }
@@ -166,22 +190,31 @@ export class PatrolNotificationHelper {
   ) {
     try {
       // 1. Construir contexto rico
-      const context = await this.contextBuilder.buildPatrolCheckpointContext(patrolId, checkpointName, 'checkpoint_missed');
-      
+      const context = await this.contextBuilder.buildPatrolCheckpointContext(
+        patrolId,
+        checkpointName,
+        'checkpoint_missed',
+      );
+
       // 2. Obter template
       const template = PatrolTemplateService.getTemplate('checkpoint_missed');
       if (!template) {
-        throw new Error('Template não encontrado para patrol.checkpoint_missed');
+        throw new Error(
+          'Template não encontrado para patrol.checkpoint_missed',
+        );
       }
 
       // 3. Renderizar template com contexto
-      const renderedTemplate = PatrolTemplateService.renderTemplate(template, context);
+      const renderedTemplate = PatrolTemplateService.renderTemplate(
+        template,
+        context,
+      );
 
       // 4. Obter destinatários
       const recipients = await this.recipientsService.getRecipients(
-        companyId, 
+        companyId,
         template.recipients,
-        { type: template.recipients }
+        { type: template.recipients },
       );
 
       // 5. Criar notificação

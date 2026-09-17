@@ -211,7 +211,8 @@ export class WorkOrderOneDriveExportService {
     if (filtros.regionalId) {
       and.push({ location: { regionalId: filtros.regionalId } });
     }
-    if (filtros.equipmentType) and.push({ equipmentType: filtros.equipmentType });
+    if (filtros.equipmentType)
+      and.push({ equipmentType: filtros.equipmentType });
     if (filtros.status) and.push({ status: filtros.status });
     if (filtros.createdById) and.push({ createdBy: filtros.createdById });
     if (filtros.assigneeId) {

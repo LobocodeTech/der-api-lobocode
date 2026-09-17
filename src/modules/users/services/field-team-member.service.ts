@@ -1,4 +1,9 @@
-import { Injectable, BadRequestException, Optional, Inject } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  Optional,
+  Inject,
+} from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 import { UniversalService } from '../../../shared/universal/services/universal.service';
 import { UniversalRepository } from '../../../shared/universal/repositories/universal.repository';

@@ -63,8 +63,9 @@ export class AssetsService extends UniversalService<
         deletedAt: null,
       });
       if (!existente) return;
-      (data as CreateAssetDto).type = (existente as { type: CreateAssetDto['type'] })
-        .type;
+      (data as CreateAssetDto).type = (
+        existente as { type: CreateAssetDto['type'] }
+      ).type;
     }
     if (data.type) {
       aplicarCamposAssetPorTipo(data as CreateAssetDto);
@@ -116,7 +117,9 @@ export class AssetsService extends UniversalService<
     const result = await this.buscarMuitosPorCampo('locationId', locationId);
     const list = Array.isArray(result.data) ? result.data : [];
     return {
-      data: list.filter((a: { locationId?: string }) => a.locationId === locationId),
+      data: list.filter(
+        (a: { locationId?: string }) => a.locationId === locationId,
+      ),
     };
   }
 
@@ -138,11 +141,8 @@ export class AssetsService extends UniversalService<
       ...(companyId && { companyId }),
     });
 
-    const activelocationsIds = new Set(
-      activelocations.map((h: any) => h.id),
-    );
+    const activelocationsIds = new Set(activelocations.map((h: any) => h.id));
 
     return assets.filter((a: any) => activelocationsIds.has(a.locationId));
   }
 }
-

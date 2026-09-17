@@ -1,6 +1,6 @@
 /**
  * 🚶 PATROL NOTIFICATIONS - EXPORTS
- * 
+ *
  * Exports para notificações de Rondas.
  */
 

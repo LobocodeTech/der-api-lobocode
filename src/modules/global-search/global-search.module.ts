@@ -7,4 +7,3 @@ import { GlobalSearchService } from './global-search.service';
   providers: [GlobalSearchService],
 })
 export class GlobalSearchModule {}
-

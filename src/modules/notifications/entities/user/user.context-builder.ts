@@ -1,6 +1,6 @@
 /**
  * 🔧 CONTEXT BUILDER - USER
- * 
+ *
  * Constrói contexto rico para notificações de usuários.
  * Inclui dados relacionados como nome, etc.
  */
@@ -17,10 +17,13 @@ export class UserContextBuilder {
   /**
    * 👥 USER - Contexto para usuários
    */
-  async buildUserContext(userId: string, operation: string): Promise<NotificationContext> {
+  async buildUserContext(
+    userId: string,
+    operation: string,
+  ): Promise<NotificationContext> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { name: true }
+      select: { name: true },
     });
 
     if (!user) {

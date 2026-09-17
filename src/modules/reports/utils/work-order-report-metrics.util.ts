@@ -19,9 +19,7 @@ import {
   diasRestantesCivisAtePrazo,
 } from '../../work-orders/utils/general-preventive-sla.util';
 import { instanteFimDoPrazoAPartirDoCampoDate } from '../../work-orders/utils/work-order-due-date.util';
-import {
-  ReportSlaBucket,
-} from '../dto/work-order-report-filter.dto';
+import { ReportSlaBucket } from '../dto/work-order-report-filter.dto';
 import {
   WorkOrderReportCorrectiveMetrics,
   WorkOrderReportDueDateMetrics,
@@ -52,10 +50,7 @@ interface WorkOrderMetricsInput {
   companyConfig: CorrectiveSlaCompanyConfig;
 }
 
-function calcularSegundosEntre(
-  inicio: Date | null,
-  fim: Date | null,
-): number {
+function calcularSegundosEntre(inicio: Date | null, fim: Date | null): number {
   if (!inicio || !fim) return 0;
   const diff = fim.getTime() - inicio.getTime();
   if (!Number.isFinite(diff) || diff <= 0) return 0;
@@ -115,9 +110,12 @@ export function calcularIntervalosAtivosExecucao(
   return intervalos;
 }
 
-function somarSegundosRelogioNosIntervalos(intervalos: IntervaloAtivo[]): number {
+function somarSegundosRelogioNosIntervalos(
+  intervalos: IntervaloAtivo[],
+): number {
   return intervalos.reduce(
-    (acc, intervalo) => acc + calcularSegundosEntre(intervalo.start, intervalo.end),
+    (acc, intervalo) =>
+      acc + calcularSegundosEntre(intervalo.start, intervalo.end),
     0,
   );
 }
@@ -129,7 +127,11 @@ function calcularConsumoSlaNaExecucao(
   startedAt: Date | null,
   config: CorrectiveSlaCompanyConfig,
 ): number {
-  if (!startedAt || !slaStartAt || startedAt.getTime() <= slaStartAt.getTime()) {
+  if (
+    !startedAt ||
+    !slaStartAt ||
+    startedAt.getTime() <= slaStartAt.getTime()
+  ) {
     return consumidoTotal;
   }
   const filaSeconds = calcularSegundosUteis(
@@ -168,7 +170,10 @@ export function calcularMetricasPausasRetornos(
     if (evento.eventType === 'PAUSE') {
       ultimaPausa = evento.createdAt;
     } else if (evento.eventType === 'RESUME' && ultimaPausa) {
-      totalPausedSeconds += calcularSegundosEntre(ultimaPausa, evento.createdAt);
+      totalPausedSeconds += calcularSegundosEntre(
+        ultimaPausa,
+        evento.createdAt,
+      );
       ultimaPausa = null;
     }
   }
@@ -264,12 +269,11 @@ export function calcularMetricasCorretiva(
     budget,
     agora,
   );
-  const conclusaoOficial =
-    ordem.finalApprovalCompletedAt ?? ordem.completedAt;
+  const conclusaoOficial = ordem.finalApprovalCompletedAt ?? ordem.completedAt;
   const fimExecucao =
     ordem.status === WorkOrderStatus.COMPLETED ||
     ordem.status === WorkOrderStatus.CANCELLED
-      ? conclusaoOficial ?? agora
+      ? (conclusaoOficial ?? agora)
       : ordem.startedAt
         ? agora
         : null;
@@ -338,7 +342,7 @@ export function calcularMetricasDueDate(
         agora,
         ordem.completedAt,
       )
-    : ordem.slaStatus ?? WorkOrderSlaStatus.OK;
+    : (ordem.slaStatus ?? WorkOrderSlaStatus.OK);
   const fimPrazo = ordem.dueDate
     ? instanteFimDoPrazoAPartirDoCampoDate(ordem.dueDate)
     : null;
@@ -376,11 +380,14 @@ export function calcularMetricasDueDate(
 }
 
 export function normalizarConfigEmpresaRelatorio(
-  company: {
-    correctiveSlaDefaultSeconds?: number | null;
-    correctiveSlaWindowStart?: string | null;
-    correctiveSlaWindowEnd?: string | null;
-  } | null | undefined,
+  company:
+    | {
+        correctiveSlaDefaultSeconds?: number | null;
+        correctiveSlaWindowStart?: string | null;
+        correctiveSlaWindowEnd?: string | null;
+      }
+    | null
+    | undefined,
 ): CorrectiveSlaCompanyConfig {
   if (!company) {
     return normalizarConfigSlaEmpresa(undefined);

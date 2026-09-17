@@ -75,7 +75,10 @@ export class AuthController {
     }
   }
 
-  private isAllowedFrontendOrigin(origin: string, fallbackOrigin: string): boolean {
+  private isAllowedFrontendOrigin(
+    origin: string,
+    fallbackOrigin: string,
+  ): boolean {
     if (origin === fallbackOrigin) return true;
 
     try {
@@ -113,10 +116,14 @@ export class AuthController {
       this.normalizeFrontendOrigin(fallbackUrl) ?? 'http://localhost:3111';
 
     const cookieOrigin = this.normalizeFrontendOrigin(
-      this.extractCookieValue(req, AuthController.OAUTH_FRONTEND_COOKIE) ?? undefined,
+      this.extractCookieValue(req, AuthController.OAUTH_FRONTEND_COOKIE) ??
+        undefined,
     );
 
-    if (cookieOrigin && this.isAllowedFrontendOrigin(cookieOrigin, fallbackOrigin)) {
+    if (
+      cookieOrigin &&
+      this.isAllowedFrontendOrigin(cookieOrigin, fallbackOrigin)
+    ) {
       return cookieOrigin;
     }
 
@@ -124,7 +131,8 @@ export class AuthController {
   }
 
   private clearOAuthFrontendCookie(res: Response): void {
-    const isProduction = this.configService.get<string>('NODE_ENV') === 'production';
+    const isProduction =
+      this.configService.get<string>('NODE_ENV') === 'production';
     res.clearCookie(AuthController.OAUTH_FRONTEND_COOKIE, {
       path: '/',
       sameSite: 'lax',
@@ -153,7 +161,10 @@ export class AuthController {
     @Body() dto: UpdateMyCompanyDto,
   ) {
     const authUser = request.user as { id: string };
-    const company = await this.meCompanyService.updateByUserId(authUser.id, dto);
+    const company = await this.meCompanyService.updateByUserId(
+      authUser.id,
+      dto,
+    );
     return { data: { company } };
   }
 
@@ -207,7 +218,7 @@ export class AuthController {
     const userId = (request.user as RequestUser | undefined)?.id;
     if (!userId) {
       throw new UnauthorizedError(
-        this.messagesService.getErrorMessage('AUTH', 'USER_NOT_FOUND')
+        this.messagesService.getErrorMessage('AUTH', 'USER_NOT_FOUND'),
       );
     }
     return this.authService.logoutAll(userId, request);
@@ -340,7 +351,8 @@ export class AuthController {
     @Query('frontend_url') frontendUrl: string | undefined,
     @Res() res: Response,
   ): void {
-    const isProduction = this.configService.get<string>('NODE_ENV') === 'production';
+    const isProduction =
+      this.configService.get<string>('NODE_ENV') === 'production';
     const parsed = this.normalizeFrontendOrigin(frontendUrl);
     if (parsed) {
       res.cookie(AuthController.OAUTH_FRONTEND_COOKIE, parsed, {
@@ -366,7 +378,10 @@ export class AuthController {
   @Public()
   @UseFilters(OAuthRedirectExceptionFilter)
   @UseGuards(PassportAuthGuard('google'))
-  async callbackGoogle(@Req() req: Request, @Res() res: Response): Promise<void> {
+  async callbackGoogle(
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
     const user = req.user as any;
     const tokens = this.oauthService.gerarTokensOAuth(user, req, 'google');
     const frontendUrl = this.resolveOAuthFrontendUrl(req);
@@ -390,7 +405,8 @@ export class AuthController {
     @Query('frontend_url') frontendUrl: string | undefined,
     @Res() res: Response,
   ): void {
-    const isProduction = this.configService.get<string>('NODE_ENV') === 'production';
+    const isProduction =
+      this.configService.get<string>('NODE_ENV') === 'production';
     const parsed = this.normalizeFrontendOrigin(frontendUrl);
     if (parsed) {
       res.cookie(AuthController.OAUTH_FRONTEND_COOKIE, parsed, {
@@ -416,7 +432,10 @@ export class AuthController {
   @Public()
   @UseFilters(OAuthRedirectExceptionFilter)
   @UseGuards(PassportAuthGuard('microsoft'))
-  async callbackMicrosoft(@Req() req: Request, @Res() res: Response): Promise<void> {
+  async callbackMicrosoft(
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
     const user = req.user as any;
     const tokens = this.oauthService.gerarTokensOAuth(user, req, 'microsoft');
     const frontendUrl = this.resolveOAuthFrontendUrl(req);

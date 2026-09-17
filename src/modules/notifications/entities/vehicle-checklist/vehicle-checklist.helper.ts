@@ -1,6 +1,6 @@
 /**
  * 🔔 HELPER - VEHICLE CHECKLIST
- * 
+ *
  * Helper específico para notificações de checklist de veículos.
  * Usa templates contextuais e sistema de destinatários inteligente.
  */
@@ -16,7 +16,7 @@ export class VehicleChecklistNotificationHelper {
   constructor(
     private notificationService: NotificationService,
     private contextBuilder: VehicleChecklistContextBuilder,
-    private recipientsService: NotificationRecipientsService
+    private recipientsService: NotificationRecipientsService,
   ) {}
 
   /**
@@ -29,19 +29,30 @@ export class VehicleChecklistNotificationHelper {
   ) {
     try {
       // 1. Construir contexto rico
-      const context = await this.contextBuilder.buildVehicleChecklistContext(checklistId, 'created');
-      
+      const context = await this.contextBuilder.buildVehicleChecklistContext(
+        checklistId,
+        'created',
+      );
+
       // 2. Obter template
       const template = VehicleChecklistTemplateService.getTemplate('created');
       if (!template) {
-        throw new Error('Template não encontrado para vehicleChecklist.created');
+        throw new Error(
+          'Template não encontrado para vehicleChecklist.created',
+        );
       }
 
       // 3. Renderizar template com contexto
-      const renderedTemplate = VehicleChecklistTemplateService.renderTemplate(template, context);
+      const renderedTemplate = VehicleChecklistTemplateService.renderTemplate(
+        template,
+        context,
+      );
 
       // 4. Obter destinatários
-      const recipients = await this.recipientsService.getRecipients(companyId, template.recipients);
+      const recipients = await this.recipientsService.getRecipients(
+        companyId,
+        template.recipients,
+      );
 
       // 5. Criar notificação
       return this.notificationService.criar({
@@ -55,7 +66,10 @@ export class VehicleChecklistNotificationHelper {
         recipients,
       });
     } catch (error) {
-      console.error('Erro ao criar notificação de vehicleChecklist criado:', error);
+      console.error(
+        'Erro ao criar notificação de vehicleChecklist criado:',
+        error,
+      );
       throw error;
     }
   }
@@ -70,19 +84,30 @@ export class VehicleChecklistNotificationHelper {
   ) {
     try {
       // 1. Construir contexto rico
-      const context = await this.contextBuilder.buildVehicleChecklistContext(checklistId, 'updated');
-      
+      const context = await this.contextBuilder.buildVehicleChecklistContext(
+        checklistId,
+        'updated',
+      );
+
       // 2. Obter template
       const template = VehicleChecklistTemplateService.getTemplate('updated');
       if (!template) {
-        throw new Error('Template não encontrado para vehicleChecklist.updated');
+        throw new Error(
+          'Template não encontrado para vehicleChecklist.updated',
+        );
       }
 
       // 3. Renderizar template com contexto
-      const renderedTemplate = VehicleChecklistTemplateService.renderTemplate(template, context);
+      const renderedTemplate = VehicleChecklistTemplateService.renderTemplate(
+        template,
+        context,
+      );
 
       // 4. Obter destinatários
-      const recipients = await this.recipientsService.getRecipients(companyId, template.recipients);
+      const recipients = await this.recipientsService.getRecipients(
+        companyId,
+        template.recipients,
+      );
 
       // 5. Criar notificação
       return this.notificationService.criar({
@@ -96,7 +121,10 @@ export class VehicleChecklistNotificationHelper {
         recipients,
       });
     } catch (error) {
-      console.error('Erro ao criar notificação de vehicleChecklist atualizado:', error);
+      console.error(
+        'Erro ao criar notificação de vehicleChecklist atualizado:',
+        error,
+      );
       throw error;
     }
   }
@@ -111,19 +139,30 @@ export class VehicleChecklistNotificationHelper {
   ) {
     try {
       // 1. Construir contexto rico
-      const context = await this.contextBuilder.buildVehicleChecklistContext(checklistId, 'completed');
-      
+      const context = await this.contextBuilder.buildVehicleChecklistContext(
+        checklistId,
+        'completed',
+      );
+
       // 2. Obter template
       const template = VehicleChecklistTemplateService.getTemplate('completed');
       if (!template) {
-        throw new Error('Template não encontrado para vehicleChecklist.completed');
+        throw new Error(
+          'Template não encontrado para vehicleChecklist.completed',
+        );
       }
 
       // 3. Renderizar template com contexto
-      const renderedTemplate = VehicleChecklistTemplateService.renderTemplate(template, context);
+      const renderedTemplate = VehicleChecklistTemplateService.renderTemplate(
+        template,
+        context,
+      );
 
       // 4. Obter destinatários
-      const recipients = await this.recipientsService.getRecipients(companyId, template.recipients);
+      const recipients = await this.recipientsService.getRecipients(
+        companyId,
+        template.recipients,
+      );
 
       // 5. Criar notificação
       return this.notificationService.criar({
@@ -137,7 +176,10 @@ export class VehicleChecklistNotificationHelper {
         recipients,
       });
     } catch (error) {
-      console.error('Erro ao criar notificação de vehicleChecklist finalizado:', error);
+      console.error(
+        'Erro ao criar notificação de vehicleChecklist finalizado:',
+        error,
+      );
       throw error;
     }
   }

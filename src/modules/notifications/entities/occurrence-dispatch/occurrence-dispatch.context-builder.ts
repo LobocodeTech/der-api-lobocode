@@ -1,6 +1,6 @@
 /**
  * 🔧 CONTEXT BUILDER - OCCURRENCE DISPATCH
- * 
+ *
  * Constrói contexto rico para notificações de despacho de ocorrências.
  * Inclui dados relacionados como posto, usuário, etc.
  */
@@ -17,25 +17,31 @@ export class OccurrenceDispatchContextBuilder {
   /**
    * 🚨 OCCURRENCE DISPATCH - Contexto para despacho de ocorrências
    */
-  async buildOccurrenceDispatchContext(dispatchId: string, operation: string): Promise<NotificationContext> {
+  async buildOccurrenceDispatchContext(
+    dispatchId: string,
+    operation: string,
+  ): Promise<NotificationContext> {
     const dispatchDelegate = (this.prisma as any).occurrenceDispatch;
     if (!dispatchDelegate) {
       return {
-        userName: '', postName: '', time: DateFormatter.formatDateTime(new Date()),
-        guardId: undefined, guardName: '',
+        userName: '',
+        postName: '',
+        time: DateFormatter.formatDateTime(new Date()),
+        guardId: undefined,
+        guardName: '',
       };
     }
     const dispatch = await dispatchDelegate.findUnique({
       where: { id: dispatchId },
       include: {
         user: { select: { name: true } },
-        shift: { 
-          include: { 
-            post: { select: { name: true } } 
-          } 
+        shift: {
+          include: {
+            post: { select: { name: true } },
+          },
         },
-        guard: { select: { name: true } } // Buscar dados do guarda
-      }
+        guard: { select: { name: true } }, // Buscar dados do guarda
+      },
     });
 
     if (!dispatch) {

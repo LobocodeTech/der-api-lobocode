@@ -132,8 +132,7 @@ export class LocationsService extends UniversalService<
         },
       },
       transform: {
-        flatten: {
-        },
+        flatten: {},
         exclude: ['companyId', 'regionalId', 'assets'],
         custom: (entity: Record<string, unknown>) => {
           if (!Array.isArray(entity.assets)) return entity;
@@ -187,4 +186,3 @@ export class LocationsService extends UniversalService<
     }
   }
 }
-

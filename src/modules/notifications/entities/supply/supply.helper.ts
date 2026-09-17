@@ -1,6 +1,6 @@
 /**
  * 🔔 HELPER - SUPPLY
- * 
+ *
  * Helper específico para notificações de abastecimentos.
  * Usa templates contextuais e sistema de destinatários inteligente.
  */
@@ -9,14 +9,14 @@ import { Injectable } from '@nestjs/common';
 import { NotificationService } from '../../shared/notification.service';
 import { SupplyContextBuilder } from './supply.context-builder';
 import { NotificationRecipientsService } from '../../shared/notification.recipients';
-import { SupplyTemplateService } from './supply.templates';  
+import { SupplyTemplateService } from './supply.templates';
 
 @Injectable()
 export class SupplyNotificationHelper {
   constructor(
     private notificationService: NotificationService,
     private contextBuilder: SupplyContextBuilder,
-    private recipientsService: NotificationRecipientsService
+    private recipientsService: NotificationRecipientsService,
   ) {}
 
   /**
@@ -29,8 +29,11 @@ export class SupplyNotificationHelper {
   ) {
     try {
       // 1. Construir contexto rico
-      const context = await this.contextBuilder.buildSupplyContext(supplyId, 'created');
-      
+      const context = await this.contextBuilder.buildSupplyContext(
+        supplyId,
+        'created',
+      );
+
       // 2. Obter template
       const template = SupplyTemplateService.getTemplate('created');
       if (!template) {
@@ -38,10 +41,16 @@ export class SupplyNotificationHelper {
       }
 
       // 3. Renderizar template com contexto
-      const renderedTemplate = SupplyTemplateService.renderTemplate(template, context);
+      const renderedTemplate = SupplyTemplateService.renderTemplate(
+        template,
+        context,
+      );
 
       // 4. Obter destinatários
-      const recipients = await this.recipientsService.getRecipients(companyId, template.recipients);
+      const recipients = await this.recipientsService.getRecipients(
+        companyId,
+        template.recipients,
+      );
 
       // 5. Criar notificação
       return this.notificationService.criar({
@@ -70,8 +79,11 @@ export class SupplyNotificationHelper {
   ) {
     try {
       // 1. Construir contexto rico
-      const context = await this.contextBuilder.buildSupplyContext(supplyId, 'updated');
-      
+      const context = await this.contextBuilder.buildSupplyContext(
+        supplyId,
+        'updated',
+      );
+
       // 2. Obter template
       const template = SupplyTemplateService.getTemplate('updated');
       if (!template) {
@@ -79,10 +91,16 @@ export class SupplyNotificationHelper {
       }
 
       // 3. Renderizar template com contexto
-      const renderedTemplate = SupplyTemplateService.renderTemplate(template, context);
+      const renderedTemplate = SupplyTemplateService.renderTemplate(
+        template,
+        context,
+      );
 
       // 4. Obter destinatários
-      const recipients = await this.recipientsService.getRecipients(companyId, template.recipients);
+      const recipients = await this.recipientsService.getRecipients(
+        companyId,
+        template.recipients,
+      );
 
       // 5. Criar notificação
       return this.notificationService.criar({
@@ -111,8 +129,11 @@ export class SupplyNotificationHelper {
   ) {
     try {
       // 1. Construir contexto rico
-      const context = await this.contextBuilder.buildSupplyContext(supplyId, 'completed');
-      
+      const context = await this.contextBuilder.buildSupplyContext(
+        supplyId,
+        'completed',
+      );
+
       // 2. Obter template
       const template = SupplyTemplateService.getTemplate('completed');
       if (!template) {
@@ -120,10 +141,16 @@ export class SupplyNotificationHelper {
       }
 
       // 3. Renderizar template com contexto
-      const renderedTemplate = SupplyTemplateService.renderTemplate(template, context);
+      const renderedTemplate = SupplyTemplateService.renderTemplate(
+        template,
+        context,
+      );
 
       // 4. Obter destinatários
-      const recipients = await this.recipientsService.getRecipients(companyId, template.recipients);
+      const recipients = await this.recipientsService.getRecipients(
+        companyId,
+        template.recipients,
+      );
 
       // 5. Criar notificação
       return this.notificationService.criar({

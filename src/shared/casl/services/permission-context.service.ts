@@ -65,7 +65,10 @@ export class PermissionContextService {
   /**
    * Valida permissão para operações de turno
    */
-  validarPermissaoTurno(context: PermissionContext, action: CrudAction): boolean {
+  validarPermissaoTurno(
+    context: PermissionContext,
+    action: CrudAction,
+  ): boolean {
     const permission: DynamicPermission = {
       action,
       subject: 'Shift',
@@ -80,7 +83,10 @@ export class PermissionContextService {
   /**
    * Valida permissão para operações de ronda
    */
-  validarPermissaoRonda(context: PermissionContext, action: CrudAction): boolean {
+  validarPermissaoRonda(
+    context: PermissionContext,
+    action: CrudAction,
+  ): boolean {
     const permission: DynamicPermission = {
       action,
       subject: 'Patrol',
@@ -102,7 +108,7 @@ export class PermissionContextService {
     postId?: string,
   ): boolean {
     const targetPostId = postId || context.postId;
-    
+
     if (!targetPostId) {
       return false;
     }
@@ -153,7 +159,10 @@ export class PermissionContextService {
     const now = new Date();
     const currentHour = now.getHours();
 
-    if (permission.timeRestrictions.startHour && permission.timeRestrictions.endHour) {
+    if (
+      permission.timeRestrictions.startHour &&
+      permission.timeRestrictions.endHour
+    ) {
       return (
         currentHour >= permission.timeRestrictions.startHour &&
         currentHour <= permission.timeRestrictions.endHour
@@ -174,11 +183,17 @@ export class PermissionContextService {
       return true;
     }
 
-    if (permission.shiftRestrictions.requiresActiveShift && !context.isOnShift) {
+    if (
+      permission.shiftRestrictions.requiresActiveShift &&
+      !context.isOnShift
+    ) {
       return false;
     }
 
-    if (permission.shiftRestrictions.requiresActivePatrol && !context.isOnPatrol) {
+    if (
+      permission.shiftRestrictions.requiresActivePatrol &&
+      !context.isOnPatrol
+    ) {
       return false;
     }
 
@@ -223,7 +238,10 @@ export class PermissionContextService {
   /**
    * Cria contexto de permissão a partir do usuário
    */
-  criarContexto(user: User, additionalData?: Partial<PermissionContext>): PermissionContext {
+  criarContexto(
+    user: User,
+    additionalData?: Partial<PermissionContext>,
+  ): PermissionContext {
     return {
       user,
       companyId: user.companyId || undefined,
@@ -248,4 +266,4 @@ export class PermissionContextService {
     // Esta lógica será implementada quando o módulo de rondas estiver pronto
     return false;
   }
-} 
+}

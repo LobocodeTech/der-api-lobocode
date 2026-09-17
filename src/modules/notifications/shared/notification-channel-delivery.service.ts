@@ -50,7 +50,10 @@ export class NotificationChannelDeliveryService {
     skipEmail = false,
   ): Promise<void> {
     // Sempre envia in-app (WebSocket + contador), independentemente das preferências de push/email.
-    await this.notificationGateway.enviarParaUsuarios(targetUserIds, notification);
+    await this.notificationGateway.enviarParaUsuarios(
+      targetUserIds,
+      notification,
+    );
     if (companyId) {
       await this.notificationGateway.enviarParaSala(
         `company_${companyId}`,

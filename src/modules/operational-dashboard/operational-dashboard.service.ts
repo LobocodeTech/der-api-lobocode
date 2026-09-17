@@ -328,7 +328,9 @@ export class OperationalDashboardService {
     const compliance = extrairTaxasCumprimento(reportSummary);
 
     const availabilityRate =
-      totalAssets > 0 ? Number(((onlineAssets / totalAssets) * 100).toFixed(1)) : 0;
+      totalAssets > 0
+        ? Number(((onlineAssets / totalAssets) * 100).toFixed(1))
+        : 0;
 
     const criticalIncidents = recentCriticalWorkOrders.map((wo) => ({
       id: wo.id,
@@ -348,7 +350,10 @@ export class OperationalDashboardService {
       time: wo.createdAt.toISOString(),
     }));
 
-    const workOrdersTrend = this.construirSerieDeOrdens(workOrderTrendRecords, 7);
+    const workOrdersTrend = this.construirSerieDeOrdens(
+      workOrderTrendRecords,
+      7,
+    );
     const mttrTrend = this.construirSerieDeMttr(mttrRecords, 7);
     const pendingWorkOrders = pendingSlaWorkOrders.map((order) => ({
       id: order.id,
@@ -362,7 +367,8 @@ export class OperationalDashboardService {
       locationName: order.location?.name ?? null,
       locationCode: order.location?.code ?? null,
       referenceKm: order.location?.referenceKm ?? null,
-      regionalName: order.location?.regional?.city ?? order.location?.city ?? null,
+      regionalName:
+        order.location?.regional?.city ?? order.location?.city ?? null,
     }));
     const preventiveMap = new Map(
       lastPreventiveByPair.map((item) => [
@@ -496,8 +502,10 @@ export class OperationalDashboardService {
 
     return {
       ...paginated,
-      peakDays: diasRegistrados.length > 0 ? Math.max(...diasRegistrados) : null,
-      withoutDataCount: items.filter((item) => extrairDias(item) == null).length,
+      peakDays:
+        diasRegistrados.length > 0 ? Math.max(...diasRegistrados) : null,
+      withoutDataCount: items.filter((item) => extrairDias(item) == null)
+        .length,
     };
   }
 
@@ -568,7 +576,8 @@ export class OperationalDashboardService {
 
       const averageHours =
         validRecords.reduce((total, record) => {
-          const elapsedMs = record.completedAt!.getTime() - record.startedAt!.getTime();
+          const elapsedMs =
+            record.completedAt!.getTime() - record.startedAt!.getTime();
           return total + elapsedMs / (1000 * 60 * 60);
         }, 0) / validRecords.length;
 
@@ -598,4 +607,3 @@ export class OperationalDashboardService {
     });
   }
 }
-

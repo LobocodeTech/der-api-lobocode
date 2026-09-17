@@ -13,7 +13,10 @@ export function extrairDiaCivilDoPrazo(
   const trimmed = value.trim();
   if (!trimmed) return undefined;
   if (WORK_ORDER_DUE_DATE_DAY_RE.test(trimmed)) return trimmed;
-  if (trimmed.length >= 10 && WORK_ORDER_DUE_DATE_DAY_RE.test(trimmed.slice(0, 10))) {
+  if (
+    trimmed.length >= 10 &&
+    WORK_ORDER_DUE_DATE_DAY_RE.test(trimmed.slice(0, 10))
+  ) {
     return trimmed.slice(0, 10);
   }
   throw new BadRequestException(

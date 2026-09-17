@@ -1,10 +1,18 @@
-import { ArgumentsHost, Catch, ExceptionFilter, HttpStatus } from '@nestjs/common';
+import {
+  ArgumentsHost,
+  Catch,
+  ExceptionFilter,
+  HttpStatus,
+} from '@nestjs/common';
 import { ForbiddenError } from '../errors';
 import { BaseExceptionFilter } from './base-exception.filter';
 import { MessagesService } from '../messages/messages.service';
 
 @Catch(ForbiddenError)
-export class ForbiddenErrorFilter extends BaseExceptionFilter implements ExceptionFilter {
+export class ForbiddenErrorFilter
+  extends BaseExceptionFilter
+  implements ExceptionFilter
+{
   constructor(messagesService: MessagesService) {
     super(messagesService);
   }
@@ -18,4 +26,4 @@ export class ForbiddenErrorFilter extends BaseExceptionFilter implements Excepti
       this.messagesService.getErrorMessage('AUTHORIZATION', 'FORBIDDEN'),
     );
   }
-} 
+}

@@ -71,12 +71,22 @@ export type DefinePermissions = (
 const profilePermissions = {
   ownProfile: (user: User, { can }: any) => {
     can('read', 'User', { companyId: user.companyId });
-    can('update', 'User', ['name', 'email', 'login', 'phone', 'profilePicture'], { id: user.id });
+    can(
+      'update',
+      'User',
+      ['name', 'email', 'login', 'phone', 'profilePicture'],
+      { id: user.id },
+    );
   },
 
   ownProfileExtended: (user: User, { can }: any) => {
     can('read', 'User', { id: user.id });
-    can('update', 'User', ['name', 'email', 'login', 'phone', 'profilePicture'], { id: user.id });
+    can(
+      'update',
+      'User',
+      ['name', 'email', 'login', 'phone', 'profilePicture'],
+      { id: user.id },
+    );
   },
 };
 
@@ -118,7 +128,6 @@ const administrativePermissions = {
       companyId: user.companyId,
       role: { in: allowedRoles },
     });
-
   },
 
   resourceManagement: (user: User, { can }: any) => {
@@ -271,8 +280,7 @@ function aplicarRestricoesRegionaisNaoAdmin(
     user.role === Roles.FIELD_TEAM
       ? construirClausulaRegionalVisivelParaUsuario(user)
       : null;
-  const planningPermitido =
-    construirClausulaPlanningVisivelParaUsuario(user);
+  const planningPermitido = construirClausulaPlanningVisivelParaUsuario(user);
 
   if (!user.regionalId) {
     if (!ignorarLeitura) {
@@ -463,7 +471,10 @@ function aplicarRestricoesSoftDeleteEmCascata({ cannot }: any) {
       { location: { deletedAt: { not: null } } },
       { location: { regional: { deletedAt: { not: null } } } },
       {
-        AND: [{ columnId: { not: null } }, { column: { deletedAt: { not: null } } }],
+        AND: [
+          { columnId: { not: null } },
+          { column: { deletedAt: { not: null } } },
+        ],
       },
       {
         AND: [
@@ -496,7 +507,10 @@ function aplicarRestricoesSoftDeleteEmCascata({ cannot }: any) {
   });
 
   cannot(['read', 'update', 'delete'], 'Queue', {
-    OR: [{ company: { deletedAt: { not: null } } }, { deletedAt: { not: null } }],
+    OR: [
+      { company: { deletedAt: { not: null } } },
+      { deletedAt: { not: null } },
+    ],
   });
 
   cannot(['read', 'update', 'delete'], 'QueueUser', {

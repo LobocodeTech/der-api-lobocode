@@ -13,7 +13,9 @@ export class ResetUserPasswordDto {
 
   @ValidateIf(
     (dto: ResetUserPasswordDto) =>
-      dto.password !== undefined && dto.password !== null && dto.password !== '',
+      dto.password !== undefined &&
+      dto.password !== null &&
+      dto.password !== '',
   )
   @IsString({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
   @Match('password', { message: VALIDATION_MESSAGES.FORMAT.PASSWORD_MISMATCH })

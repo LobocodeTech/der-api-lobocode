@@ -12,9 +12,9 @@
 //       validator: {
 //         async validate(value: any, args: ValidationArguments) {
 //           if (!value) return true; // CPF é opcional
-          
+
 //           const prismaService = new PrismaService();
-          
+
 //           try {
 //             // Busca por CPF no sistema
 //             const existingUser = await prismaService.user.findFirst({
@@ -23,7 +23,7 @@
 //                 deletedAt: null, // Não considerar usuários deletados
 //               },
 //             });
-            
+
 //             // Se não encontrou, CPF é único
 //             return !existingUser;
 //           } catch (error) {

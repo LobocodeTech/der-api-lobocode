@@ -1,4 +1,10 @@
-import { Body, Controller, Patch, UseGuards, UseInterceptors } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Patch,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
 import { Roles } from '@prisma/client';
 import { AuthGuard } from 'src/shared/auth/guards/auth.guard';
 import { RoleByMethodGuard } from 'src/shared/auth/guards/role-by-method.guard';
@@ -11,12 +17,7 @@ import { WorkOrderColumnsService } from './work-order-columns.service';
 
 @UseGuards(AuthGuard, RoleByMethodGuard)
 @RoleByMethod({
-  GET: [
-    Roles.SYSTEM_ADMIN,
-    Roles.ADMIN,
-    Roles.FIELD_TEAM,
-    Roles.C2C,
-  ],
+  GET: [Roles.SYSTEM_ADMIN, Roles.ADMIN, Roles.FIELD_TEAM, Roles.C2C],
   POST: [Roles.SYSTEM_ADMIN, Roles.ADMIN],
   PATCH: [Roles.SYSTEM_ADMIN, Roles.ADMIN],
   DELETE: [Roles.SYSTEM_ADMIN, Roles.ADMIN],

@@ -9,6 +9,8 @@ export class CreateGuardDto extends BaseUserDto {
   @IsCUID({ message: VALIDATION_MESSAGES.FORMAT.UUID_INVALID })
   companyId?: string;
 
-  @IsExpectedRole(Roles.FIELD_TEAM, { message: VALIDATION_MESSAGES.REQUIRED.ROLE })
+  @IsExpectedRole(Roles.FIELD_TEAM, {
+    message: VALIDATION_MESSAGES.REQUIRED.ROLE,
+  })
   role: Roles; // Schema DEPARTAMENTO ESTADUAL DE RODOVIAS: mapeado para FIELD_TEAM
 }

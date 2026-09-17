@@ -1,10 +1,18 @@
-import { ArgumentsHost, Catch, ExceptionFilter, HttpStatus } from '@nestjs/common';
+import {
+  ArgumentsHost,
+  Catch,
+  ExceptionFilter,
+  HttpStatus,
+} from '@nestjs/common';
 import { NotFoundError } from '../errors';
 import { BaseExceptionFilter } from './base-exception.filter';
 import { MessagesService } from '../messages/messages.service';
 
 @Catch(NotFoundError)
-export class NotFoundErrorFilter extends BaseExceptionFilter implements ExceptionFilter {
+export class NotFoundErrorFilter
+  extends BaseExceptionFilter
+  implements ExceptionFilter
+{
   constructor(messagesService: MessagesService) {
     super(messagesService);
   }

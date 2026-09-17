@@ -9,7 +9,10 @@ import {
 } from '@prisma/client';
 import { PrismaService } from 'src/shared/prisma/prisma.service';
 import { UniversalQueryService } from 'src/shared/universal';
-import { construirWorkOrderQueueInclude, WorkOrderQueueUsersService } from '../work-orders/work-order-queue-users/work-order-queue-users.service';
+import {
+  construirWorkOrderQueueInclude,
+  WorkOrderQueueUsersService,
+} from '../work-orders/work-order-queue-users/work-order-queue-users.service';
 import { construirWhereWorkOrderQueueLegivel } from 'src/shared/casl/casl-ability/casl-ability.service';
 import { WORK_ORDER_AUDIT_USER_SELECT } from '../work-orders/dto/work-order-audit.fields';
 import {
@@ -582,8 +585,12 @@ export class WorkOrderReportsService {
       : await this.obterResumo(filtros);
     return {
       summary,
-      corrective: itens.filter((item) => item.type === WorkOrderType.CORRECTIVE),
-      preventive: itens.filter((item) => item.type === WorkOrderType.PREVENTIVE),
+      corrective: itens.filter(
+        (item) => item.type === WorkOrderType.CORRECTIVE,
+      ),
+      preventive: itens.filter(
+        (item) => item.type === WorkOrderType.PREVENTIVE,
+      ),
       general: itens.filter((item) => item.type === WorkOrderType.GENERAL),
       generatedAt: new Date().toISOString(),
     };
@@ -607,7 +614,9 @@ export class WorkOrderReportsService {
     });
   }
 
-  private montarWhere(filtros: WorkOrderReportFilterDto): Prisma.WorkOrderWhereInput {
+  private montarWhere(
+    filtros: WorkOrderReportFilterDto,
+  ): Prisma.WorkOrderWhereInput {
     if (filtros.workOrderId?.trim()) {
       const baseWhere = this.queryService.construirWhereClauseParaRead(
         'WorkOrder',
@@ -632,7 +641,8 @@ export class WorkOrderReportsService {
     if (filtros.regionalId) {
       and.push({ location: { regionalId: filtros.regionalId } });
     }
-    if (filtros.equipmentType) and.push({ equipmentType: filtros.equipmentType });
+    if (filtros.equipmentType)
+      and.push({ equipmentType: filtros.equipmentType });
     if (filtros.status) and.push({ status: filtros.status });
     if (filtros.createdById) and.push({ createdBy: filtros.createdById });
     if (filtros.assigneeId) {
@@ -684,7 +694,9 @@ export class WorkOrderReportsService {
     };
   }
 
-  private filtroSlaCorretiva(bucket: ReportSlaBucket): Prisma.WorkOrderWhereInput {
+  private filtroSlaCorretiva(
+    bucket: ReportSlaBucket,
+  ): Prisma.WorkOrderWhereInput {
     if (bucket === 'OVERDUE') {
       // Candidatas (refinadas ao vivo): status negativo, exceededAt,
       // abertas com deadline vencido, ou concluídas com datas para comparar.
@@ -698,10 +710,7 @@ export class WorkOrderReportsService {
               { slaDeadlineAt: { lt: agora } },
               {
                 status: {
-                  notIn: [
-                    WorkOrderStatus.COMPLETED,
-                    WorkOrderStatus.CANCELLED,
-                  ],
+                  notIn: [WorkOrderStatus.COMPLETED, WorkOrderStatus.CANCELLED],
                 },
               },
             ],
@@ -1100,7 +1109,8 @@ export class WorkOrderReportsService {
         slaDeadlineAt: registro.slaDeadlineAt?.toISOString() ?? null,
         slaStatusExtended: registro.slaStatusExtended,
         slaDeadlineHours: registro.slaDeadlineHours,
-        correctiveSlaDefaultSeconds: correctiveConfig.correctiveSlaDefaultSeconds,
+        correctiveSlaDefaultSeconds:
+          correctiveConfig.correctiveSlaDefaultSeconds,
         correctiveSlaWindowStart: correctiveConfig.correctiveSlaWindowStart,
         correctiveSlaWindowEnd: correctiveConfig.correctiveSlaWindowEnd,
         pauseHistories: registro.workOrderPauseHistories.map((entry) => ({

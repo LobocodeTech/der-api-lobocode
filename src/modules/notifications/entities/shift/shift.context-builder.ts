@@ -1,6 +1,6 @@
 /**
  * 🔧 CONTEXT BUILDER - SHIFT
- * 
+ *
  * Constrói contexto rico para notificações de turnos.
  * Inclui dados relacionados como posto, usuário, status, etc.
  */
@@ -17,7 +17,10 @@ export class ShiftContextBuilder {
   /**
    * 🕐 SHIFT - Contexto para turnos
    */
-  async buildShiftContext(shiftId: string, operation: string): Promise<NotificationContext> {
+  async buildShiftContext(
+    shiftId: string,
+    operation: string,
+  ): Promise<NotificationContext> {
     const shiftDelegate = (this.prisma as any).shift;
     if (!shiftDelegate) {
       return {
@@ -39,10 +42,11 @@ export class ShiftContextBuilder {
     }
     return {
       userName: (shift as any).user?.name ?? '',
-      postName: (shift as any).post?.name ? ` no posto ${(shift as any).post.name}` : '',
+      postName: (shift as any).post?.name
+        ? ` no posto ${(shift as any).post.name}`
+        : '',
       time: DateFormatter.formatDateTime(new Date()),
       shiftStatus: (shift as any).status ?? '',
     };
   }
-
 }

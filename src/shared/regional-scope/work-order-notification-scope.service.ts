@@ -15,8 +15,8 @@ export class WorkOrderNotificationScopeService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-  * Destinatários de broadcast ao criar OS: admins (todas), C2C (somente corretivas),
-  * FIELD_TEAM membro de fila associada à OS.
+   * Destinatários de broadcast ao criar OS: admins (todas), C2C (somente corretivas),
+   * FIELD_TEAM membro de fila associada à OS.
    */
   async resolverDestinatariosBroadcastCriacaoOs(
     workOrderId: string,
@@ -93,10 +93,7 @@ export class WorkOrderNotificationScopeService {
     const fieldTeamParaValidar: string[] = [];
 
     for (const usuario of usuarios) {
-      if (
-        usuario.role === Roles.ADMIN ||
-        usuario.role === Roles.SYSTEM_ADMIN
-      ) {
+      if (usuario.role === Roles.ADMIN || usuario.role === Roles.SYSTEM_ADMIN) {
         elegiveis.add(usuario.id);
         continue;
       }
@@ -155,7 +152,9 @@ export class WorkOrderNotificationScopeService {
         { entityId: null },
         {
           entityType: { in: [...ENTITY_TYPES_NOTIFICACAO_OS] },
-          entityId: { in: osVisiveisIds.length > 0 ? osVisiveisIds : ['__none__'] },
+          entityId: {
+            in: osVisiveisIds.length > 0 ? osVisiveisIds : ['__none__'],
+          },
         },
       ],
     };

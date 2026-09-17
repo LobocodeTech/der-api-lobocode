@@ -38,7 +38,9 @@ export function resolverIntervaloPeriodoRelatorio(
     const start = inicioDoDiaBrt(new Date(dateFrom));
     const customEnd = fimDoDiaBrt(new Date(dateTo));
     if (start.getTime() > customEnd.getTime()) {
-      throw new BadRequestException('dateFrom não pode ser posterior a dateTo.');
+      throw new BadRequestException(
+        'dateFrom não pode ser posterior a dateTo.',
+      );
     }
     return { start, end: customEnd };
   }
@@ -53,17 +55,23 @@ export function resolverIntervaloPeriodoRelatorio(
   }
 
   if (period === 'last-7-days') {
-    const start = inicioDoDiaBrt(new Date(agora.getTime() - 6 * 24 * 60 * 60 * 1000));
+    const start = inicioDoDiaBrt(
+      new Date(agora.getTime() - 6 * 24 * 60 * 60 * 1000),
+    );
     return { start, end };
   }
 
   if (period === 'last-15-days') {
-    const start = inicioDoDiaBrt(new Date(agora.getTime() - 14 * 24 * 60 * 60 * 1000));
+    const start = inicioDoDiaBrt(
+      new Date(agora.getTime() - 14 * 24 * 60 * 60 * 1000),
+    );
     return { start, end };
   }
 
   if (period === 'last-30-days') {
-    const start = inicioDoDiaBrt(new Date(agora.getTime() - 29 * 24 * 60 * 60 * 1000));
+    const start = inicioDoDiaBrt(
+      new Date(agora.getTime() - 29 * 24 * 60 * 60 * 1000),
+    );
     return { start, end };
   }
 

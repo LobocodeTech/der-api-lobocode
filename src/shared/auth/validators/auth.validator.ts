@@ -88,5 +88,4 @@ export class AuthValidator {
 
     return user;
   }
-
 }

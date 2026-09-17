@@ -8,5 +8,4 @@ import { PlanningService } from './planning.service';
   providers: [PlanningService],
   exports: [PlanningService],
 })
-export class PlanningModule { }
-
+export class PlanningModule {}

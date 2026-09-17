@@ -39,7 +39,10 @@ export interface BrtDateParts {
   second: number;
 }
 
-export function parseWindowTime(value: string): { hour: number; minute: number } {
+export function parseWindowTime(value: string): {
+  hour: number;
+  minute: number;
+} {
   const m = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
   if (!m) {
     throw new BadRequestException(
@@ -157,7 +160,13 @@ export function calcularSegundosUteis(
 
   while (dayCursor.getTime() < fim.getTime()) {
     const p = toBrtParts(dayCursor);
-    const windowOpen = fromBrt(p.year, p.month, p.day, start.hour, start.minute);
+    const windowOpen = fromBrt(
+      p.year,
+      p.month,
+      p.day,
+      start.hour,
+      start.minute,
+    );
     const windowClose = fromBrt(p.year, p.month, p.day, end.hour, end.minute);
     const segStart = Math.max(inicio.getTime(), windowOpen.getTime());
     const segEnd = Math.min(fim.getTime(), windowClose.getTime());
@@ -190,7 +199,13 @@ export function calcularDeadlineSla(
     const p = toBrtParts(cursor);
     const start = parseWindowTime(windowStart);
     const end = parseWindowTime(windowEnd);
-    const windowOpen = fromBrt(p.year, p.month, p.day, start.hour, start.minute);
+    const windowOpen = fromBrt(
+      p.year,
+      p.month,
+      p.day,
+      start.hour,
+      start.minute,
+    );
     const windowClose = fromBrt(p.year, p.month, p.day, end.hour, end.minute);
 
     const effectiveStart = Math.max(cursor.getTime(), windowOpen.getTime());
@@ -207,7 +222,9 @@ export function calcularDeadlineSla(
       continue;
     }
 
-    const available = Math.floor((windowClose.getTime() - effectiveStart) / 1000);
+    const available = Math.floor(
+      (windowClose.getTime() - effectiveStart) / 1000,
+    );
     if (remaining <= available) {
       return new Date(effectiveStart + remaining * 1000);
     }
@@ -278,7 +295,10 @@ export function desempacotarJanelaSla(packed: number | null | undefined): {
 function ordemSlaEstaVencida(
   ordem: Pick<
     CorrectiveSlaOrderSnapshot,
-    'slaConsumedSeconds' | 'slaRemainingSeconds' | 'slaExceededAt' | 'slaStatusExtended'
+    | 'slaConsumedSeconds'
+    | 'slaRemainingSeconds'
+    | 'slaExceededAt'
+    | 'slaStatusExtended'
   >,
   fallbackSeconds: number,
 ): boolean {
@@ -385,7 +405,10 @@ export function resolverConfigSlaDaOrdem(
   companyConfig: CorrectiveSlaCompanyConfig,
 ): CorrectiveSlaCompanyConfig {
   const empresa = normalizarConfigSlaEmpresa(companyConfig);
-  const budget = derivarBudgetSegundosDaOrdem(ordem, empresa.correctiveSlaDefaultSeconds);
+  const budget = derivarBudgetSegundosDaOrdem(
+    ordem,
+    empresa.correctiveSlaDefaultSeconds,
+  );
 
   const empacotado = desempacotarJanelaSla(ordem.slaDeadlineHours);
   if (empacotado) {
@@ -429,7 +452,8 @@ export function normalizarConfigSlaEmpresa(
   }
   const windowStart =
     config?.correctiveSlaWindowStart?.trim() || DEFAULT_WINDOW_START;
-  const windowEnd = config?.correctiveSlaWindowEnd?.trim() || DEFAULT_WINDOW_END;
+  const windowEnd =
+    config?.correctiveSlaWindowEnd?.trim() || DEFAULT_WINDOW_END;
   parseWindowTime(windowStart);
   parseWindowTime(windowEnd);
   const start = parseWindowTime(windowStart);

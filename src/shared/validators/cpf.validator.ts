@@ -1,4 +1,8 @@
-import { registerDecorator, ValidationOptions, ValidationArguments } from 'class-validator';
+import {
+  registerDecorator,
+  ValidationOptions,
+  ValidationArguments,
+} from 'class-validator';
 import { VALIDATION_MESSAGES } from '../common/messages';
 
 export function IsCPF(validationOptions?: ValidationOptions) {
@@ -15,8 +19,8 @@ export function IsCPF(validationOptions?: ValidationOptions) {
         },
         defaultMessage(args: ValidationArguments) {
           return VALIDATION_MESSAGES.FORMAT.CPF_INVALID;
-        }
-      }
+        },
+      },
     });
   };
 }
@@ -24,13 +28,13 @@ export function IsCPF(validationOptions?: ValidationOptions) {
 function validateCPF(cpf: string): boolean {
   // Remove caracteres especiais
   const cleanCPF = cpf.replace(/[^\d]/g, '');
-  
+
   // Verifica se tem 11 dígitos
   if (cleanCPF.length !== 11) return false;
-  
+
   // Verifica se todos os dígitos são iguais
   if (/^(\d)\1{10}$/.test(cleanCPF)) return false;
-  
+
   // Valida primeiro dígito verificador
   let sum = 0;
   for (let i = 0; i < 9; i++) {
@@ -39,7 +43,7 @@ function validateCPF(cpf: string): boolean {
   let remainder = (sum * 10) % 11;
   if (remainder === 10 || remainder === 11) remainder = 0;
   if (remainder !== parseInt(cleanCPF.charAt(9))) return false;
-  
+
   // Valida segundo dígito verificador
   sum = 0;
   for (let i = 0; i < 10; i++) {
@@ -48,6 +52,6 @@ function validateCPF(cpf: string): boolean {
   remainder = (sum * 10) % 11;
   if (remainder === 10 || remainder === 11) remainder = 0;
   if (remainder !== parseInt(cleanCPF.charAt(10))) return false;
-  
+
   return true;
-} 
+}

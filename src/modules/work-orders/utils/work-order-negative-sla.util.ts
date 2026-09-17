@@ -1,7 +1,4 @@
-import {
-  WorkOrderCorrectiveSlaStatus,
-  WorkOrderStatus,
-} from '@prisma/client';
+import { WorkOrderCorrectiveSlaStatus, WorkOrderStatus } from '@prisma/client';
 import {
   calcularSegundosUteis,
   type CorrectiveSlaCompanyConfig,
@@ -36,8 +33,7 @@ function resolverFimConsumoSlaNegativo(
 
 function statusEncerraConsumoSlaNegativo(status: WorkOrderStatus): boolean {
   return (
-    status === WorkOrderStatus.COMPLETED ||
-    status === WorkOrderStatus.CANCELLED
+    status === WorkOrderStatus.COMPLETED || status === WorkOrderStatus.CANCELLED
   );
 }
 
@@ -77,9 +73,7 @@ export function calcularSegundosAtrasoExcedenteCorretiva(
 
   // Tempo CORRIDO (24h/dia) entre o Limite e o marco final — sem desconto de
   // janela operacional nem de pausas.
-  return Math.floor(
-    (fimReferencia.getTime() - slaDeadlineAt.getTime()) / 1000,
-  );
+  return Math.floor((fimReferencia.getTime() - slaDeadlineAt.getTime()) / 1000);
 }
 
 export interface CorrectiveSlaNegativeSnapshot {

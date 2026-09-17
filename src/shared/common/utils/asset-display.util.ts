@@ -9,8 +9,12 @@ export type AssetDisplayFields = {
   serialNumber?: string | null;
 };
 
-function normalizeAssetType(type: AssetType | string | null | undefined): string {
-  return String(type ?? '').trim().toUpperCase();
+function normalizeAssetType(
+  type: AssetType | string | null | undefined,
+): string {
+  return String(type ?? '')
+    .trim()
+    .toUpperCase();
 }
 
 /** Título principal em listagens e busca global (espelha o frontend). */

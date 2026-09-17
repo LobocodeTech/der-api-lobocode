@@ -174,8 +174,13 @@ jobs:
       - name: Validate docker compose (database stack)
         run: docker compose -f docker/docker-compose.database.yml config --quiet
 
+      # Overlay: só labels Traefik; precisa do database.yml (define o service minio).
       - name: Validate docker compose (MinIO Traefik overlay)
-        run: docker compose -f docker/docker-compose.minio-traefik.yml config --quiet
+        run: >
+          docker compose
+          -f docker/docker-compose.database.yml
+          -f docker/docker-compose.minio-traefik.yml
+          config --quiet
 
       - name: Build production image
         run: docker build -f docker/Dockerfile.prod -t der-api:ci .

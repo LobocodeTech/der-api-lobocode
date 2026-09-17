@@ -308,10 +308,7 @@ export class WorkOrderSlaService {
       }),
       slaPausedAt: null,
       slaResumedAt: null,
-      slaRemainingSeconds: Math.max(
-        0,
-        budget - snapshot.slaConsumedSeconds,
-      ),
+      slaRemainingSeconds: Math.max(0, budget - snapshot.slaConsumedSeconds),
     };
   }
 
@@ -321,8 +318,10 @@ export class WorkOrderSlaService {
   ): boolean {
     if (jaNotificado) return false;
     if (
-      snapshot.slaStatusExtended === WorkOrderCorrectiveSlaStatus.COMPLETED_ON_TIME ||
-      snapshot.slaStatusExtended === WorkOrderCorrectiveSlaStatus.COMPLETED_LATE ||
+      snapshot.slaStatusExtended ===
+        WorkOrderCorrectiveSlaStatus.COMPLETED_ON_TIME ||
+      snapshot.slaStatusExtended ===
+        WorkOrderCorrectiveSlaStatus.COMPLETED_LATE ||
       snapshot.slaStatusExtended === WorkOrderCorrectiveSlaStatus.PAUSED
     ) {
       return false;
@@ -446,8 +445,7 @@ export class WorkOrderSlaService {
       if (
         ordem.slaStatusExtended ===
           WorkOrderCorrectiveSlaStatus.COMPLETED_ON_TIME ||
-        ordem.slaStatusExtended ===
-          WorkOrderCorrectiveSlaStatus.COMPLETED_LATE
+        ordem.slaStatusExtended === WorkOrderCorrectiveSlaStatus.COMPLETED_LATE
       ) {
         return base;
       }

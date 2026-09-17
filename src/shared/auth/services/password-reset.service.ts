@@ -165,7 +165,9 @@ export class PasswordResetService {
     });
 
     if (!user) {
-      throw new BadRequestException(AUTH_MESSAGES.ERROR.PASSWORD_RESET_EMAIL_FAILED);
+      throw new BadRequestException(
+        AUTH_MESSAGES.ERROR.PASSWORD_RESET_EMAIL_FAILED,
+      );
     }
 
     if (user.deletedAt !== null || user.status !== UserStatus.ACTIVE) {

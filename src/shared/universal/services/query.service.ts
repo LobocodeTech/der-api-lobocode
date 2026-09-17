@@ -94,7 +94,7 @@ export class UniversalQueryService {
     additionalWhere: any = {},
   ): any {
     const ability = this.abilityService.ability;
-    
+
     const tenant = this.tenantService.getTenant();
 
     try {

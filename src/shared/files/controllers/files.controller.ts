@@ -62,10 +62,10 @@ export class FilesController {
     @Query('limit') limit = 20,
     @CurrentUser() user?: any,
   ): Promise<{ files: FileInfo[]; total: number }> {
-    const companyId = user?.companyId;  
+    const companyId = user?.companyId;
     return this.filesService.getAllFiles(+page, +limit, companyId);
   }
- 
+
   @Get(':id')
   async getFileById(@Param('id') id: string): Promise<FileInfo> {
     return this.filesService.getFileById(id);

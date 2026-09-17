@@ -62,7 +62,10 @@ export class NotificationRecipientsService {
         return this.getGuardAndActiveSupervisors(companyId, rule?.guardId);
 
       case 'GUARD_AND_ACTIVE_SUPERVISORS_AND_ADMINS':
-        return this.getGuardAndActiveSupervisorsAndAdmins(companyId, rule?.guardId);
+        return this.getGuardAndActiveSupervisorsAndAdmins(
+          companyId,
+          rule?.guardId,
+        );
 
       case 'SPECIFIC_USERS':
         return rule?.userIds || [];

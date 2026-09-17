@@ -80,7 +80,8 @@ export class WorkOrderColumnsService extends UniversalService<
     const existingColumns = await this.reordenarSortOrderDaEmpresa(companyId);
     const maxSortOrder = existingColumns.reduce((max, column) => {
       const value =
-        typeof column.sortOrder === 'number' && Number.isFinite(column.sortOrder)
+        typeof column.sortOrder === 'number' &&
+        Number.isFinite(column.sortOrder)
           ? column.sortOrder
           : 0;
       return Math.max(max, value);
@@ -130,7 +131,9 @@ export class WorkOrderColumnsService extends UniversalService<
       new Set(orderedIds.map((id) => id?.trim()).filter(Boolean)),
     );
     if (uniqueOrderedIds.length === 0) {
-      throw new BadRequestException('Informe ao menos uma coluna para reordenação.');
+      throw new BadRequestException(
+        'Informe ao menos uma coluna para reordenação.',
+      );
     }
 
     const columns = await this.repository.buscarMuitos(
@@ -159,11 +162,9 @@ export class WorkOrderColumnsService extends UniversalService<
 
     await Promise.all(
       finalOrderIds.map((id, index) =>
-        this.repository.atualizar(
-          this.entityName,
-          { id },
-          { sortOrder: index + 1 } as any,
-        ),
+        this.repository.atualizar(this.entityName, { id }, {
+          sortOrder: index + 1,
+        } as any),
       ),
     );
 
@@ -196,13 +197,14 @@ export class WorkOrderColumnsService extends UniversalService<
 
     await Promise.all(
       ordered.map((column, index) =>
-        this.repository.atualizar(
-          this.entityName,
-          { id: column.id },
-          { sortOrder: index + 1 } as any,
-        ),
+        this.repository.atualizar(this.entityName, { id: column.id }, {
+          sortOrder: index + 1,
+        } as any),
       ),
     );
-    return ordered.map((column, index) => ({ ...column, sortOrder: index + 1 }));
+    return ordered.map((column, index) => ({
+      ...column,
+      sortOrder: index + 1,
+    }));
   }
 }

@@ -33,7 +33,10 @@ export class ActivityNotificationPreferencesService {
     });
 
     return users
-      .filter((user) => parseActivitiesNotification(user.activitiesNotification)[preference])
+      .filter(
+        (user) =>
+          parseActivitiesNotification(user.activitiesNotification)[preference],
+      )
       .map((user) => user.id);
   }
 }

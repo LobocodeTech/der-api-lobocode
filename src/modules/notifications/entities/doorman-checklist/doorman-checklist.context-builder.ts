@@ -1,6 +1,6 @@
 /**
  * 🔧 CONTEXT BUILDER - DOORMAN CHECKLIST
- * 
+ *
  * Constrói contexto rico para notificações de checklist de porteiro.
  * Inclui dados relacionados como posto, usuário, etc.
  */
@@ -17,10 +17,17 @@ export class DoormanChecklistContextBuilder {
   /**
    * 🚪 DOORMAN CHECKLIST - Contexto para checklist de porteiro
    */
-  async buildDoormanChecklistContext(checklistId: string, operation: string): Promise<NotificationContext> {
+  async buildDoormanChecklistContext(
+    checklistId: string,
+    operation: string,
+  ): Promise<NotificationContext> {
     const delegate = (this.prisma as any).doormanChecklist;
     if (!delegate) {
-      return { userName: '', postName: '', time: DateFormatter.formatDateTime(new Date()) };
+      return {
+        userName: '',
+        postName: '',
+        time: DateFormatter.formatDateTime(new Date()),
+      };
     }
     const checklist = await delegate.findUnique({
       where: { id: checklistId },

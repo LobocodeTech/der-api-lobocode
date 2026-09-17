@@ -73,7 +73,9 @@ export class UserQueryService {
     const ability = this.abilityService.ability;
     const tenant = this.tenantService.getTenant();
 
-    const andParts: Prisma.UserWhereInput[] = [accessibleBy(ability, action).User];
+    const andParts: Prisma.UserWhereInput[] = [
+      accessibleBy(ability, action).User,
+    ];
     const usuario = this.abilityService.obterUsuarioAtivo();
     const escopoRegional = construirClausulaAndEscopoRegional('User', usuario);
     if (escopoRegional) {
@@ -96,6 +98,4 @@ export class UserQueryService {
 
     return whereClause;
   }
-
-
 }

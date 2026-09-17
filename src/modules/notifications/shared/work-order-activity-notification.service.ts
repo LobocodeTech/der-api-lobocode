@@ -308,9 +308,7 @@ export class WorkOrderActivityNotificationService {
   }) {
     const uniqueRecipients = Array.from(
       new Set(
-        params.recipientUserIds.filter(
-          (id) => id && id !== params.actorUserId,
-        ),
+        params.recipientUserIds.filter((id) => id && id !== params.actorUserId),
       ),
     );
     if (uniqueRecipients.length === 0) return;

@@ -6,6 +6,6 @@ import { IpLocationService } from './ip-location.service';
   imports: [],
   controllers: [IpLocationController],
   providers: [IpLocationService],
-  exports: [IpLocationService]
+  exports: [IpLocationService],
 })
 export class IpLocationModule {}

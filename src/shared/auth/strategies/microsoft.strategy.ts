@@ -20,7 +20,9 @@ export interface MicrosoftProfile {
 export class MicrosoftStrategy extends PassportStrategy(Strategy, 'microsoft') {
   private readonly logger = new Logger(MicrosoftStrategy.name);
 
-  private static resolveMicrosoftCallbackUrl(configService: ConfigService): string {
+  private static resolveMicrosoftCallbackUrl(
+    configService: ConfigService,
+  ): string {
     const isProduction = configService.get<string>('NODE_ENV') === 'production';
     const explicitCallback = configService
       .get<string>('MICROSOFT_CALLBACK_URL')
@@ -49,8 +51,12 @@ export class MicrosoftStrategy extends PassportStrategy(Strategy, 'microsoft') {
     private readonly oauthService: OAuthService,
   ) {
     const clientID = configService.get<string>('MICROSOFT_CLIENT_ID', '');
-    const clientSecret = configService.get<string>('MICROSOFT_CLIENT_SECRET', '');
-    const callbackURL = MicrosoftStrategy.resolveMicrosoftCallbackUrl(configService);
+    const clientSecret = configService.get<string>(
+      'MICROSOFT_CLIENT_SECRET',
+      '',
+    );
+    const callbackURL =
+      MicrosoftStrategy.resolveMicrosoftCallbackUrl(configService);
     const tenant = configService.get<string>('MICROSOFT_TENANT', 'common');
 
     super({
@@ -88,8 +94,7 @@ export class MicrosoftStrategy extends PassportStrategy(Strategy, 'microsoft') {
     }
 
     const { id, displayName, emails, _json } = profile;
-    const email =
-      emails?.[0]?.value ?? _json?.mail ?? _json?.userPrincipalName;
+    const email = emails?.[0]?.value ?? _json?.mail ?? _json?.userPrincipalName;
 
     const user = await this.oauthService.buscarOuCriarUserPorOAuth({
       provider: 'microsoft',

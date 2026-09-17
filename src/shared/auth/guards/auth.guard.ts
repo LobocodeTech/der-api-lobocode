@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
-import { JwtService } from '@nestjs/jwt'; 
+import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CaslAbilityService } from '../../casl/casl-ability/casl-ability.service';
 import { ITokenPayload } from '../interfaces';
@@ -77,15 +77,15 @@ export class AuthGuard implements CanActivate {
       if (error.name === 'TokenExpiredError') {
         throw new UnauthorizedException(AUTH_MESSAGES.ERROR.TOKEN_EXPIRED);
       }
-      
+
       if (error.name === 'JsonWebTokenError') {
         throw new UnauthorizedException(AUTH_MESSAGES.ERROR.TOKEN_INVALID);
       }
-      
+
       if (error.name === 'NotBeforeError') {
         throw new UnauthorizedException(AUTH_MESSAGES.ERROR.TOKEN_INVALID);
       }
-      
+
       // Para outros erros JWT, não expor detalhes internos
       throw new UnauthorizedException(AUTH_MESSAGES.ERROR.TOKEN_INVALID);
     }
@@ -117,8 +117,9 @@ export class AuthGuard implements CanActivate {
       user.role === Roles.FIELD_TEAM &&
       isOperationalMapQuery(request.query as Record<string, unknown>)
     ) {
-      (request as unknown as Record<string, unknown>)[OPERATIONAL_MAP_SCOPE_KEY] =
-        true;
+      (request as unknown as Record<string, unknown>)[
+        OPERATIONAL_MAP_SCOPE_KEY
+      ] = true;
     }
 
     request.user = user;
@@ -141,7 +142,7 @@ export class AuthGuard implements CanActivate {
       console.error('🔐 Authentication error:', {
         message: error.message,
         name: error.name,
-        stack: error.stack?.split('\n').slice(0, 3).join('\n') // Apenas primeiras 3 linhas
+        stack: error.stack?.split('\n').slice(0, 3).join('\n'), // Apenas primeiras 3 linhas
       });
     }
 

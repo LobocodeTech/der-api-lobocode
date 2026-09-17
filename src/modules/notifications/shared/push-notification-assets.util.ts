@@ -5,9 +5,7 @@ export const PUSH_NOTIFICATION_ICON_PATH = '/push-icon.png';
  * URL absoluta do ícone/badge de push — exigida para carregar fora do origin em alguns browsers.
  * Evita `/src/assets/...`, que só existe no Vite dev.
  */
-export function resolvePushNotificationIconUrl(
-  custom?: string | null,
-): string {
+export function resolvePushNotificationIconUrl(custom?: string | null): string {
   const envOverride = process.env.PUSH_NOTIFICATION_ICON_URL?.trim();
   if (envOverride) {
     return envOverride;
@@ -19,9 +17,7 @@ export function resolvePushNotificationIconUrl(
   }
 
   const path =
-    raw &&
-    raw.startsWith('/') &&
-    !raw.includes('/src/assets/')
+    raw && raw.startsWith('/') && !raw.includes('/src/assets/')
       ? raw
       : PUSH_NOTIFICATION_ICON_PATH;
 

@@ -48,7 +48,6 @@ export class AuditService {
 
       // TODO: Salvar no banco quando tivermos tabela de auditoria
       // await this.saveToDatabase(logData);
-
     } catch (error) {
       this.logger.error('Erro ao registrar evento de auditoria:', error);
     }
@@ -60,7 +59,7 @@ export class AuditService {
   async logLoginSuccess(
     userId: string,
     request: Request,
-    details?: Record<string, any>
+    details?: Record<string, any>,
   ): Promise<void> {
     await this.logAuthEvent({
       userId,
@@ -79,7 +78,7 @@ export class AuditService {
   async logLoginFailed(
     email: string,
     request: Request,
-    errorMessage: string
+    errorMessage: string,
   ): Promise<void> {
     await this.logAuthEvent({
       eventType: AuthEventType.LOGIN_FAILED,
@@ -98,11 +97,12 @@ export class AuditService {
   async logLogout(
     userId: string,
     request: Request,
-    logoutType: 'single' | 'all' = 'single'
+    logoutType: 'single' | 'all' = 'single',
   ): Promise<void> {
     await this.logAuthEvent({
       userId,
-      eventType: logoutType === 'all' ? AuthEventType.LOGOUT_ALL : AuthEventType.LOGOUT,
+      eventType:
+        logoutType === 'all' ? AuthEventType.LOGOUT_ALL : AuthEventType.LOGOUT,
       ipAddress: this.getClientIp(request),
       userAgent: request.headers['user-agent'] || 'Unknown',
       success: true,
@@ -156,7 +156,7 @@ export class AuditService {
     userId: string,
     request: Request,
     reason: string,
-    details?: Record<string, any>
+    details?: Record<string, any>,
   ): Promise<void> {
     await this.logAuthEvent({
       userId,
@@ -176,7 +176,7 @@ export class AuditService {
     userId: string,
     request: Request,
     success: boolean,
-    errorMessage?: string
+    errorMessage?: string,
   ): Promise<void> {
     await this.logAuthEvent({
       userId,
@@ -194,7 +194,7 @@ export class AuditService {
   async getAuthStatistics(
     userId?: string,
     startDate?: Date,
-    endDate?: Date
+    endDate?: Date,
   ): Promise<{
     totalLogins: number;
     failedLogins: number;
@@ -240,8 +240,8 @@ export class AuditService {
    */
   private getClientIp(request: Request): string {
     return (
-      request.headers['x-forwarded-for'] as string ||
-      request.headers['x-real-ip'] as string ||
+      (request.headers['x-forwarded-for'] as string) ||
+      (request.headers['x-real-ip'] as string) ||
       request.connection.remoteAddress ||
       request.socket.remoteAddress ||
       'unknown'
@@ -256,7 +256,7 @@ export class AuditService {
     if (ip === 'unknown' || ip === '127.0.0.1') {
       return 'localhost';
     }
-    
+
     // Mock para desenvolvimento
     return 'São Paulo, BR';
   }
@@ -280,4 +280,4 @@ export class AuditService {
     //   },
     // });
   }
-} 
+}

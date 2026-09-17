@@ -68,7 +68,9 @@ export class CreateWorkOrderDto {
       o.type === WorkOrderType.GENERAL || o.type === WorkOrderType.PREVENTIVE,
   )
   @IsNotEmpty({ message: 'Prazo é obrigatório para OS Geral e Preventiva.' })
-  @Transform(({ value }) => (value === '' || value === null ? undefined : value))
+  @Transform(({ value }) =>
+    value === '' || value === null ? undefined : value,
+  )
   @Matches(/^\d{4}-\d{2}-\d{2}$/, {
     message: 'Prazo inválido. Use o formato AAAA-MM-DD (somente data).',
   })
@@ -92,4 +94,3 @@ export class CreateWorkOrderDto {
   @IsInt({ message: VALIDATION_MESSAGES.FORMAT.FIELD_INVALID })
   slaDeadlineHours?: number;
 }
-

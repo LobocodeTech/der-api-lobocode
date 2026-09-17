@@ -61,4 +61,5 @@ export const CaslCreate = (subject: string) => CaslAction('create', subject);
 export const CaslRead = (subject: string) => CaslAction('read', subject);
 export const CaslUpdate = (subject: string) => CaslAction('update', subject);
 export const CaslDelete = (subject: string) => CaslAction('delete', subject);
-export const CaslManage = (subject: string) => CaslAction('manage' as any, subject); 
+export const CaslManage = (subject: string) =>
+  CaslAction('manage' as any, subject);

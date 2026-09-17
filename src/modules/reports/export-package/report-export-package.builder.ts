@@ -43,8 +43,8 @@ export function construirPacoteExportacaoPorTipo(params: {
   exportedAt?: Date;
 }): ReportExportPackageBuildResult {
   const exportedAt = params.exportedAt ?? new Date();
-  const isOperational = params.typeReports.some(
-    (report) => Boolean(report.buffer?.length),
+  const isOperational = params.typeReports.some((report) =>
+    Boolean(report.buffer?.length),
   );
   if (isOperational) {
     return construirPacoteOperacional({
@@ -70,7 +70,9 @@ function construirPacoteOperacional(params: {
   const files: ReportExportPackageFile[] = [];
   const workOrderFolderNames: string[] = [];
   const usedFolderNamesByType = new Map<string, Set<string>>();
-  const sessionFolder = montarPastaSessaoRelatorioOperacional(params.exportedAt);
+  const sessionFolder = montarPastaSessaoRelatorioOperacional(
+    params.exportedAt,
+  );
   const ensureFolders = PASTAS_TIPO_OS.map(
     (typeFolder) => `${sessionFolder}/${typeFolder}`,
   );
@@ -186,8 +188,7 @@ export function montarNomePastaOrdem(
     'sequentialNumber' | 'type' | 'locationCode' | 'locationKm'
   >,
 ): string {
-  const codigo =
-    String(order.sequentialNumber ?? '').trim() || 'OS-sem-numero';
+  const codigo = String(order.sequentialNumber ?? '').trim() || 'OS-sem-numero';
   const localidade = formatarTituloLocalidadeKm({
     code: order.locationCode,
     km: order.locationKm,

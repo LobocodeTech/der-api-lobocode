@@ -255,7 +255,15 @@ export class UsersController {
 
   @Patch(':id')
   @CaslUpdate('User')
-  @CaslFields('User', ['name', 'email', 'login', 'phone', 'address', 'status', 'profilePicture'])
+  @CaslFields('User', [
+    'name',
+    'email',
+    'login',
+    'phone',
+    'address',
+    'status',
+    'profilePicture',
+  ])
   @RequiredRoles(Roles.ADMIN, Roles.FIELD_TEAM, Roles.C2C)
   atualizar(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
     return this.service.atualizar(id, updateUserDto);

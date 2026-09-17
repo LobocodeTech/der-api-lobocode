@@ -1,6 +1,6 @@
 /**
  * 🔧 CONTEXT BUILDER - PATROL
- * 
+ *
  * Constrói contexto rico para notificações de Rondas.
  * Inclui dados relacionados como posto, usuário, etc.
  */
@@ -17,21 +17,28 @@ export class PatrolContextBuilder {
   /**
    * 🚶 PATROL - Contexto para Rondas
    */
-  async buildPatrolContext(patrolId: string, operation: string): Promise<NotificationContext> {
+  async buildPatrolContext(
+    patrolId: string,
+    operation: string,
+  ): Promise<NotificationContext> {
     const patrolDelegate = (this.prisma as any).patrol;
     if (!patrolDelegate) {
-      return { userName: '', postName: '', time: DateFormatter.formatDateTime(new Date()) };
+      return {
+        userName: '',
+        postName: '',
+        time: DateFormatter.formatDateTime(new Date()),
+      };
     }
     const patrol = await patrolDelegate.findUnique({
       where: { id: patrolId },
       include: {
         user: { select: { name: true } },
-        shift: { 
-          include: { 
-            post: { select: { name: true } } 
-          } 
-        }
-      }
+        shift: {
+          include: {
+            post: { select: { name: true } },
+          },
+        },
+      },
     });
 
     if (!patrol) {
@@ -39,7 +46,9 @@ export class PatrolContextBuilder {
     }
     return {
       userName: (patrol as any).user?.name ?? '',
-      postName: (patrol as any).shift?.post?.name ? ` no posto ${(patrol as any).shift.post.name}` : '',
+      postName: (patrol as any).shift?.post?.name
+        ? ` no posto ${(patrol as any).shift.post.name}`
+        : '',
       time: DateFormatter.formatDateTime(new Date()),
     };
   }
@@ -47,21 +56,29 @@ export class PatrolContextBuilder {
   /**
    * 🚶 PATROL CHECKPOINT - Contexto para checkpoints de Ronda
    */
-  async buildPatrolCheckpointContext(patrolId: string, checkpointName: string, operation: string): Promise<NotificationContext> {
+  async buildPatrolCheckpointContext(
+    patrolId: string,
+    checkpointName: string,
+    operation: string,
+  ): Promise<NotificationContext> {
     const patrolDelegate = (this.prisma as any).patrol;
     if (!patrolDelegate) {
-      return { userName: '', postName: '', time: DateFormatter.formatDateTime(new Date()) };
+      return {
+        userName: '',
+        postName: '',
+        time: DateFormatter.formatDateTime(new Date()),
+      };
     }
     const patrol = await patrolDelegate.findUnique({
       where: { id: patrolId },
       include: {
         user: { select: { name: true } },
-        shift: { 
-          include: { 
-            post: { select: { name: true } } 
-          } 
-        }
-      }
+        shift: {
+          include: {
+            post: { select: { name: true } },
+          },
+        },
+      },
     });
 
     if (!patrol) {
@@ -70,7 +87,9 @@ export class PatrolContextBuilder {
 
     return {
       userName: (patrol as any).user?.name ?? '',
-      postName: (patrol as any).shift?.post?.name ? ` no posto ${(patrol as any).shift.post.name}` : '',
+      postName: (patrol as any).shift?.post?.name
+        ? ` no posto ${(patrol as any).shift.post.name}`
+        : '',
       time: DateFormatter.formatDateTime(new Date()),
       checkpointName: checkpointName,
     };

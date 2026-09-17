@@ -1,48 +1,56 @@
 /**
  * 🚗 TEMPLATES DE NOTIFICAÇÃO - VEHICLE CHECKLIST
- * 
+ *
  * Templates específicos para checklist de veículos.
  * Focado em empresa de segurança com informações contextuais.
  */
 
-import { NotificationTemplate, NotificationContext } from '../../shared/notification.types';
+import {
+  NotificationTemplate,
+  NotificationContext,
+} from '../../shared/notification.types';
 
 /**
  * 🚗 TEMPLATES PARA VEHICLE CHECKLIST
  */
-export const VEHICLE_CHECKLIST_TEMPLATES: Record<string, NotificationTemplate> = {
-  created: {
-    title: "Novo Checklist de Veículo",
-    message: "{userName} criou checklist para veículo {vehiclePlate} ({vehicleModel}){postName} às {time}",
-    priority: "NORMAL",
-    recipients: "ACTIVE_SUPERVISORS_AND_ADMINS" // Supervisores ativos + admins
-  },
-  updated: {
-    title: "Checklist de Veículo Atualizado",
-    message: "{userName} atualizou checklist do veículo {vehiclePlate} ({vehicleModel}){postName} às {time}",
-    priority: "NORMAL",
-    recipients: "ACTIVE_SUPERVISORS_AND_ADMINS" // Supervisores ativos + admins
-  },
-  completed: {
-    title: "Checklist de Veículo Concluído",
-    message: "{userName} concluiu checklist do veículo {vehiclePlate} ({vehicleModel}){postName} às {time}",
-    priority: "NORMAL",
-    recipients: "ACTIVE_SUPERVISORS_AND_ADMINS" // Supervisores ativos + admins
-  }
-};
+export const VEHICLE_CHECKLIST_TEMPLATES: Record<string, NotificationTemplate> =
+  {
+    created: {
+      title: 'Novo Checklist de Veículo',
+      message:
+        '{userName} criou checklist para veículo {vehiclePlate} ({vehicleModel}){postName} às {time}',
+      priority: 'NORMAL',
+      recipients: 'ACTIVE_SUPERVISORS_AND_ADMINS', // Supervisores ativos + admins
+    },
+    updated: {
+      title: 'Checklist de Veículo Atualizado',
+      message:
+        '{userName} atualizou checklist do veículo {vehiclePlate} ({vehicleModel}){postName} às {time}',
+      priority: 'NORMAL',
+      recipients: 'ACTIVE_SUPERVISORS_AND_ADMINS', // Supervisores ativos + admins
+    },
+    completed: {
+      title: 'Checklist de Veículo Concluído',
+      message:
+        '{userName} concluiu checklist do veículo {vehiclePlate} ({vehicleModel}){postName} às {time}',
+      priority: 'NORMAL',
+      recipients: 'ACTIVE_SUPERVISORS_AND_ADMINS', // Supervisores ativos + admins
+    },
+  };
 
 /**
  * 🔧 VEHICLE CHECKLIST TEMPLATE SERVICE
  */
 export class VehicleChecklistTemplateService {
-  
   /**
    * Obtém template por operação
    */
   static getTemplate(operation: string): NotificationTemplate | null {
     const template = VEHICLE_CHECKLIST_TEMPLATES[operation];
     if (!template) {
-      console.warn(`Template não encontrado para operação: vehicleChecklist.${operation}`);
+      console.warn(
+        `Template não encontrado para operação: vehicleChecklist.${operation}`,
+      );
       return null;
     }
     return template;
@@ -51,7 +59,10 @@ export class VehicleChecklistTemplateService {
   /**
    * Substitui variáveis no template
    */
-  static renderTemplate(template: NotificationTemplate, context: NotificationContext): NotificationTemplate {
+  static renderTemplate(
+    template: NotificationTemplate,
+    context: NotificationContext,
+  ): NotificationTemplate {
     const renderText = (text: string): string => {
       return text.replace(/\{(\w+)\}/g, (match, key) => {
         const value = context[key as keyof NotificationContext];
@@ -62,14 +73,17 @@ export class VehicleChecklistTemplateService {
     return {
       ...template,
       title: renderText(template.title),
-      message: renderText(template.message)
+      message: renderText(template.message),
     };
   }
 
   /**
    * Valida se todas as variáveis necessárias estão presentes
    */
-  static validateContext(template: NotificationTemplate, context: NotificationContext): string[] {
+  static validateContext(
+    template: NotificationTemplate,
+    context: NotificationContext,
+  ): string[] {
     const missingVars: string[] = [];
     const requiredVars = this.extractVariables(template);
 
@@ -88,10 +102,10 @@ export class VehicleChecklistTemplateService {
   private static extractVariables(template: NotificationTemplate): string[] {
     const variables = new Set<string>();
     const text = `${template.title} ${template.message}`;
-    
+
     const matches = text.match(/\{(\w+)\}/g);
     if (matches) {
-      matches.forEach(match => {
+      matches.forEach((match) => {
         variables.add(match.slice(1, -1)); // Remove { }
       });
     }

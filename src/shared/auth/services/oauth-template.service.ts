@@ -36,7 +36,15 @@ export class OAuthService {
    * 3. Cria novo User + OAuthAccount com status PENDING (aguarda aprovação)
    */
   async buscarOuCriarUserPorOAuth(data: OAuthUserData) {
-    const { provider, providerId, email, name, picture, accessToken, refreshToken } = data;
+    const {
+      provider,
+      providerId,
+      email,
+      name,
+      picture,
+      accessToken,
+      refreshToken,
+    } = data;
 
     const contaExistente = await this.prisma.oAuthAccount.findUnique({
       where: { provider_providerId: { provider, providerId } },
@@ -74,8 +82,13 @@ export class OAuthService {
         });
       }
 
-      this.logger.log(`OAuth vinculado ao usuário existente: ${email} via ${provider}`);
-      return { ...userExistente, profilePicture: picture ?? userExistente.profilePicture };
+      this.logger.log(
+        `OAuth vinculado ao usuário existente: ${email} via ${provider}`,
+      );
+      return {
+        ...userExistente,
+        profilePicture: picture ?? userExistente.profilePicture,
+      };
     }
 
     const novoLogin = email.split('@')[0] + '_' + randomUUID().substring(0, 6);
@@ -101,7 +114,9 @@ export class OAuthService {
       },
     });
 
-    this.logger.log(`Novo usuário criado via OAuth (${provider}): ${email} — status PENDING`);
+    this.logger.log(
+      `Novo usuário criado via OAuth (${provider}): ${email} — status PENDING`,
+    );
     return novoUser;
   }
 

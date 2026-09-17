@@ -14,5 +14,8 @@ export function generatePasswordResetToken(
 }
 
 export function normalizePasswordResetToken(token: string): string {
-  return token.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return token
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '');
 }

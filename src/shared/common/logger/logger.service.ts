@@ -25,4 +25,4 @@ export class CustomLoggerService implements LoggerService {
   verbose(message: string, context?: string) {
     this.logger.verbose(message, { context });
   }
-} 
+}

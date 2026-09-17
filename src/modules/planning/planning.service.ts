@@ -316,9 +316,7 @@ export class PlanningService extends UniversalService<
         PlanningService.normalizarLocalidadePlanejamento(merged);
       PlanningService.validarKmPlanejamento(
         localidade,
-        data.km !== undefined
-          ? data.km
-          : (atual as { km?: string }).km,
+        data.km !== undefined ? data.km : (atual as { km?: string }).km,
       );
       (data as any).locationId = localidade.locationId;
       (data as any).customLocationName = localidade.customLocationName;
@@ -364,18 +362,14 @@ export class PlanningService extends UniversalService<
 
       if (current !== next) {
         if (current) {
-          await this.repository.atualizar(
-            'workOrder',
-            { id: current },
-            { planningId: null } as any,
-          );
+          await this.repository.atualizar('workOrder', { id: current }, {
+            planningId: null,
+          } as any);
         }
         if (next) {
-          await this.repository.atualizar(
-            'workOrder',
-            { id: next },
-            { planningId: id } as any,
-          );
+          await this.repository.atualizar('workOrder', { id: next }, {
+            planningId: id,
+          } as any);
         }
       }
 
@@ -443,11 +437,9 @@ export class PlanningService extends UniversalService<
   protected async antesDeDesativar(id: string): Promise<void> {
     const atual = await this.buscarPlanningValido(id);
     if (atual.workOrder?.id) {
-      await this.repository.atualizar(
-        'workOrder',
-        { id: atual.workOrder.id },
-        { planningId: null } as any,
-      );
+      await this.repository.atualizar('workOrder', { id: atual.workOrder.id }, {
+        planningId: null,
+      } as any);
     }
   }
 
@@ -524,7 +516,9 @@ export class PlanningService extends UniversalService<
     }
 
     if (workOrder.planningId && workOrder.planningId !== planningIdPermitido) {
-      throw new BadRequestException('A OS já está vinculada a outro planejamento.');
+      throw new BadRequestException(
+        'A OS já está vinculada a outro planejamento.',
+      );
     }
   }
 
@@ -608,7 +602,10 @@ export class PlanningService extends UniversalService<
   }
 
   private static validarKmPlanejamento(
-    localidade: { locationId: string | null; customLocationName: string | null },
+    localidade: {
+      locationId: string | null;
+      customLocationName: string | null;
+    },
     km?: string | null,
   ): void {
     const kmNorm = PlanningService.normalizarKmPlanejamento(km);

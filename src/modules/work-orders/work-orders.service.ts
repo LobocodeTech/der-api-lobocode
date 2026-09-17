@@ -124,81 +124,83 @@ export class WorkOrdersService extends UniversalService<
   private construirDetalhesInclude(): Prisma.WorkOrderInclude {
     const companyId = this.obterCompanyId();
     return {
-    column: {
-      select: {
-        id: true,
-        name: true,
-        color: true,
-        regionalId: true,
+      column: {
+        select: {
+          id: true,
+          name: true,
+          color: true,
+          regionalId: true,
+        },
       },
-    },
-    location: {
-      include: {
-        regional: {
-          select: {
-            id: true,
-            cgr: true,
-            city: true,
-            color: true,
+      location: {
+        include: {
+          regional: {
+            select: {
+              id: true,
+              cgr: true,
+              city: true,
+              color: true,
+            },
           },
         },
       },
-    },
-    workOrderQueues: construirWorkOrderQueuesOnWorkOrderInclude(companyId ?? undefined),
-    checklistItems: {
-      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
-    },
-    comments: {
-      include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            role: true,
+      workOrderQueues: construirWorkOrderQueuesOnWorkOrderInclude(
+        companyId ?? undefined,
+      ),
+      checklistItems: {
+        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+      },
+      comments: {
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              role: true,
+            },
           },
         },
+        orderBy: { createdAt: 'desc' },
       },
-      orderBy: { createdAt: 'desc' },
-    },
-    evidences: {
-      include: {
-        file: {
-          select: {
-            id: true,
-            originalName: true,
-            url: true,
-            mimeType: true,
-            size: true,
-            createdAt: true,
+      evidences: {
+        include: {
+          file: {
+            select: {
+              id: true,
+              originalName: true,
+              url: true,
+              mimeType: true,
+              size: true,
+              createdAt: true,
+            },
           },
         },
+        orderBy: { createdAt: 'desc' },
       },
-      orderBy: { createdAt: 'desc' },
-    },
-    workOrderPauseHistories: {
-      include: {
-        pausedByUser: {
-          select: {
-            id: true,
-            name: true,
-            role: true,
+      workOrderPauseHistories: {
+        include: {
+          pausedByUser: {
+            select: {
+              id: true,
+              name: true,
+              role: true,
+            },
           },
         },
+        orderBy: { createdAt: 'desc' },
       },
-      orderBy: { createdAt: 'desc' },
-    },
-    planning: {
-      select: {
-        id: true,
-        title: true,
-        serviceType: true,
-        equipmentType: true,
-        date: true,
-        km: true,
-        observation: true,
+      planning: {
+        select: {
+          id: true,
+          title: true,
+          serviceType: true,
+          equipmentType: true,
+          date: true,
+          km: true,
+          observation: true,
+        },
       },
-    },
-    ...WORK_ORDER_AUDIT_USER_INCLUDE,
+      ...WORK_ORDER_AUDIT_USER_INCLUDE,
     };
   }
 
@@ -285,7 +287,9 @@ export class WorkOrdersService extends UniversalService<
     const base = this.entityConfig.includes ?? {};
     return {
       ...base,
-      workOrderQueues: construirWorkOrderQueuesOnWorkOrderInclude(companyId ?? undefined),
+      workOrderQueues: construirWorkOrderQueuesOnWorkOrderInclude(
+        companyId ?? undefined,
+      ),
       _count: {
         select: {
           checklistItems: true,
@@ -307,10 +311,10 @@ export class WorkOrdersService extends UniversalService<
   private construirWhereLeituraOs(
     baseWhere: Record<string, unknown> = {},
   ): Prisma.WorkOrderWhereInput {
-    return this.queryService.construirWhereClauseParaRead(
-      this.entityNameCasl,
-      { ...baseWhere, completedClearedAt: null },
-    );
+    return this.queryService.construirWhereClauseParaRead(this.entityNameCasl, {
+      ...baseWhere,
+      completedClearedAt: null,
+    });
   }
 
   private mesclarWhere(
@@ -356,10 +360,7 @@ export class WorkOrdersService extends UniversalService<
             { slaExceededAt: { not: null } },
             {
               status: {
-                notIn: [
-                  WorkOrderStatus.COMPLETED,
-                  WorkOrderStatus.CANCELLED,
-                ],
+                notIn: [WorkOrderStatus.COMPLETED, WorkOrderStatus.CANCELLED],
               },
               slaDeadlineAt: { lt: agora },
             },
@@ -762,8 +763,9 @@ export class WorkOrdersService extends UniversalService<
     }
     const includeConfig = include || this.getIncludeConfig();
     const skip = (safePage - 1) * safeLimit;
-    const defaultOrderBy =
-      this.getEntityConfig().orderBy ?? { createdAt: 'desc' };
+    const defaultOrderBy = this.getEntityConfig().orderBy ?? {
+      createdAt: 'desc',
+    };
     const [entities, total] = await Promise.all([
       this.repository.buscarMuitos(
         this.entityName,
@@ -868,7 +870,9 @@ export class WorkOrdersService extends UniversalService<
   }
 
   /** Mesmo critério ao vivo do card "SLA atrasado" da listagem de OS. */
-  async contarOsAtrasadasAoVivo(filtros: ListagemFiltros = {}): Promise<number> {
+  async contarOsAtrasadasAoVivo(
+    filtros: ListagemFiltros = {},
+  ): Promise<number> {
     await this.preloadCompanySlaConfig();
     this.permissionService.validarAction(this.entityNameCasl, 'read');
     const baseWhere = this.construirWhereListagemOs(filtros, false);
@@ -892,8 +896,9 @@ export class WorkOrdersService extends UniversalService<
     this.permissionService.validarAction(this.entityNameCasl, 'read');
     const whereClause = this.construirWhereLeituraOs({ [field]: value });
     const includeConfig = include || this.getIncludeConfig();
-    const defaultOrderBy =
-      this.getEntityConfig().orderBy ?? { createdAt: 'desc' };
+    const defaultOrderBy = this.getEntityConfig().orderBy ?? {
+      createdAt: 'desc',
+    };
     const entities = await this.repository.buscarMuitos(
       this.entityName,
       whereClause,
@@ -941,7 +946,9 @@ export class WorkOrdersService extends UniversalService<
     return this.buscarDetalhesPorId(id);
   }
 
-  private async validarFilasAssociadasParaIniciar(workOrderId: string): Promise<void> {
+  private async validarFilasAssociadasParaIniciar(
+    workOrderId: string,
+  ): Promise<void> {
     const filasNaOs = await this.prisma.workOrderQueue.count({
       where: { workOrderId },
     });
@@ -955,7 +962,7 @@ export class WorkOrdersService extends UniversalService<
   async iniciarTrabalho(id: string) {
     const roleUser = this.obterUsuarioLogado()?.role;
 
-    if(roleUser !== Roles.FIELD_TEAM) {
+    if (roleUser !== Roles.FIELD_TEAM) {
       throw new BadRequestException(
         'Você não tem permissão para iniciar uma ordem de serviço. Apenas usuários Técnicos do Campo.',
       );
@@ -964,7 +971,8 @@ export class WorkOrdersService extends UniversalService<
     const ordem = await this.buscarOrdemPorId(id);
     await this.validarFilasAssociadasParaIniciar(ordem.id);
     const usuarioLogadoId = this.obterUsuarioLogadoId();
-    const companyId = (ordem as { companyId?: string }).companyId ?? this.obterCompanyId();
+    const companyId =
+      (ordem as { companyId?: string }).companyId ?? this.obterCompanyId();
     const recipientIds =
       await this.workOrderQueueUsersService.resolveUserIdsFromWorkOrderId(
         ordem.id,
@@ -1160,10 +1168,7 @@ export class WorkOrdersService extends UniversalService<
     return this.buscarDetalhesPorId(ordem.id);
   }
 
-  async reprovarConclusaoOrdem(
-    id: string,
-    dto: RejectWorkOrderCompletionDto,
-  ) {
+  async reprovarConclusaoOrdem(id: string, dto: RejectWorkOrderCompletionDto) {
     this.validarPermissaoAprovacaoConclusao();
     const ordem = await this.buscarOrdemPorId(id);
     if (ordem.type !== WorkOrderType.CORRECTIVE) {
@@ -1242,9 +1247,7 @@ export class WorkOrdersService extends UniversalService<
     return usuarios.map((usuario) => usuario.id);
   }
 
-  private resolverStatusConclusaoPorTipo(
-    type: WorkOrderType,
-  ): WorkOrderStatus {
+  private resolverStatusConclusaoPorTipo(type: WorkOrderType): WorkOrderStatus {
     return type === WorkOrderType.CORRECTIVE
       ? WorkOrderStatus.COMPLETED_UNDER_REVIEW
       : WorkOrderStatus.COMPLETED;
@@ -1286,7 +1289,9 @@ export class WorkOrdersService extends UniversalService<
       status: WorkOrderStatus.COMPLETED,
       completedAt: ordem.completedAt ?? agora,
       finalApprovalCompletedAt:
-        ordem.type === WorkOrderType.CORRECTIVE ? finalApprovalCompletedAt : null,
+        ordem.type === WorkOrderType.CORRECTIVE
+          ? finalApprovalCompletedAt
+          : null,
       ...(colunaConclusao
         ? { column: { connect: { id: colunaConclusao.id } } }
         : {}),
@@ -1466,9 +1471,14 @@ export class WorkOrdersService extends UniversalService<
             companyId ?? undefined,
           );
         if (novoStatus === WorkOrderStatus.IN_PROGRESS) {
-          await this.notificarEventoCicloDeVida(ordem.id, 'started', recipientIds, {
-            skipEmail: this.omitirEmailNasNotificacoesOs,
-          });
+          await this.notificarEventoCicloDeVida(
+            ordem.id,
+            'started',
+            recipientIds,
+            {
+              skipEmail: this.omitirEmailNasNotificacoesOs,
+            },
+          );
         } else if (novoStatus === WorkOrderStatus.COMPLETED) {
           await this.notificarEventoCicloDeVida(
             ordem.id,
@@ -1502,9 +1512,7 @@ export class WorkOrdersService extends UniversalService<
       normalizado.includes('finaliz') ||
       normalizado.includes('encerr')
     ) {
-      return this.resolverStatusConclusaoPorTipo(
-        type ?? WorkOrderType.GENERAL,
-      );
+      return this.resolverStatusConclusaoPorTipo(type ?? WorkOrderType.GENERAL);
     }
 
     if (
@@ -1724,7 +1732,11 @@ export class WorkOrdersService extends UniversalService<
     delete (data as any).queueIds;
 
     if (data.planningId) {
-      await this.validarPlanejamentoDisponivel(data.planningId, undefined, data.type);
+      await this.validarPlanejamentoDisponivel(
+        data.planningId,
+        undefined,
+        data.type,
+      );
     }
 
     if (queueIds.length > 0 && !data.status) {
@@ -1779,8 +1791,9 @@ export class WorkOrdersService extends UniversalService<
     const proximoNumero = await this.prisma.$transaction((tx) =>
       atribuirProximoNumeroSequencialWorkOrder(tx, empresaId),
     );
-    (data as CreateWorkOrderDto & { sequentialNumber: string }).sequentialNumber =
-      proximoNumero;
+    (
+      data as CreateWorkOrderDto & { sequentialNumber: string }
+    ).sequentialNumber = proximoNumero;
 
     this.aplicarAuditoriaCriacao(data);
   }
@@ -1864,14 +1877,12 @@ export class WorkOrdersService extends UniversalService<
     const mudouValorEquipamento =
       mudouEquipamento &&
       equipmentTypePayload !== (ordemAtual.equipmentType ?? null);
-    const mudouTipo =
-      data.type !== undefined && data.type !== ordemAtual.type;
+    const mudouTipo = data.type !== undefined && data.type !== ordemAtual.type;
 
     if (mudouLocalidade || mudouValorEquipamento || mudouTipo) {
       const locationIdEfetivo =
         data.locationId !== undefined ? data.locationId : ordemAtual.locationId;
-      const tipoEfetivo =
-        data.type !== undefined ? data.type : ordemAtual.type;
+      const tipoEfetivo = data.type !== undefined ? data.type : ordemAtual.type;
       const equipmentEfetivo = mudouEquipamento
         ? (equipmentTypePayload ?? undefined)
         : (ordemAtual.equipmentType ?? undefined);
@@ -2123,8 +2134,7 @@ export class WorkOrdersService extends UniversalService<
         where: { id: data.id },
         select: { title: true, companyId: true },
       });
-      const workOrderTitle =
-        ordemCriada?.title?.trim() || `OS ${data.id}`;
+      const workOrderTitle = ordemCriada?.title?.trim() || `OS ${data.id}`;
       const companyId =
         ordemCriada?.companyId ?? this.obterCompanyId() ?? undefined;
       const actorUserId = this.obterUsuarioLogadoId() ?? 'system';
@@ -2143,7 +2153,10 @@ export class WorkOrdersService extends UniversalService<
           where: { id: { in: queueIds } },
           select: { title: true },
         });
-        const titulos = filas.map((fila) => fila.title).filter(Boolean).join(', ');
+        const titulos = filas
+          .map((fila) => fila.title)
+          .filter(Boolean)
+          .join(', ');
         await this.registrarComentarioAutomatico(
           data.id,
           `OS associada às filas: ${titulos}.`,
@@ -2189,7 +2202,9 @@ export class WorkOrdersService extends UniversalService<
     const ordem = await this.prisma.workOrder.findFirst({
       where: whereClause,
       include: {
-        workOrderQueues: construirWorkOrderQueuesOnWorkOrderInclude(companyId ?? undefined),
+        workOrderQueues: construirWorkOrderQueuesOnWorkOrderInclude(
+          companyId ?? undefined,
+        ),
       },
     });
 
@@ -2309,10 +2324,7 @@ export class WorkOrdersService extends UniversalService<
       throw new NotFoundException('Planejamento não encontrado.');
     }
 
-    if (
-      planning.workOrder &&
-      planning.workOrder.id !== workOrderIdPermitida
-    ) {
+    if (planning.workOrder && planning.workOrder.id !== workOrderIdPermitida) {
       throw new BadRequestException(
         'Este planejamento já está associado a outra OS.',
       );
@@ -2677,10 +2689,7 @@ export class WorkOrdersService extends UniversalService<
   private async obterConfigSlaEmpresa(
     companyId: string,
   ): Promise<CorrectiveSlaCompanyConfig> {
-    if (
-      this.cachedCompanySlaConfig &&
-      this.obterCompanyId() === companyId
-    ) {
+    if (this.cachedCompanySlaConfig && this.obterCompanyId() === companyId) {
       return this.cachedCompanySlaConfig;
     }
     const company = await this.prisma.company.findUnique({
@@ -2732,10 +2741,11 @@ export class WorkOrdersService extends UniversalService<
     if (desempacotarJanelaSla(ordem.slaDeadlineHours)) {
       return;
     }
-    (data as { slaDeadlineHours?: number }).slaDeadlineHours = empacotarJanelaSla(
-      config.correctiveSlaWindowStart,
-      config.correctiveSlaWindowEnd,
-    );
+    (data as { slaDeadlineHours?: number }).slaDeadlineHours =
+      empacotarJanelaSla(
+        config.correctiveSlaWindowStart,
+        config.correctiveSlaWindowEnd,
+      );
   }
 
   private extrairSnapshotSlaDaOrdem(
@@ -2750,8 +2760,7 @@ export class WorkOrdersService extends UniversalService<
       slaRemainingSeconds:
         (record.slaRemainingSeconds as number | null) ?? null,
       slaExceededAt: (record.slaExceededAt as Date | null) ?? null,
-      slaStatusExtended:
-        (record.slaStatusExtended as string | null) ?? null,
+      slaStatusExtended: (record.slaStatusExtended as string | null) ?? null,
     };
   }
 
@@ -2918,7 +2927,10 @@ export class WorkOrdersService extends UniversalService<
     }
 
     const agora = new Date();
-    const virtuais = this.montarCamposVirtuaisSlaCorretiva(record, companyConfig);
+    const virtuais = this.montarCamposVirtuaisSlaCorretiva(
+      record,
+      companyConfig,
+    );
     const virtuaisNegativos = this.montarCamposVirtuaisSlaNegativa(
       record,
       companyConfig,
@@ -2981,7 +2993,8 @@ export class WorkOrdersService extends UniversalService<
       slaResumedAt: snapshot.slaResumedAt,
       slaConsumedSeconds: snapshot.slaConsumedSeconds,
       slaRemainingSeconds: snapshot.slaRemainingSeconds,
-      slaDeadlineAt: (record.slaDeadlineAt as Date | null) ?? snapshot.slaDeadlineAt,
+      slaDeadlineAt:
+        (record.slaDeadlineAt as Date | null) ?? snapshot.slaDeadlineAt,
       slaStatusExtended: snapshot.slaStatusExtended,
       slaExceededAt: snapshot.slaExceededAt,
       correctiveSlaTotalSeconds: snapshot.totalBudgetSeconds,
@@ -3004,25 +3017,21 @@ export class WorkOrdersService extends UniversalService<
     workOrderId: string,
     companyId: string,
     title: string,
-    snapshot: NonNullable<
-      ReturnType<WorkOrderSlaService['calcularSnapshot']>
-    >,
+    snapshot: NonNullable<ReturnType<WorkOrderSlaService['calcularSnapshot']>>,
     flags: {
       slaNearBreachNotifiedAt: Date | null;
       slaOneHourLeftNotifiedAt: Date | null;
       slaBreachedNotifiedAt: Date | null;
     },
   ): Promise<void> {
-    await this.workOrderCorrectiveSlaNotificationService.processarAposSnapshot(
-      {
-        workOrderId,
-        companyId,
-        workOrderTitle: title,
-        actorUserId: this.obterUsuarioLogadoId() ?? 'system',
-        snapshot,
-        ...flags,
-      },
-    );
+    await this.workOrderCorrectiveSlaNotificationService.processarAposSnapshot({
+      workOrderId,
+      companyId,
+      workOrderTitle: title,
+      actorUserId: this.obterUsuarioLogadoId() ?? 'system',
+      snapshot,
+      ...flags,
+    });
   }
 
   private dadosAuditoriaAtualizacaoPrisma(

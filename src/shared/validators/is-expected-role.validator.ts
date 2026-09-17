@@ -1,7 +1,14 @@
-import { registerDecorator, ValidationOptions, ValidationArguments } from 'class-validator';
+import {
+  registerDecorator,
+  ValidationOptions,
+  ValidationArguments,
+} from 'class-validator';
 import { Roles } from '@prisma/client';
 
-export function IsExpectedRole(expectedRole: Roles, validationOptions?: ValidationOptions) {
+export function IsExpectedRole(
+  expectedRole: Roles,
+  validationOptions?: ValidationOptions,
+) {
   return function (object: Object, propertyName: string) {
     registerDecorator({
       name: 'isExpectedRole',
@@ -13,7 +20,7 @@ export function IsExpectedRole(expectedRole: Roles, validationOptions?: Validati
           if (typeof value !== 'string') {
             return false;
           }
-          
+
           // Verifica se o role enviado corresponde ao role esperado
           return value === expectedRole;
         },
@@ -23,4 +30,4 @@ export function IsExpectedRole(expectedRole: Roles, validationOptions?: Validati
       },
     });
   };
-} 
+}

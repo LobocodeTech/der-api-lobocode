@@ -51,7 +51,11 @@ export class OAuthService {
       where: { email: { equals: normalizedEmail, mode: 'insensitive' } },
     });
 
-    if(!userExistente || userExistente.status !== UserStatus.ACTIVE || userExistente.deletedAt) {
+    if (
+      !userExistente ||
+      userExistente.status !== UserStatus.ACTIVE ||
+      userExistente.deletedAt
+    ) {
       throw new UnauthorizedException(
         `Usuário não encontrado no sistema para a realização do login via ${provider.charAt(0).toUpperCase() + provider.slice(1)}.`,
       );
@@ -93,8 +97,13 @@ export class OAuthService {
       });
     }
 
-    this.logger.log(`OAuth vinculado ao usuário existente: ${normalizedEmail} via ${provider}`);
-    return { ...userExistente, profilePicture: picture ?? userExistente.profilePicture };
+    this.logger.log(
+      `OAuth vinculado ao usuário existente: ${normalizedEmail} via ${provider}`,
+    );
+    return {
+      ...userExistente,
+      profilePicture: picture ?? userExistente.profilePicture,
+    };
   }
 
   /**

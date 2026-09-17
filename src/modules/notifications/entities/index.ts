@@ -1,13 +1,13 @@
 /**
  * 🏗️ ENTITIES NOTIFICATIONS - EXPORTS
- * 
+ *
  * Exports centralizados para todas as entidades de notificação.
  */
 
 // Supply
 export * from './supply';
 
-// Shift  
+// Shift
 export * from './shift';
 
 // Occurrence

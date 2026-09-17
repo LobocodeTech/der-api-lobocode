@@ -8,7 +8,7 @@ export class UniversalRepository<DtoCreate, DtoUpdate> {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tenantService: TenantService,
-  ) { }
+  ) {}
 
   /**
    * Repository universal que funciona para qualquer entidade
@@ -259,11 +259,13 @@ export class UniversalRepository<DtoCreate, DtoUpdate> {
   }
 
   /** Entidades que não possuem relação direta com Company (sem companyId no schema). */
-  private static readonly ENTITIES_WITHOUT_COMPANY: EntityNameModel[] = [
-  ];
+  private static readonly ENTITIES_WITHOUT_COMPANY: EntityNameModel[] = [];
 
   //  Aplicar companyId automaticamente nos dados de criação
-  private aplicarCompanyIdAosDadosDeCreate(entityName: EntityNameModel, data: any): any {
+  private aplicarCompanyIdAosDadosDeCreate(
+    entityName: EntityNameModel,
+    data: any,
+  ): any {
     if (UniversalRepository.ENTITIES_WITHOUT_COMPANY.includes(entityName)) {
       return data;
     }

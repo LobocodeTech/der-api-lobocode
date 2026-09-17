@@ -69,9 +69,7 @@ export class WorkOrderQueueUsersService {
   normalizarQueueIds(ids?: string[]): string[] {
     return Array.from(
       new Set(
-        [...(ids ?? [])]
-          .filter(Boolean)
-          .map((value) => String(value).trim()),
+        [...(ids ?? [])].filter(Boolean).map((value) => String(value).trim()),
       ),
     ).filter(Boolean);
   }
@@ -160,7 +158,10 @@ export class WorkOrderQueueUsersService {
     return this.resolveUsersFromQueueIds(queueIds, companyId);
   }
 
-  diffQueueIds(previousIds: string[], nextIds: string[]): {
+  diffQueueIds(
+    previousIds: string[],
+    nextIds: string[],
+  ): {
     added: string[];
     removed: string[];
   } {
@@ -176,7 +177,10 @@ export class WorkOrderQueueUsersService {
     workOrderId: string,
     companyId?: string,
   ): Promise<string[]> {
-    const users = await this.resolveUsersFromWorkOrderId(workOrderId, companyId);
+    const users = await this.resolveUsersFromWorkOrderId(
+      workOrderId,
+      companyId,
+    );
     return users.map((user) => user.id);
   }
 
@@ -229,7 +233,9 @@ export class WorkOrderQueueUsersService {
       .filter((queue): queue is WorkOrderQueueWithUsers => queue !== null);
   }
 
-  mapAssigneesFromQueues(queues: WorkOrderQueueWithUsers[]): ResolvedWorkOrderUser[] {
+  mapAssigneesFromQueues(
+    queues: WorkOrderQueueWithUsers[],
+  ): ResolvedWorkOrderUser[] {
     const byId = new Map<string, ResolvedWorkOrderUser>();
     for (const queue of queues) {
       for (const user of queue.users) {
@@ -245,9 +251,10 @@ export class WorkOrderQueueUsersService {
     return Array.from(byId.values());
   }
 
-  mapAssigneesPrismaShape(
-    users: ResolvedWorkOrderUser[],
-  ): Array<{ userId: string; user: { id: string; name: string; role?: string } }> {
+  mapAssigneesPrismaShape(users: ResolvedWorkOrderUser[]): Array<{
+    userId: string;
+    user: { id: string; name: string; role?: string };
+  }> {
     return users.map((user) => ({
       userId: user.id,
       user: {
