@@ -1,0 +1,181 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_ENV: test
+  # Somente CI. Não é produção.
+  DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci?schema=public
+  JWT_SECRET: ci-only-not-production
+  PORT: '3000'
+  # Preferível alinhar ConfigModule ao DV (ENV_FILE). Enquanto envFilePath for '.env' fixo,
+  # as vars do job acima ainda costumam prevalecer no GitHub Actions.
+  ENV_FILE: /tmp/der-ci.env-does-not-exist
+
+jobs:
+  verify:
+    name: Lint, tests, schema, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      postgres:
+        image: postgres:16.8-alpine3.20
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Validate Prisma schema
+        run: npx prisma validate
+
+      - name: Generate Prisma Client
+        run: npm run prisma:generate
+
+      # Sem --fix: o runner não commita. Use `npm run lint` localmente.
+      # --quiet: warnings não falham o job nem poluem o log; só error.
+      - name: Lint
+        run: npx eslint "{src,apps,libs,test}/**/*.ts" --quiet
+
+      - name: Unit tests
+        run: npm run test
+
+      # Sem migration.sql no git, migrate deploy não cria tabelas (exit 0) e o
+      # migrate diff --exit-code falha com o schema inteiro. Espelha docker-entrypoint.sh.
+      - name: Sync schema to ephemeral Postgres
+        id: db_sync
+        run: |
+          set -euo pipefail
+          if [ -n "$(find prisma -path '*/migrations/*/migration.sql' -print -quit 2>/dev/null)" ]; then
+            echo "mode=migrate" >> "$GITHUB_OUTPUT"
+            echo "Migrations SQL encontradas; prisma migrate deploy"
+            npx prisma migrate deploy
+          else
+            echo "mode=push" >> "$GITHUB_OUTPUT"
+            echo "Sem migrations versionadas; prisma db push"
+            npx prisma db push --accept-data-loss
+          fi
+
+      - name: Check schema drift against applied migrations
+        if: steps.db_sync.outputs.mode == 'migrate'
+        run: |
+          npx prisma migrate diff \
+            --from-url "$DATABASE_URL" \
+            --to-schema-datamodel prisma/schema.prisma \
+            --exit-code
+
+      - name: Build
+        run: npm run build
+
+      - name: Smoke GET /health
+        run: |
+          set -euo pipefail
+          if [ -f dist/src/main.js ]; then
+            MAIN=dist/src/main.js
+          elif [ -f dist/main.js ]; then
+            MAIN=dist/main.js
+          else
+            echo "Artefato Nest não encontrado em dist/main.js nem dist/src/main.js"
+            ls -la dist || true
+            exit 1
+          fi
+          node "$MAIN" &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          for i in $(seq 1 30); do
+            if curl -sf "http://127.0.0.1:${PORT}/health"; then
+              echo
+              echo "Health OK"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "API não respondeu /health a tempo"
+          exit 1
+
+  docker:
+    name: Docker build (no push)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      COMPOSE_DATABASE_PROJECT_NAME: ci-database
+      COMPOSE_VPS_STACK_NAME: ci-vps
+      DOCKER_NETWORK_NAME: ci-stack
+      TRAEFIK_NETWORK: ci-edge
+      TRAEFIK_CERT_RESOLVER: letsencrypt
+      VPS_APP_PROJECT_NAME: ci
+      APP_HOST: ci.example.test
+      APP_PORT: '3000'
+      BACKEND_CONTAINER_NAME: ci-backend
+      DB_CONTAINER_NAME: ci-db
+      DB_USER: ci
+      DB_PASSWORD: ci
+      DB_NAME: ci
+      DB_HOST_PORT: '5432'
+      JWT_SECRET: ci-only-not-production
+      REDIS_CONTAINER_NAME: ci-redis
+      REDIS_HOST_PORT: '6379'
+      REDIS_VOLUME_NAME: ci_redis_data
+      POSTGRES_VOLUME_NAME: ci_postgres_data
+      MINIO_CONTAINER_NAME: ci-minio
+      MINIO_ROOT_USER: ciadmin
+      MINIO_ROOT_PASSWORD: ciadmin-ciadmin
+      MINIO_USE_SSL: 'false'
+      MINIO_PUBLIC_ENDPOINT: http://127.0.0.1:9000
+      MINIO_BUCKET_NAME: ci-files
+      MINIO_API_HOST_PORT: '9000'
+      MINIO_CONSOLE_HOST_PORT: '9001'
+      MINIO_VOLUME_NAME: ci_minio_data
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Validate docker compose (API VPS app)
+        run: docker compose -f docker/docker-compose.vps-app.yml config --quiet
+
+      - name: Validate docker compose (database stack)
+        run: docker compose -f docker/docker-compose.database.yml config --quiet
+
+      - name: Validate docker compose (MinIO Traefik overlay)
+        run: docker compose -f docker/docker-compose.minio-traefik.yml config --quiet
+
+      - name: Build production image
+        run: docker build -f docker/Dockerfile.prod -t der-api:ci .
