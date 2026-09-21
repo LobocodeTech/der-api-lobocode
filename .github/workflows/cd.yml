@@ -1,0 +1,102 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+  workflow_dispatch:
+
+concurrency:
+  group: cd-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy VPS
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    if: |
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main') ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+
+    env:
+      DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      VPS_WORKDIR: ${{ vars.VPS_WORKDIR }}
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          command_timeout: 30m
+          envs: DEPLOY_SHA,VPS_WORKDIR
+          script: |
+
+            if [ -z "${VPS_WORKDIR:-}" ]; then
+              echo "Configure a Variable VPS_WORKDIR (pasta do clone na VPS)."
+              exit 1
+            fi
+
+            if [ -z "${DEPLOY_SHA:-}" ]; then
+              echo "DEPLOY_SHA vazio."
+              exit 1
+            fi
+
+            cd "${VPS_WORKDIR}"
+
+            if [ ! -f scripts/deploy.sh ] || [ ! -f docker/docker-compose.vps-app.yml ]; then
+              echo "VPS_WORKDIR não aponta para a raiz do repositório da API."
+              pwd
+              exit 1
+            fi
+
+            PREV_SHA="$(git rev-parse HEAD)"
+            echo "SHA atual na VPS: ${PREV_SHA}"
+            echo "SHA alvo: ${DEPLOY_SHA}"
+
+            git fetch origin
+            git checkout -f "${DEPLOY_SHA}"
+
+            # generate + build ficam no Dockerfile.prod (compose up --build)
+            ./scripts/deploy.sh vps-app
+
+            set -a
+            # shellcheck disable=SC1091
+            . .env
+            set +a
+
+            if [ -z "${BACKEND_CONTAINER_NAME:-}" ] || [ -z "${APP_PORT:-}" ]; then
+              echo "BACKEND_CONTAINER_NAME e APP_PORT precisam existir no .env da VPS."
+              exit 1
+            fi
+
+            health_ok=0
+            i=1
+            while [ "${i}" -le 40 ]; do
+              if docker exec "${BACKEND_CONTAINER_NAME}" curl -sf "http://127.0.0.1:${APP_PORT}/health"; then
+                echo
+                echo "Health OK"
+                health_ok=1
+                break
+              fi
+              i=$((i + 1))
+              sleep 5
+            done
+
+            if [ "${health_ok}" -eq 1 ]; then
+              exit 0
+            fi
+
+            echo "Health falhou. Rollback para ${PREV_SHA}"
+            git checkout -f "${PREV_SHA}"
+            ./scripts/deploy.sh vps-app
+            exit 1
