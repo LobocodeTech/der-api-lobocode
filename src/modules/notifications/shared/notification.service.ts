@@ -314,11 +314,11 @@ export class NotificationService {
   // ============================================================================
 
   /**
-   * Obter destinatários (managers e supervisors da empresa)
+   * Destinatários padrão do broadcast: ADMIN e C2C da empresa.
    */
   private async obterDestinatarios(companyId?: string): Promise<string[]> {
     const where: any = {
-      role: { in: ['ADMIN', 'SUPERVISOR'] },
+      role: { in: [Roles.ADMIN, Roles.C2C] },
       deletedAt: null,
     };
 

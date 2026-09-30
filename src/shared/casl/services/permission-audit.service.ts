@@ -11,7 +11,7 @@ export interface PermissionAuditLog {
   subject: string;
   resourceId?: string;
   companyId?: string;
-  postId?: string;
+  regionalId?: string;
   timestamp: Date;
   success: boolean;
   ipAddress?: string;
@@ -61,7 +61,7 @@ export class PermissionAuditService {
     context?: {
       resourceId?: string;
       companyId?: string;
-      postId?: string;
+      regionalId?: string;
       ipAddress?: string;
       userAgent?: string;
       additionalContext?: Record<string, any>;
@@ -74,7 +74,7 @@ export class PermissionAuditService {
       subject,
       resourceId: context?.resourceId,
       companyId: context?.companyId || user.companyId || undefined,
-      postId: context?.postId,
+      regionalId: context?.regionalId,
       timestamp: new Date(),
       success,
       ipAddress: context?.ipAddress,
@@ -109,7 +109,7 @@ export class PermissionAuditService {
     context?: {
       resourceId?: string;
       companyId?: string;
-      postId?: string;
+      regionalId?: string;
       ipAddress?: string;
       userAgent?: string;
       additionalContext?: Record<string, any>;
@@ -324,7 +324,7 @@ export class PermissionAuditService {
       'subject',
       'resourceId',
       'companyId',
-      'postId',
+      'regionalId',
       'timestamp',
       'success',
       'ipAddress',
@@ -341,7 +341,7 @@ export class PermissionAuditService {
         log.subject,
         log.resourceId || '',
         log.companyId || '',
-        log.postId || '',
+        log.regionalId || '',
         log.timestamp.toISOString(),
         log.success.toString(),
         log.ipAddress || '',

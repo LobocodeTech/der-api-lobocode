@@ -16,9 +16,9 @@ export const ROLE_BY_METHOD_KEY = 'roleByMethod';
  *
  * @example
  * @RoleByMethod({
- *   GET: [Roles.ADMIN, Roles.HR, Roles.GUARD, Roles.SUPERVISOR],
- *   POST: [Roles.ADMIN, Roles.SUPERVISOR],
- *   PATCH: [Roles.ADMIN, Roles.SUPERVISOR],
+ *   GET: [Roles.ADMIN, Roles.FIELD_TEAM, Roles.C2C],
+ *   POST: [Roles.ADMIN, Roles.C2C],
+ *   PATCH: [Roles.ADMIN, Roles.C2C],
  *   DELETE: [Roles.ADMIN]
  * })
  */

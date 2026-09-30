@@ -54,7 +54,7 @@ O MinIO já está configurado no `docker-compose.yml`:
 
 ```yaml
 minio:
-  image: minio/minio:latest
+  image: quay.io/minio/minio:latest
   ports:
     - '9000:9000' # API
     - '9001:9001' # Console web

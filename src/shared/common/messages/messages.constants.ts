@@ -74,9 +74,6 @@ export const VALIDATION_MESSAGES = {
   // Validações específicas por role
   ROLE_SPECIFIC: {
     FIELD_REQUIRED_FOR_ROLE: 'Campo é obrigatório para este perfil',
-    GUARD_CPF_REQUIRED: 'CPF é obrigatório para guardas',
-    RESIDENT_PHONE_REQUIRED: 'Telefone é obrigatório para residentes',
-    RESIDENT_APARTMENT_REQUIRED: 'Apartamento é obrigatório para residentes',
   },
 
   // Validações de número
@@ -107,7 +104,7 @@ export const ERROR_MESSAGES = {
     ROLE_REQUIRED: 'Role específica é necessária',
     RESOURCE_ACCESS_DENIED: 'Acesso negado para este recurso',
     COMPANY_ACCESS_DENIED: 'Acesso negado para esta empresa',
-    POST_ACCESS_DENIED: 'Acesso negado para este posto',
+    REGIONAL_ACCESS_DENIED: 'Acesso negado para esta regional',
   },
 
   // Erros de recursos
@@ -118,7 +115,8 @@ export const ERROR_MESSAGES = {
     INACTIVE: 'Recurso está inativo',
     USER_NOT_FOUND: 'Usuário não encontrado',
     COMPANY_NOT_FOUND: 'Empresa não encontrada',
-    POST_NOT_FOUND: 'Posto não encontrado',
+    REGIONAL_NOT_FOUND: 'Regional não encontrada',
+    WORK_ORDER_NOT_FOUND: 'Ordem de serviço não encontrada',
     REQUIRED_FIELD: 'Campo obrigatório',
   },
 
@@ -273,10 +271,10 @@ export const NOTIFICATION_MESSAGES = {
 
   // Notificações de negócio
   BUSINESS: {
-    NEW_ROUND_ASSIGNED: 'Nova ronda atribuída',
-    INCIDENT_REPORTED: 'Incidente reportado',
-    SHIFT_CHANGED: 'Turno alterado',
-    SUPERVISOR_NOTIFIED: 'Supervisor notificado',
+    WORK_ORDER_ASSIGNED: 'Ordem de serviço atribuída',
+    WORK_ORDER_COMPLETED: 'Ordem de serviço concluída',
+    PLANNING_CHANGED: 'Planejamento alterado',
+    C2C_NOTIFIED: 'C2C notificado',
   },
 };
 
@@ -344,8 +342,8 @@ export const METRICS_MESSAGES = {
 
   BUSINESS: {
     HIGH_USER_ACTIVITY: 'Alta atividade de usuários',
-    MANY_INCIDENTS: 'Muitos incidentes reportados',
-    LOW_ROUND_COMPLETION: 'Baixa taxa de conclusão de rondas',
+    MANY_WORK_ORDERS: 'Muitas ordens de serviço reportadas',
+    LOW_WORK_ORDER_COMPLETION: 'Baixa taxa de conclusão de ordens de serviço',
   },
 };
 

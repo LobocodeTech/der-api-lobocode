@@ -12,7 +12,7 @@ Content-Type: application/json
 {
     "login": "System Admin Claiver", 
     #   "login": "admin.empresA",
-    #   "login": "hr.empresa",
+    #   "login": "der.empresa",
     "password": "SystemAdmin@Senha"
 }
 
@@ -226,31 +226,31 @@ Authorization: Bearer {{adminToken}}
 ### 🔐 TESTES DE SEGURANÇA - OUTROS ROLES
 ### ========================================
 
-### Login HR (para teste de negação)
-# @name hrLogin
+### Login FIELD_TEAM (para teste de negação)
+# @name fieldTeamLogin
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-    "email": "hr@user.com",
+    "login": "field.empresa@user.com",
     "password": "SystemAdmin123@Senha"
 }
 
-### ❌ HR tentando acessar métricas (deve falhar)
+### ❌ FIELD_TEAM tentando acessar métricas (deve falhar)
 GET {{baseUrl}}/{{entity}}/metrics
-Authorization: Bearer {{hrLogin.response.body.access_token}}
+Authorization: Bearer {{fieldTeamLogin.response.body.access_token}}
 
-### ❌ HR tentando acessar logs (deve falhar)
+### ❌ FIELD_TEAM tentando acessar logs (deve falhar)
 GET {{baseUrl}}/{{entity}}/logs
-Authorization: Bearer {{hrLogin.response.body.access_token}}
+Authorization: Bearer {{fieldTeamLogin.response.body.access_token}}
 
-### ❌ HR tentando exportar (deve falhar)
+### ❌ FIELD_TEAM tentando exportar (deve falhar)
 GET {{baseUrl}}/{{entity}}/export/logs
-Authorization: Bearer {{hrLogin.response.body.access_token}}
+Authorization: Bearer {{fieldTeamLogin.response.body.access_token}}
 
-### ✅ HR acessando busca (deve funcionar)
+### ✅ FIELD_TEAM acessando busca (escopo permitido)
 GET {{baseUrl}}/{{entity}}/search/name?name=TechCorp
-Authorization: Bearer {{hrLogin.response.body.access_token}}
+Authorization: Bearer {{fieldTeamLogin.response.body.access_token}}
 
 ### ========================================
 ### 🧪 TESTES DE VALIDAÇÃO E ERROS

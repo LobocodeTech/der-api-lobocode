@@ -50,8 +50,8 @@ export class AdminService extends BaseUserService {
     // TODO: Implementar estatísticas da empresa
     return {
       totalUsers: 0,
-      totalPosts: 0,
-      activePatrols: 0,
+      totalRegionals: 0,
+      totalWorkOrders: 0,
     };
   }
 }

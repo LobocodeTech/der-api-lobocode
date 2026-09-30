@@ -170,8 +170,8 @@ POST {{baseUrl}}/auth/login
 Content-Type: {{contentType}}
 
 {
-  "login": "guard@departamento-estadual-rodovias.com",
-  "password": "Guard123!"
+  "login": "field.empresa@user.com",
+  "password": "SystemAdmin123@Senha"
 }
 
 ###
@@ -252,27 +252,23 @@ Authorization: Bearer token_invalido_123
 ### 8. DADOS DE TESTE
 ### =============================================================================
 
-# Usuários de teste para diferentes roles:
-# 
+# Usuários de teste para diferentes roles DER:
+#
 # SYSTEM_ADMIN:
-# - Email: admin@departamento-estadual-rodovias.com
-# - Login: admin
-# - Password: Admin123!
+# - Login: systemadmin@user.com
+# - Password: SystemAdmin123@Senha
 #
-# GUARD:
-# - Email: guard@departamento-estadual-rodovias.com
-# - Login: guard
-# - Password: Guard123!
+# ADMIN:
+# - Login: admin@user.com
+# - Password: SystemAdmin123@Senha
 #
-# SUPERVISOR:
-# - Email: supervisor@departamento-estadual-rodovias.com
-# - Login: supervisor
-# - Password: Supervisor123!
+# FIELD_TEAM:
+# - Login: field.empresa@user.com
+# - Password: SystemAdmin123@Senha
 #
-# HR:
-# - Email: hr@departamento-estadual-rodovias.com
-# - Login: hr
-# - Password: Hr123!
+# C2C:
+# - Login: c2c.empresa@user.com
+# - Password: SystemAdmin123@Senha
 
 ### =============================================================================
 ### 9. VALIDAÇÕES E ERROS

@@ -8,8 +8,8 @@ Este documento estabelece os padrões de nomenclatura e convenções de código 
 
 ### ✅ **MANTER EM INGLÊS:**
 
-- **Entidades/Modelos**: `User`, `Company`, `Post`, `Role`, `Shift`, `Patrol`
-- **Propriedades**: `id`, `name`, `email`, `companyId`, `postId`
+- **Entidades/Modelos**: `User`, `Company`, `Regional`, `Location`, `Asset`, `WorkOrder`, `Planning`, `Queue`
+- **Propriedades**: `id`, `name`, `email`, `companyId`, `regionalId`
 - **Tipos/Interfaces**: `Roles`, `Prisma.UserWhereInput`, `UpdateUserDto`
 - **Decorators**: `@Injectable()`, `@Controller()`, `@UseGuards()`
 - **Frameworks**: `NestJS`, `Prisma`, `CASL`, `TypeScript`
@@ -32,7 +32,7 @@ Este documento estabelece os padrões de nomenclatura e convenções de código 
 buscarUserPorId(id: string)
 buscarUserPorEmail(email: string)
 buscarUsersPorCompany(companyId: string)
-buscarUsersPorPost(postId: string)
+buscarUsersPorRegional(regionalId: string)
 buscarTodosOsUsers(page: number, limit: number)
 ```
 
@@ -58,8 +58,8 @@ validarPermissaoParaDelete()
 // ✅ Padrão: criarNovo[Entity]
 criarNovoUser(dto: CreateUserDto)
 criarNovoAdmin(dto: CreateAdminDto)
-criarNovoPlatformAdmin(dto: CreatePlatformAdminDto)
-criarNovoGuard(dto: CreateGuardDto)
+criarNovoSystemAdmin(dto: CreateSystemAdminDto)
+criarNovoOthers(dto: CreateOthersDto)
 ```
 
 ### 🔧 **MÉTODOS DE CONSTRUÇÃO**
@@ -174,7 +174,6 @@ async deleteUserPermanentemente(where: Prisma.UserWhereUniqueInput)
 
 // Operações específicas
 async buscarUserComRelations(id: string)
-async conectarUserAosPosts(userId: string, postIds: string[])
 async contarQuantidadeDeUsers(where: Prisma.UserWhereInput)
 
 // Métodos privados
@@ -192,7 +191,7 @@ async validarSePhoneEhUnico(phone: string, excludeUserId?: string)
 
 // Validações de existência
 async validarSeCompanyExiste(companyId: string)
-async validarSePostPertenceACompany(postId: string, companyId: string)
+async validarSeRegionalExiste(regionalId: string)
 async validarSeUserExiste(id: string)
 
 // Validações de negócio
@@ -203,16 +202,12 @@ async validarSeUserPodeSerDeletado(id: string)
 
 ```typescript
 // Criação de diferentes tipos de usuário
-criarNovoPlatformAdmin(dto: CreatePlatformAdminDto): Prisma.UserCreateInput
-criarNovoAdmin(dto: CreateAdminDto): Prisma.UserCreateInput
-criarNovoSupervisor(dto: CreateSupervisorDto): Prisma.UserCreateInput
-criarNovoGuard(dto: CreateGuardDto): Prisma.UserCreateInput
-criarNovoHR(dto: CreateHRDto): Prisma.UserCreateInput
-criarNovoPostSupervisor(dto: CreatePostSupervisorDto): Prisma.UserCreateInput
-criarNovoPostResident(dto: CreatePostResidentDto): Prisma.UserCreateInput
+criarSystemAdmin(dto: CreateSystemAdminDto): Prisma.UserCreateInput
+criarAdmin(dto: CreateAdminDto): Prisma.UserCreateInput
+criarOthers(dto: CreateOthersDto): Prisma.UserCreateInput
 
 // Métodos privados
-private hashPasswordDoUser(password: string): string
+private criptografarPassword(password: string): string
 ```
 
 ## 🎮 Controllers
@@ -221,22 +216,18 @@ private hashPasswordDoUser(password: string): string
 
 ```typescript
 // Endpoints de busca
-@Get() obterTodosOsUsers(@Query('page') page: string, @Query('limit') limit: string)
-@Get(':id') obterUserPorId(@Param('id') id: string)
+@Get() buscarTodos(...)
+@Get(':id') buscarPorId(@Param('id') id: string)
 
 // Endpoints de criação
-@Post('platform-admin') criarNovoPlatformAdmin(@Body() dto: CreatePlatformAdminDto)
+@Post('system-admin') criarNovoSystemAdmin(@Body() dto: CreateSystemAdminDto)
 @Post('admin') criarNovoAdmin(@Body() dto: CreateAdminDto)
-@Post('supervisor') criarNovoSupervisor(@Body() dto: CreateSupervisorDto)
-@Post('guard') criarNovoGuard(@Body() dto: CreateGuardDto)
-@Post('hr') criarNovoHR(@Body() dto: CreateHRDto)
-@Post('post-supervisor') criarNovoPostSupervisor(@Body() dto: CreatePostSupervisorDto)
-@Post('post-resident') criarNovoPostResident(@Body() dto: CreatePostResidentDto)
+@Post() criarNovoOthers(@Body() dto: CreateOthersDto)
 
 // Endpoints de atualização e exclusão
-@Patch(':id') updateDadosDoUser(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto)
-@Delete(':id') removeUserDoSistema(@Param('id') id: string)
-@Post(':id/restore') restoreUserDeletado(@Param('id') id: string)
+@Patch(':id') atualizar(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto)
+@Delete(':id') desativar(@Param('id') id: string)
+@Post(':id/restore') reativar(@Param('id') id: string)
 ```
 
 ## 📊 Exemplos de Implementação
@@ -295,7 +286,7 @@ validateUserExists(); // Deveria ser validarSeUserExiste()
 5. **UserValidator**
 6. **UserFactory**
 7. **UsersController**
-8. **Serviços específicos** (Admin, HR, etc.)
+8. **Serviços específicos** (Admin, SystemAdmin, FieldTeamMember)
 
 ## 📚 Referências
 

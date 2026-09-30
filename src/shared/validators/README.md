@@ -95,60 +95,9 @@ Valida telefones brasileiros.
 phone?: string;
 ```
 
-## 🏗️ Estrutura por Tipo de Usuário
+## 🏗️ Exemplos de DTO
 
-### **Guards (Vigilantes)**
-
-```typescript
-export class CreateGuardDto {
-  @IsString()
-  @MinLength(2)
-  name: string;
-
-  @IsEmail()
-  @IsUniqueEmail()
-  email: string;
-
-  @IsStrongPassword()
-  password: string;
-
-  @IsOptional()
-  @IsCPF()
-  @IsUniqueCPF()
-  cpf?: string; // Importante para guardas
-
-  @IsOptional()
-  @IsPhoneNumberBR()
-  phone?: string;
-}
-```
-
-### **Residents (Moradores)**
-
-```typescript
-export class CreatePostResidentDto {
-  @IsString()
-  @MinLength(2)
-  name: string;
-
-  @IsEmail()
-  @IsUniqueEmail()
-  email: string;
-
-  @IsStrongPassword()
-  password: string;
-
-  @IsOptional()
-  @IsPhoneNumberBR()
-  phone?: string; // Importante para moradores
-
-  @IsOptional()
-  @IsString()
-  apartment?: string; // Campo específico
-}
-```
-
-### **Admins e RH**
+### **Admin**
 
 ```typescript
 export class CreateAdminDto {
@@ -164,34 +113,44 @@ export class CreateAdminDto {
   password: string;
 
   @IsOptional()
-  @IsCPF()
-  @IsUniqueCPF()
-  cpf?: string;
-
-  @IsOptional()
   @IsPhoneNumberBR()
   phone?: string;
 }
 ```
 
-### **Platform Admin**
+### **System Admin**
 
 ```typescript
-export class CreatePlatformAdminDto {
+export class CreateSystemAdminDto {
   @IsString()
   @MinLength(2)
   name: string;
 
   @IsEmail()
-  email: string; // Não precisa ser único por empresa
+  email: string;
+
+  @IsStrongPassword()
+  password: string;
+}
+```
+
+### **Others (FIELD_TEAM / C2C / ADMIN)**
+
+```typescript
+export class CreateOthersDto {
+  @IsString()
+  @MinLength(2)
+  name: string;
+
+  @IsEmail()
+  @IsUniqueEmail()
+  email: string;
 
   @IsStrongPassword()
   password: string;
 
-  @IsOptional()
-  @IsCPF()
-  @IsUniqueCPF()
-  cpf?: string;
+  @IsEnum(Roles)
+  role: Roles;
 }
 ```
 

@@ -1,4 +1,5 @@
 @baseUrl = http://localhost:30100
+@companyId = cmco084kk0000lt96pxlqot9s
 @token = {{ adminLogin.response.body.access_token }}
 
 ### Login ADMIN
@@ -7,7 +8,7 @@ POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-    "email": "admin@user.com",
+    "login": "admin@user.com",
     "password": "SystemAdmin123@Senha"
 }
 
@@ -16,86 +17,86 @@ Content-Type: application/json
 ### ========================================
 
 ### Listar usuários da própria empresa
-GET {{baseUrl}}/users 
+GET {{baseUrl}}/users
 Authorization: Bearer {{token}}
 
 ### Buscar usuário específico da própria empresa
-GET {{baseUrl}}/users/cmco084n70001lt96th7lafk8
+GET {{baseUrl}}/users/USER_ID_AQUI
 Authorization: Bearer {{token}}
 
 ### Atualizar usuário da própria empresa
-PATCH {{baseUrl}}/users/cmco084n70001lt96th7lafk8
+PATCH {{baseUrl}}/users/USER_ID_AQUI
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
     "name": "Usuário Atualizado",
-    "active": true
+    "status": "ACTIVE"
 }
 
 ### Deletar usuário da própria empresa
-DELETE {{baseUrl}}/users/cmco084n70001lt96th7lafk8
+DELETE {{baseUrl}}/users/USER_ID_AQUI
+Authorization: Bearer {{token}}
+
+### Restaurar usuário
+POST {{baseUrl}}/users/USER_ID_AQUI/restore
 Authorization: Bearer {{token}}
 
 ### ========================================
 ### CREATE USERS - ADMIN (Próprio Tenant)
 ### ========================================
 
-### Criar HR na própria empresa
-POST {{baseUrl}}/users/hr
+### Criar FIELD_TEAM na própria empresa
+POST {{baseUrl}}/users
 Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
-    "name": "HR da Empresa",
-    "email": "hr.empresa@user.com",
+    "name": "Equipe de Campo",
+    "login": "field.empresa",
+    "email": "field.empresa@user.com",
     "password": "SystemAdmin123@Senha",
-    "companyId": "cmco084kk0000lt96pxlqot9s"
+    "role": "FIELD_TEAM",
+    "companyId": "{{companyId}}"
 }
 
-### Criar GUARD na própria empresa
-POST {{baseUrl}}/users/guard
+### Criar C2C na própria empresa
+POST {{baseUrl}}/users
 Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
-    "name": "Guard da Empresa",
-    "email": "guard.empresa@user.com",
+    "name": "Operador C2C",
+    "login": "c2c.empresa",
+    "email": "c2c.empresa@user.com",
     "password": "SystemAdmin123@Senha",
-    "companyId": "cmco084kk0000lt96pxlqot9s",
-    "unitIds": ["unit_id_1", "unit_id_2"]
-}
-
-### Criar RESIDENT na própria empresa
-POST {{baseUrl}}/users/resident
-Content-Type: application/json
-Authorization: Bearer {{token}}
-
-{
-    "name": "Resident da Empresa",
-    "email": "resident.empresa@user.com",
-    "password": "SystemAdmin123@Senha",
-    "companyId": "cmco084kk0000lt96pxlqot9s",
-    "unitId": "unit_id_1"
+    "role": "C2C",
+    "companyId": "{{companyId}}"
 }
 
 ### ========================================
-### POSTS - ADMIN (Próprio Tenant)
+### RECURSOS DER - ADMIN
 ### ========================================
 
-### Listar posts da própria empresa
-GET {{baseUrl}}/posts
+### Listar empresas
+GET {{baseUrl}}/companies
 Authorization: Bearer {{token}}
 
-### Criar post na própria empresa
-POST {{baseUrl}}/posts
-Content-Type: application/json
+### Listar regionais
+GET {{baseUrl}}/regionals
 Authorization: Bearer {{token}}
 
-{
-    "title": "Post da Empresa",
-    "content": "Conteúdo do post da empresa"
-}
+### Listar localizações
+GET {{baseUrl}}/locations
+Authorization: Bearer {{token}}
+
+### Listar ativos
+GET {{baseUrl}}/assets
+Authorization: Bearer {{token}}
+
+### Listar ordens de serviço
+GET {{baseUrl}}/work-orders
+Authorization: Bearer {{token}}
 
 ### ========================================
 ### TESTES DE SEGURANÇA - ADMIN
@@ -106,14 +107,16 @@ GET {{baseUrl}}/users?companyId=outra_empresa_id
 Authorization: Bearer {{token}}
 
 ### ❌ TENTATIVA: Criar usuário em outra empresa (deve falhar)
-POST {{baseUrl}}/users/hr
+POST {{baseUrl}}/users
 Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
-    "name": "HR Outra Empresa",
-    "email": "hr.outra@user.com",
+    "name": "Field Outra Empresa",
+    "login": "field.outra",
+    "email": "field.outra@user.com",
     "password": "SystemAdmin123@Senha",
+    "role": "FIELD_TEAM",
     "companyId": "outra_empresa_id"
 }
 
@@ -123,19 +126,21 @@ Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
-    "name": "Tentativa Platform Admin",
+    "name": "Tentativa System Admin",
+    "login": "tentativa.systemadmin",
     "email": "tentativa@user.com",
     "password": "SystemAdmin123@Senha"
 }
 
-### ❌ TENTATIVA: Criar ADMIN (deve falhar - só SYSTEM_ADMIN pode)
+### ❌ TENTATIVA: Criar ADMIN (deve falhar - só SYSTEM_ADMIN / ADMIN autorizado)
 POST {{baseUrl}}/users/admin
 Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
     "name": "Tentativa Admin",
+    "login": "tentativa.admin",
     "email": "tentativa.admin@user.com",
     "password": "SystemAdmin123@Senha",
-    "companyId": "cmco084kk0000lt96pxlqot9s"
-} 
+    "companyId": "{{companyId}}"
+}

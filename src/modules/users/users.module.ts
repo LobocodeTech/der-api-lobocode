@@ -7,17 +7,11 @@ import { UserFactory } from './factories/user.factory';
 import { CompaniesModule } from 'src/modules/companies/companies.module';
 import { PrismaService } from '../../shared/prisma/prisma.service';
 import { FieldTeamMemberModule } from './field-team-member.module';
-//  Novos services específicos
 
 import {
   UserPermissionService,
   SystemAdminService,
   AdminService,
-  HRService,
-  SupervisorService,
-  GuardService,
-  PostSupervisorService,
-  PostResidentService,
   UserQueryService,
 } from './services';
 
@@ -31,14 +25,8 @@ import {
     UserPermissionService,
     UserFactory,
     PrismaService,
-    //  Novos services específicos
     SystemAdminService,
     AdminService,
-    HRService,
-    SupervisorService,
-    GuardService,
-    PostSupervisorService,
-    PostResidentService,
   ],
   imports: [CompaniesModule, FieldTeamMemberModule],
 })

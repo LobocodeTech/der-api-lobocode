@@ -501,7 +501,7 @@ Adicionar métricas:
 
 Enviar notificações baseadas em:
 
-- Tipo de usuário (Admin, Supervisor, Guard)
+- Tipo de usuário (ADMIN, FIELD_TEAM, C2C)
 - Localização geográfica
 - Preferências do usuário
 - Horário (não enviar à noite)

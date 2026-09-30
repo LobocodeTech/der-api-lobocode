@@ -1,25 +1,24 @@
-# 🤖 Cursor AI Helper - DEPARTAMENTO ESTADUAL DE RODOVIAS Engine
+# Cursor AI Helper — DER API
 
-## 📋 Contexto do Projeto
+## Contexto do Projeto
 
-- **Projeto**: DEPARTAMENTO ESTADUAL DE RODOVIAS Engine (Sistema de Segurança Patrimonial)
+- **Projeto**: der-api-lobocode (Departamento de Estradas de Rodagem)
 - **Stack**: NestJS + TypeScript + Prisma + PostgreSQL
-- **Arquitetura**: Multi-tenant, Sistema de Roles, Modular
+- **Arquitetura**: Multi-tenant, roles, modular
 
-## 🔗 Regras Obrigatórias
+## Regras Obrigatórias
 
 - **Arquivo**: `.cursor/rules/nestjs-rules.mdc`
 - **Documentação**: `docs/NAMING_CONVENTIONS.md`
-- **Contexto Completo**: `projeto-context.md`
+- **Contexto Completo**: `docs/projeto-context.md`
 
-## 🎯 Padrões Essenciais
+## Padrões Essenciais
 
 ### Nomenclatura
 
 - **Métodos**: `buscarUserPorId()`, `validarSeUserExiste()`, `criarNovoAdmin()`
-- **Entidades**: `User`, `Company`, `Post`, `Role` (inglês)
+- **Entidades**: `User`, `Company`, `Regional`, `Location`, `Asset`, `WorkOrder`, `Planning`, `Queue`
 - **Propriedades**: `id`, `name`, `email`, `companyId` (inglês)
-- **Endpoints**: `obterTodosOsUsers()`, `updateDadosDoUser()` (português)
 
 ### Arquitetura Modular
 
@@ -40,30 +39,25 @@ desativar(id); // Soft delete
 ### Sistema de Mensagens
 
 ```typescript
-// Usar constantes centralizadas
 VALIDATION_MESSAGES.REQUIRED.NAME;
 ERROR_MESSAGES.RESOURCE.NOT_FOUND;
 SUCCESS_MESSAGES.CRUD.CREATED;
 ```
 
-## 🚨 Lembretes Importantes
+## Lembretes Importantes
 
-- ✅ Sempre usar validators customizados
-- ✅ Implementar sistema de filtros para erros
-- ✅ Seguir padrão multi-tenant
+- ✅ Validators customizados
+- ✅ Filtros de erro padronizados
+- ✅ Isolamento multi-tenant por `companyId`
 - ✅ Documentar com JSDoc
-- ✅ Testes unitários obrigatórios
+- ✅ Testes unitários quando aplicável
 
-## 📚 Referências Rápidas
+## Referências Rápidas
 
-- Roles: `SYSTEM_ADMIN`, `ADMIN`, `SUPERVISOR`, `HR`, `GUARD`, `POST_SUPERVISOR`, `POST_RESIDENT`
+- Roles: `SYSTEM_ADMIN`, `ADMIN`, `FIELD_TEAM`, `C2C`
 - Validações: `@IsStrongPassword()`, `@IsUniqueEmail()`, `@IsUniqueCPF()`
 - Filtros: `TokenExpiredError`, `ValidationError`, `NotFoundError`
 
-## 🔧 Para Contexto Completo
+## Para Contexto Completo
 
-📄 **Leia**: `projeto-context.md` - Regras de negócio, exemplos práticos, configurações
-
----
-
-**💡 Dica**: Sempre mencionar "seguindo as regras do projeto" para garantir conformidade!
+Leia: `docs/projeto-context.md` e `docs/ESCOPO-SISTEMA.md`

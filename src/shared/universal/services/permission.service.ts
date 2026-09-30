@@ -148,9 +148,7 @@ export class UniversalPermissionService {
     user: User,
     action: CrudAction,
     context?: {
-      postId?: string;
       companyId?: string;
-      isOnShift?: boolean;
       timeOfDay?: 'day' | 'night';
     },
   ): boolean {
@@ -161,7 +159,6 @@ export class UniversalPermissionService {
       subject: entityName,
       conditions: {
         companyId: context?.companyId,
-        postId: context?.postId,
       },
       timeRestrictions:
         context?.timeOfDay === 'night'
@@ -174,7 +171,7 @@ export class UniversalPermissionService {
   }
 
   /**
-   * Valida permissão para operações de RH (horário comercial)
+   * Valida permissão para operações administrativas (horário comercial)
    */
   validarOperacaoRH(
     entityName: EntityNameCasl,
@@ -192,7 +189,7 @@ export class UniversalPermissionService {
         endHour: 18,
       },
       conditions: {
-        role: { in: ['HR', 'ADMIN'] },
+        role: { in: ['ADMIN', 'C2C'] },
       },
     });
   }

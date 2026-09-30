@@ -1,84 +1,95 @@
+@baseUrl = http://localhost:30100
 
 ### ========================
-### 🔐 LOGIN E TOKENS
+### LOGIN E TOKENS - ROLES DER
 ### ========================
 
+###
+# @name systemAdminLogin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "login": "systemadmin@user.com",
+  "password": "SystemAdmin123@Senha"
+}
 
 ###
 # @name adminLogin
-POST http://localhost:30100/auth/login
+POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-  "email": "admin@user.com",
-  "password": "admivvvn"
+  "login": "admin@user.com",
+  "password": "SystemAdmin123@Senha"
 }
 
 ###
-# @name readerLogin
-POST http://localhost:30100/auth/login
+# @name fieldTeamLogin
+POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-  "email": "reader@user.com",
-  "password": "reader"
+  "login": "field.empresa@user.com",
+  "password": "SystemAdmin123@Senha"
 }
 
 ###
-# @name writerLogin
-POST http://localhost:30100/auth/login
+# @name c2cLogin
+POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-  "email": "writer@user.com",
-  "password": "writer"
+  "login": "c2c.empresa@user.com",
+  "password": "SystemAdmin123@Senha"
 }
 
-### Tokens extraídos das respostas anteriores
+@tokenSystemAdmin = {{systemAdminLogin.response.body.access_token}}
 @tokenAdmin = {{adminLogin.response.body.access_token}}
-@tokenReader = {{readerLogin.response.body.access_token}}
-@tokenWriter = {{writerLogin.response.body.access_token}}
+@tokenFieldTeam = {{fieldTeamLogin.response.body.access_token}}
+@tokenC2c = {{c2cLogin.response.body.access_token}}
 
 ### ========================
-### 👤 CRIAÇÃO DE USUÁRIOS
+### CRIAÇÃO DE USUÁRIOS
 ### ========================
 
-###
-# 👤 Admin (sem token)
-POST http://localhost:30100/users
+### Criar ADMIN (SYSTEM_ADMIN)
+POST {{baseUrl}}/users/admin
 Content-Type: application/json
+Authorization: Bearer {{tokenSystemAdmin}}
 
 {
   "name": "Admin",
+  "login": "admin@user.com",
   "email": "admin@user.com",
-  "password": "admin",
-  "role": "ADMIN"
+  "password": "SystemAdmin123@Senha",
+  "companyId": "COMPANY_ID_AQUI"
 }
 
-###
-# 👤 Reader
-POST http://localhost:30100/users
+### Criar FIELD_TEAM
+POST {{baseUrl}}/users
 Content-Type: application/json
 Authorization: Bearer {{tokenAdmin}}
 
 {
-  "name": "Reader",
-  "email": "reader@user.com",
-  "password": "reader",
-  "role": "READER"
+  "name": "Equipe de Campo",
+  "login": "field.empresa@user.com",
+  "email": "field.empresa@user.com",
+  "password": "SystemAdmin123@Senha",
+  "role": "FIELD_TEAM"
 }
 
-###
-# 👤 Writer com permissões
-POST http://localhost:30100/users
+### Criar C2C com permissões CASL (WorkOrder / User)
+POST {{baseUrl}}/users
 Content-Type: application/json
 Authorization: Bearer {{tokenAdmin}}
 
 {
-  "name": "Writer",
-  "email": "writer@user.com",
-  "password": "writer",
-  "role": "WRITER",
+  "name": "Operador C2C",
+  "login": "c2c.empresa@user.com",
+  "email": "c2c.empresa@user.com",
+  "password": "SystemAdmin123@Senha",
+  "role": "C2C",
   "permissions": [
     {
       "action": "read",
@@ -86,7 +97,7 @@ Authorization: Bearer {{tokenAdmin}}
     },
     {
       "action": "update",
-      "resource": "Post",
+      "resource": "WorkOrder",
       "condition": {
         "id": "1"
       }
@@ -95,49 +106,25 @@ Authorization: Bearer {{tokenAdmin}}
 }
 
 ### ========================
-### 📝 POSTS
+### USERS
 ### ========================
 
-###
-# Criar Post (Admin)
-POST http://localhost:30100/posts
-Content-Type: application/json
+### Listar todos os usuários (Admin)
+GET {{baseUrl}}/users
 Authorization: Bearer {{tokenAdmin}}
 
-{
-  "title": "My first post",
-  "content": "This is the content of my first post.",
-  "published": false
-}
-
-###
-# Listar todos os posts (Reader)
-GET http://localhost:30100/posts
+### Obter usuário específico
+GET {{baseUrl}}/users/USER_ID_AQUI
 Authorization: Bearer {{tokenAdmin}}
 
-###
-# Obter post específico (Reader)
-GET http://localhost:30100/posts/cm8z70heh0001s9r7ick5369u
-Authorization: Bearer {{tokenReader}}
+### Listar ordens de serviço (FIELD_TEAM)
+GET {{baseUrl}}/work-orders
+Authorization: Bearer {{tokenFieldTeam}}
 
 ### ========================
-### 📄 USERS
+### ROOT (TESTE DE AUTENTICAÇÃO)
 ### ========================
 
-###
-# Listar todos os usuários (Admin)
-GET http://localhost:30100/users
-Authorization: Bearer {{tokenAdmin}}
-
-###
-# Obter usuário específico
-GET http://localhost:30100/users/cm8z3gmns0002s9sywsjk9upq
-
-### ========================
-### 🏠 ROOT (TESTE DE AUTENTICAÇÃO)
-### ========================
-
-###
-# Testar acesso à rota raiz (Reader)
-GET http://localhost:30100/
-Authorization: Bearer {{tokenReader}}
+### Testar acesso à rota raiz
+GET {{baseUrl}}/
+Authorization: Bearer {{tokenC2c}}

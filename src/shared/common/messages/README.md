@@ -148,7 +148,7 @@ LOG_MESSAGES.SECURITY.UNAUTHORIZED_ACCESS; // "Tentativa de acesso não autoriza
 
 ```typescript
 NOTIFICATION_MESSAGES.USER.WELCOME; // "Bem-vindo ao Departamento de Estradas de Rodagem!"
-NOTIFICATION_MESSAGES.BUSINESS.NEW_ROUND_ASSIGNED; // "Nova ronda atribuída"
+NOTIFICATION_MESSAGES.BUSINESS.WORK_ORDER_ASSIGNED; // "Ordem de serviço atribuída"
 ```
 
 ## 🎯 Exemplos Práticos

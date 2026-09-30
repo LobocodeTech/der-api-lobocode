@@ -31,20 +31,20 @@ Recomendado também separar:
 
 ## 3) Criar 3 arquivos de ambiente mock
 
-### `.env.infraseg`
+### `.env.der`
 
 ```env
-VPS_APP_PROJECT_NAME=infraseg-hml
-APP_HOST=api.infraseg.hml.seudominio.com
+VPS_APP_PROJECT_NAME=der-hml
+APP_HOST=api.der.hml.seudominio.com
 APP_PORT=3000
 
-DB_NAME=infraseg_db
+DB_NAME=der_db
 DB_USER=postgres
-DB_PASSWORD=infraseg_pass_123
-JWT_SECRET=infraseg_jwt_secret
+DB_PASSWORD=der_pass_123
+JWT_SECRET=der_jwt_secret
 
-MINIO_ROOT_USER=infraseg_minio
-MINIO_ROOT_PASSWORD=infraseg_minio_pass
+MINIO_ROOT_USER=der_minio
+MINIO_ROOT_PASSWORD=der_minio_pass
 
 TRAEFIK_NETWORK=reverse-proxy
 VPS_APP_COMPOSE_FILE=docker/docker-compose.vps-app.yml
@@ -91,7 +91,7 @@ VPS_APP_COMPOSE_FILE=docker/docker-compose.vps-app.yml
 ## 4) Deploy de cada projeto (mesmo repositório)
 
 ```bash
-ENV_FILE=.env.infraseg ./scripts/deploy.sh vps-app
+ENV_FILE=.env.der ./scripts/deploy.sh vps-app
 ENV_FILE=.env.template_lobocode ./scripts/deploy.sh vps-app
 ENV_FILE=.env.itamoving ./scripts/deploy.sh vps-app
 ```
@@ -99,7 +99,7 @@ ENV_FILE=.env.itamoving ./scripts/deploy.sh vps-app
 ## 5) Verificar se os 3 stacks subiram
 
 ```bash
-docker compose -p infraseg-hml -f docker/docker-compose.vps-app.yml ps
+docker compose -p der-hml -f docker/docker-compose.vps-app.yml ps
 docker compose -p template_lobocode-hml -f docker/docker-compose.vps-app.yml ps
 docker compose -p itamoving-hml -f docker/docker-compose.vps-app.yml ps
 ```
@@ -111,6 +111,6 @@ docker compose -p itamoving-hml -f docker/docker-compose.vps-app.yml ps
 - Se quiser atualizar só backend de um projeto:
 
 ```bash
-ENV_FILE=.env.infraseg ./scripts/deploy.sh vps-backend
+ENV_FILE=.env.der ./scripts/deploy.sh vps-backend
 ```
 

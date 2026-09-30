@@ -1,0 +1,43 @@
+@baseUrl = http://localhost:30100
+@token = {{ fieldTeamLogin.response.body.access_token }}
+@userId = USER_ID_AQUI
+
+### Login FIELD_TEAM
+# @name fieldTeamLogin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "login": "field.empresa@user.com",
+    "password": "SystemAdmin123@Senha"
+}
+
+### ========================================
+### FIELD_TEAM - Próprio perfil
+### ========================================
+
+### Buscar próprio perfil
+GET {{baseUrl}}/users/{{userId}}
+Authorization: Bearer {{token}}
+
+### Atualizar próprio perfil
+PATCH {{baseUrl}}/users/{{userId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "name": "Equipe de Campo Atualizada",
+    "phone": "(11) 99999-0001"
+}
+
+### Listar usuários (escopo permitido)
+GET {{baseUrl}}/users
+Authorization: Bearer {{token}}
+
+### Listar ordens de serviço
+GET {{baseUrl}}/work-orders
+Authorization: Bearer {{token}}
+
+### Listar localizações
+GET {{baseUrl}}/locations
+Authorization: Bearer {{token}}

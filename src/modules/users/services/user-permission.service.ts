@@ -94,9 +94,7 @@ export class UserPermissionService {
     user: User,
     action: CrudAction,
     context?: {
-      postId?: string;
       companyId?: string;
-      isOnShift?: boolean;
       timeOfDay?: 'day' | 'night';
     },
   ): boolean {
@@ -107,7 +105,6 @@ export class UserPermissionService {
       subject: 'User',
       conditions: {
         companyId: context?.companyId,
-        postId: context?.postId,
       },
       timeRestrictions:
         context?.timeOfDay === 'night'
@@ -120,7 +117,7 @@ export class UserPermissionService {
   }
 
   /**
-   * Valida permissão para operações de RH (horário comercial)
+   * Valida permissão para operações administrativas (horário comercial)
    */
   validarOperacaoRH(user: User, action: CrudAction, context?: any): boolean {
     const permissionContext = this.contextService.criarContexto(user, context);
@@ -133,7 +130,7 @@ export class UserPermissionService {
         endHour: 18,
       },
       conditions: {
-        role: { in: ['HR', 'ADMIN'] },
+        role: { in: ['ADMIN', 'C2C'] },
       },
     });
   }

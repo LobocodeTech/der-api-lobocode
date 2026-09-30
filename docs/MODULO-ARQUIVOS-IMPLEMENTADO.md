@@ -90,12 +90,12 @@ DELETE /files/{id}/permanent         # Hard delete
 
 #### Upload
 
-- **GUARD, SUPERVISOR**: Arquivos básicos
-- **HR, ADMIN, SYSTEM_ADMIN**: Todos os tipos
+- **FIELD_TEAM, C2C**: Arquivos básicos
+- **ADMIN, SYSTEM_ADMIN**: Todos os tipos
 
 #### Gestão
 
-- **HR, ADMIN**: Arquivos da empresa
+- **ADMIN**: Arquivos da empresa
 - **SYSTEM_ADMIN**: Todos os arquivos
 
 ### 📊 **Tipos de Arquivo Suportados**

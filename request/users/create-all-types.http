@@ -1,30 +1,21 @@
 @baseUrl = http://localhost:30100
 @companyId = cmcy2a0bg0000ltjnu6o728nr
-@postId = post_id_exemplo 
 
-@token = {{ platformAdminLogin.response.body.access_token }}
+@token = {{ systemAdminLogin.response.body.access_token }}
 
-### Login HR
-# @name platformAdminLogin
+### Login SYSTEM_ADMIN
+# @name systemAdminLogin
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-    #   "login": "System Admin Claiver", 
-    #   "login": "admin.empresA",
-    #   "login": "hr.empresa",
-      "login": "supervisor.exmpresa",
-    #   "login": "guard.empresa",
-    #   "login": "postsupervisor.empresa",
-    #   "login": "postresident.empresa",
-    # "login": "hr.empresa@user.com",
-
-    "password": "SystemAdmin123@Senha",
-    # "password": "SystemAdmin@Senha"
+    "login": "systemadmin@user.com",
+    "password": "SystemAdmin123@Senha"
 }
 
 ### ========================================
-### CREATE ALL USER TYPES - SYSTEM_ADMIN
+### CREATE ALL USER TYPES - DER
+### Roles: SYSTEM_ADMIN, ADMIN, FIELD_TEAM, C2C
 ### ========================================
 
 ### 1. Criar SYSTEM_ADMIN
@@ -33,11 +24,10 @@ Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
-    "name": "Novo Platform Admin",
-    "login": "novo.platformxadmsixSn",
-    "email": "novo.platfxorSxm@user.com",
-    "password": "SystemAdmin123@Senha",
-    "role": "SYSTEM_ADMIN"
+    "name": "Novo System Admin",
+    "login": "novo.systemadmin",
+    "email": "novo.systemadmin@user.com",
+    "password": "SystemAdmin123@Senha"
 }
 
 ### 2. Criar ADMIN
@@ -47,93 +37,45 @@ Authorization: Bearer {{token}}
 
 {
     "name": "Admin da Empresa",
-    "login": "admin.empresA",
-    "email": "admin.empresa@user.comx",
+    "login": "admin.empresa",
+    "email": "admin.empresa@user.com",
     "password": "SystemAdmin123@Senha",
-    "role": "ADMIN"
-    # ,"companyId": "{{companyId}}"
+    "companyId": "{{companyId}}"
 }
 
-### 3 Criar HR
-POST {{baseUrl}}/users/hr
+### 3. Criar FIELD_TEAM
+POST {{baseUrl}}/users
 Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
-    "name": "HR da Empresa",
-    "login": "hr.empresa",
-    "email": "hr.empresaxx@user.com",
+    "name": "Equipe de Campo",
+    "login": "field.empresa",
+    "email": "field.empresa@user.com",
     "password": "SystemAdmin123@Senha",
-    "role": "HR"
-    # ,"companyId": "{{companyId}}"
+    "role": "FIELD_TEAM",
+    "companyId": "{{companyId}}"
 }
 
-
-### 4. Criar SUPERVISOR
-POST {{baseUrl}}/users/supervisor
+### 4. Criar C2C
+POST {{baseUrl}}/users
 Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
-    "name": "Supervisor da Empresa",
-    "login": "supervisor.empresa",
-    "email": "supervisor.empresa@user.com",
+    "name": "Operador C2C",
+    "login": "c2c.empresa",
+    "email": "c2c.empresa@user.com",
     "password": "SystemAdmin123@Senha",
-    "role": "SUPERVISOR"
-    ,"companyId": "{{companyId}}"
-}
-
-
-### 5. Criar GUARD
-POST {{baseUrl}}/users/guard
-Content-Type: application/json
-Authorization: Bearer {{token}}
-
-{
-    "name": "Guard da Empresa",
-    "login": "guard.empresa",
-    "email": "guard.empresa@user.com",
-    "password": "SystemAdmin123@Senha",
-    "role": "GUARD"
-    ,"companyId": "{{companyId}}"
-   
-}
-
-### 6. Criar POST_SUPERVISOR
-POST {{baseUrl}}/users/post-supervisor
-Content-Type: application/json
-Authorization: Bearer {{token}}
-
-{
-    "name": "Post Supervisor",
-    "login": "postsupervisor.empresa",
-    "email": "postsupervisor@user.com",
-    "password": "SystemAdmin123@Senha",
-    "role": "POST_SUPERVISOR",
-    "postId": "{{postId}}"
-    ,"companyId": "{{companyId}}"
-}
-
-### 7. Criar POST_RESIDENT
-POST {{baseUrl}}/users/post-resident
-Content-Type: application/json
-Authorization: Bearer {{token}}
-
-{
-    "name": "Post Resident",
-    "email": "postresident@user.com",
-    "password": "SystemAdmin123@Senha",
-    "role": "POST_RESIDENT",
-    "apartment": "101", 
-    "postId": "{{postId}}"
-    ,"companyId": "{{companyId}}"
+    "role": "C2C",
+    "companyId": "{{companyId}}"
 }
 
 ### ========================================
 ### LIST ALL CREATED USERS
 ### ========================================
 
-### Listar todos os usuários criados
+### Listar todos os usuários
 GET {{baseUrl}}/users
 Authorization: Bearer {{token}}
 
@@ -141,36 +83,36 @@ Authorization: Bearer {{token}}
 GET {{baseUrl}}/users?companyId={{companyId}}
 Authorization: Bearer {{token}}
 
-
+### Listar por role FIELD_TEAM
+GET {{baseUrl}}/users?role=FIELD_TEAM
+Authorization: Bearer {{token}}
 
 ### ========================================
 ### UPDATE TESTS
 ### ========================================
 
-### Atualizar usuário da própria empresa
-PATCH {{baseUrl}}/users/cmcy42531000jltzql8irjx92
+### Atualizar usuário
+PATCH {{baseUrl}}/users/USER_ID_AQUI
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-    "name": " guard Usuário Atualizado",
+    "name": "Usuário Atualizado",
     "status": "ACTIVE"
 }
-
-
 
 ### ========================================
 ### SOFT DELETE TESTS
 ### ========================================
 
 ### Deletar um usuário (soft delete)
-DELETE {{baseUrl}}/users/cmcwecnmp000blt5r7djlwhm1
+DELETE {{baseUrl}}/users/USER_ID_AQUI
 Authorization: Bearer {{token}}
 
 ### Restaurar usuário deletado
-POST {{baseUrl}}/users/cmcwecnmp000blt5r7djlwhm1/restore
+POST {{baseUrl}}/users/USER_ID_AQUI/restore
 Authorization: Bearer {{token}}
 
-### Listar usuários incluindo deletados
-GET {{baseUrl}}/users?includeDeleted=true
-Authorization: Bearer {{token}} 
+### Listar usuários deletados
+GET {{baseUrl}}/users?deletedOnly=true
+Authorization: Bearer {{token}}

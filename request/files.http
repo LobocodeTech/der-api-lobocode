@@ -35,7 +35,7 @@ Content-Type: {{contentType}}
 
 ### 2.1 Upload de documento
 # @name uploadDocument
-POST {{baseUrl}}/files/upload?type=DOCUMENT&description=Relatório mensal de segurança
+POST {{baseUrl}}/files/upload?type=DOCUMENT&description=Relatório operacional mensal
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
 Authorization: Bearer {{accessToken}}
 
@@ -61,15 +61,15 @@ Content-Type: image/jpeg
 
 ### 2.3 Upload de vídeo
 # @name uploadVideo
-POST {{baseUrl}}/files/upload?type=VIDEO&description=Gravação de ocorrência
+POST {{baseUrl}}/files/upload?type=VIDEO&description=Registro de inspeção em campo
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
 Authorization: Bearer {{accessToken}}
 
 ------WebKitFormBoundary7MA4YWxkTrZu0gW
-Content-Disposition: form-data; name="file"; filename="ocorrencia.mp4"
+Content-Disposition: form-data; name="file"; filename="inspecao-campo.mp4"
 Content-Type: video/mp4
 
-< ./test-files/ocorrencia.mp4
+< ./test-files/inspecao-campo.mp4
 ------WebKitFormBoundary7MA4YWxkTrZu0gW--
 
 ### =============================================================================

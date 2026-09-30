@@ -66,9 +66,9 @@ src/modules/[nome]/
 
 #### 🎯 Regras Específicas do Projeto
 
-- **Entidades SEMPRE em inglês**: `User`, `Company`, `Post`, `Role`, `Shift`, `Patrol`, `EventLog`, `PanicEvent`
+- **Entidades SEMPRE em inglês**: `User`, `Company`, `Regional`, `Location`, `Asset`, `WorkOrder`, `Planning`, `Queue`
 - **Métodos SEMPRE em português literal**: `buscarUserPorId()`, `validarSeUserExiste()`, `criarNovoAdmin()`
-- **Propriedades SEMPRE em inglês**: `id`, `name`, `email`, `companyId`, `postId`, `role`, `active`, `deletedAt`
+- **Propriedades SEMPRE em inglês**: `id`, `name`, `email`, `companyId`, `regionalId`, `role`, `active`, `deletedAt`
 - **Endpoints SEMPRE em português**: `obterTodosOsUsers()`, `criarNovoAdmin()`, `updateDadosDoUser()`
 
 #### 🔍 Padrões de Nomenclatura por Categoria
@@ -283,8 +283,9 @@ export class UserValidator {
 // Factory - Criação de objetos
 @Injectable()
 export class UserFactory {
-  criarNovoAdmin(dto: CreateAdminDto): Prisma.UserCreateInput {}
-  criarNovoGuard(dto: CreateGuardDto): Prisma.UserCreateInput {}
+  criarAdmin(dto: CreateAdminDto): Prisma.UserCreateInput {}
+  criarOthers(dto: CreateOthersDto): Prisma.UserCreateInput {}
+  criarSystemAdmin(dto: CreateSystemAdminDto): Prisma.UserCreateInput {}
 }
 
 // Service - Orquestração
@@ -300,22 +301,18 @@ export class UserService {
 
 ### 📊 Sistema de Roles Hierárquico
 
-O projeto possui 7 tipos de usuários com hierarquia específica:
+O projeto possui 4 roles no domínio DER:
 
 ```typescript
 enum Roles {
-  SYSTEM_ADMIN, // Máximo acesso
-  ADMIN, // Acesso à empresa
-  SUPERVISOR, // Supervisão de guardas
-  HR, // Recursos humanos
-  GUARD, // Vigilantes de segurança
-  POST_SUPERVISOR, // Supervisor de posto
-  POST_RESIDENT, // Morador/residente
+  SYSTEM_ADMIN, // Administrador da plataforma
+  ADMIN, // Admin geral — acesso total à empresa
+  FIELD_TEAM, // Equipe de campo (fiscalização / técnico)
+  C2C, // Centro de Controle e Comando
 }
 
-// Associação com postos
-// POST_SUPERVISOR e POST_RESIDENT: associados a exatamente 1 posto
-// Outros roles: não associados a postos
+// FIELD_TEAM: associado a regional (regionalId)
+// SYSTEM_ADMIN, ADMIN e C2C: sem regional obrigatória
 ```
 
 ### 🏢 Multi-Tenancy
@@ -576,10 +573,11 @@ export class UsersController {
 ```typescript
 // Sempre definir relacionamentos no schema
 model User {
-  id        String   @id @default(cuid())
-  companyId String
-  company   Company  @relation(fields: [companyId], references: [id])
-  posts     Post[]   // Relacionamento com postos
+  id         String    @id @default(cuid())
+  companyId  String?
+  company    Company?  @relation(fields: [companyId], references: [id])
+  regionalId String?
+  regional   Regional? @relation(fields: [regionalId], references: [id])
 
   // Campos de auditoria obrigatórios
   createdAt DateTime @default(now())
@@ -718,7 +716,7 @@ async updateUser(id: string, dto: UpdateUserDto) { }
 // ❌ Entidades em português
 class Usuario { }
 class Empresa { }
-class Posto { }
+class Localidade { }
 
 // ❌ Propriedades em português
 interface User {
@@ -839,4 +837,4 @@ export class UserService {
 - `src/shared/casl/README.md` - Sistema de autorização
 - `src/modules/users/services/README.md` - Arquitetura modular
 
-**Foco atual**: Implementar funcionalidades core (Rondas, Ocorrências, Turnos) seguindo estas diretrizes e os padrões de nomenclatura estabelecidos.
+**Foco atual**: Implementar e evoluir o domínio DER (WorkOrder, Planning, Queue, Regional, Location, Asset) seguindo estas diretrizes e os padrões de nomenclatura estabelecidos.

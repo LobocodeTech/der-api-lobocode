@@ -107,13 +107,13 @@ export abstract class UniversalController<
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  criar(@Body() createShiftDto: DtoCreate) {
-    return this.service.criar(createShiftDto);
+  criar(@Body() createDto: DtoCreate) {
+    return this.service.criar(createDto);
   }
 
   @Patch(':id')
-  atualizar(@Param('id') id: string, @Body() updateShiftDto: DtoUpdate) {
-    return this.service.atualizar(id, updateShiftDto);
+  atualizar(@Param('id') id: string, @Body() updateDto: DtoUpdate) {
+    return this.service.atualizar(id, updateDto);
   }
 
   @Delete(':id')

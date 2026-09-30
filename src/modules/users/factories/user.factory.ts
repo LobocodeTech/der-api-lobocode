@@ -1,14 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import bcrypt from 'bcrypt';
-import { Roles, UserStatus } from '@prisma/client';
+import { Roles } from '@prisma/client';
 import { Prisma } from '@prisma/client';
 import { CreateSystemAdminDto } from '../dto/create-system-admin.dto';
 import { CreateAdminDto } from '../dto/create-admin.dto';
-import { CreateGuardDto } from '../dto/create-guard.dto';
-import { CreateHRDto } from '../dto/create-hr.dto';
-import { CreatePostResidentDto } from '../dto/create-post-resident.dto';
-import { CreatePostSupervisorDto } from '../dto/create-post-supervisor.dto';
-import { CreateSupervisorDto } from '../dto/create-supervisor.dto';
 import { CreateOthersDto } from '../dto/create-others.dto';
 
 @Injectable()
@@ -63,25 +58,5 @@ export class UserFactory {
 
   criarAdmin(dto: CreateAdminDto): Prisma.UserCreateInput {
     return this.criarUsuarioBase(dto, Roles.ADMIN);
-  }
-
-  criarSupervisor(dto: CreateSupervisorDto): Prisma.UserCreateInput {
-    return this.criarUsuarioBase(dto, Roles.C2C);
-  }
-
-  criarGuard(dto: CreateGuardDto): Prisma.UserCreateInput {
-    return this.criarUsuarioBase(dto, Roles.FIELD_TEAM);
-  }
-
-  criarHR(dto: CreateHRDto): Prisma.UserCreateInput {
-    return this.criarUsuarioBase(dto, Roles.ADMIN);
-  }
-
-  criarPostSupervisor(dto: CreatePostSupervisorDto): Prisma.UserCreateInput {
-    return this.criarUsuarioBase(dto, Roles.C2C);
-  }
-
-  criarPostResident(dto: CreatePostResidentDto): Prisma.UserCreateInput {
-    return this.criarUsuarioBase(dto, Roles.C2C);
   }
 }

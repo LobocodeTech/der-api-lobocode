@@ -1,116 +1,140 @@
+@baseUrl = http://localhost:30100
 @tokenAdmin = {{ adminLogin.response.body.access_token }}
-@tokenHR = {{ hrLogin.response.body.access_token }}
+@tokenFieldTeam = {{ fieldTeamLogin.response.body.access_token }}
 
-
-
-### 
-# @name hrLogin
-POST http://localhost:30100/auth/login
+###
+# @name fieldTeamLogin
+POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-    "email": "hr@user.com",
+    "login": "field.empresa@user.com",
     "password": "SystemAdmin123@Senha"
 }
 
 ###
-GET http://localhost:30100/users 
-Authorization: Bearer {{tokenHR}}
+GET {{baseUrl}}/users
+Authorization: Bearer {{tokenFieldTeam}}
 
 ###
-GET http://localhost:30100/users/cmco084n70001lt96th7lafk8
-Authorization: Bearer {{tokenHR}}
+GET {{baseUrl}}/users/USER_ID_AQUI
+Authorization: Bearer {{tokenFieldTeam}}
 
 ###
 # @name adminLogin
-POST http://localhost:30100/auth/login
+POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
+    "login": "systemadmin@user.com",
+    "password": "SystemAdmin123@Senha"
+}
+
+###
+GET {{baseUrl}}/users
+Authorization: Bearer {{tokenAdmin}}
+
+###
+GET {{baseUrl}}/users?companyId=COMPANY_ID_AQUI
+Authorization: Bearer {{tokenAdmin}}
+
+###
+GET {{baseUrl}}/users/USER_ID_AQUI
+Authorization: Bearer {{tokenAdmin}}
+
+### Empresas (tenants)
+GET {{baseUrl}}/companies
+Authorization: Bearer {{tokenAdmin}}
+
+### Regionais
+GET {{baseUrl}}/regionals
+Authorization: Bearer {{tokenAdmin}}
+
+### Localizações
+GET {{baseUrl}}/locations
+Authorization: Bearer {{tokenAdmin}}
+
+### Ativos
+GET {{baseUrl}}/assets
+Authorization: Bearer {{tokenAdmin}}
+
+### Ordens de serviço
+GET {{baseUrl}}/work-orders
+Authorization: Bearer {{tokenAdmin}}
+
+### Planejamentos
+GET {{baseUrl}}/planning
+Authorization: Bearer {{tokenAdmin}}
+
+### Filas
+GET {{baseUrl}}/queues
+Authorization: Bearer {{tokenAdmin}}
+
+### IP Locations
+GET {{baseUrl}}/ip-locations
+Authorization: Bearer {{tokenAdmin}}
+
+### Notificações
+GET {{baseUrl}}/notifications
+Authorization: Bearer {{tokenAdmin}}
+
+### Arquivos
+GET {{baseUrl}}/files
+Authorization: Bearer {{tokenAdmin}}
+
+### Documentos
+GET {{baseUrl}}/documents
+Authorization: Bearer {{tokenAdmin}}
+
+### Create System Admin
+POST {{baseUrl}}/users/system-admin
+Content-Type: application/json
+Authorization: Bearer {{tokenAdmin}}
+
+{
+    "name": "System Admin",
+    "login": "systemadmin@user.com",
     "email": "systemadmin@user.com",
     "password": "SystemAdmin123@Senha"
 }
-###
-GET http://localhost:30100/users 
-Authorization: Bearer {{tokenAdmin}}
-###
-GET http://localhost:30100/users?companyId=cmco084kk0000lt96pxlqot9s
-Authorization: Bearer {{tokenAdmin}}
-
-###
-GET http://localhost:30100/users/cmco084n70001lt96th7lafk8
-Authorization: Bearer {{tokenAdmin}}
-
-###
-GET http://localhost:30100/posts
-Authorization: Bearer {{tokenAdmin}}
-
-###
-GET http://localhost:30100/products
-Authorization: Bearer {{tokenAdmin}}
-
-### Create Platform Admin
-POST http://localhost:30100/users/system-admin
-Content-Type: application/json
-Authorization: Bearer {{tokenAdmin}}
-
-{
-    "name": "Platform Admin",
-    "email": "systemadmin@user.com",
-    "password": "SystemAdmin123@Senha",
-    "role": "SYSTEM_ADMIN"
-}
 
 ### Create Admin
-POST http://localhost:30100/users/admin
+POST {{baseUrl}}/users/admin
 Content-Type: application/json
 Authorization: Bearer {{tokenAdmin}}
 
 {
     "name": "Admin",
+    "login": "admin2@user.com",
     "email": "admin2@user.com",
     "password": "SystemAdmin123@Senha",
-    "companyId": "cmco084kk0000lt96pxlqot9s",
-    "role": "ADMIN"
+    "companyId": "COMPANY_ID_AQUI"
 }
 
-### Create Guard
-POST http://localhost:30100/users/guard
+### Create FIELD_TEAM
+POST {{baseUrl}}/users
 Content-Type: application/json
 Authorization: Bearer {{tokenAdmin}}
 
 {
-    "name": "Guard",
-    "email": "guard@user.com",
+    "name": "Equipe de Campo",
+    "login": "field@user.com",
+    "email": "field@user.com",
     "password": "SystemAdmin123@Senha",
-    "companyId": "cmco084kk0000lt96pxlqot9s",
-    "unitIds": ["<unit_id1>", "<unit_id2>"],
-    "role": "GUARD"
+    "role": "FIELD_TEAM",
+    "companyId": "COMPANY_ID_AQUI"
 }
 
-### Create HR
-POST http://localhost:30100/users/hr
+### Create C2C
+POST {{baseUrl}}/users
 Content-Type: application/json
 Authorization: Bearer {{tokenAdmin}}
 
 {
-    "name": "HR",
-    "email": "hr@user.com",
+    "name": "Operador C2C",
+    "login": "c2c@user.com",
+    "email": "c2c@user.com",
     "password": "SystemAdmin123@Senha",
-    "companyId": "cmco084kk0000lt96pxlqot9s",
-    "role": "HR"
-}
-
-### Create Resident
-POST http://localhost:30100/users/resident
-Content-Type: application/json
-Authorization: Bearer {{tokenAdmin}}
-
-{
-    "name": "Resident",
-    "email": "resident@user.com",
-    "password": "SystemAdmin123@Senha",
-    "companyId": "cmco084kk0000lt96pxlqot9s",
-    "unitId": "<unit_id>",
-    "role": "RESIDENT"
+    "role": "C2C",
+    "companyId": "COMPANY_ID_AQUI"
 }

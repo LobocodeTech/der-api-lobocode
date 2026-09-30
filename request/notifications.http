@@ -176,7 +176,7 @@ Authorization: Bearer {{accessToken}}
 ### =============================================================================
 
 ### 11.1 Filtrar por tipo e status
-GET {{baseUrl}}/notifications?entityType=occurrence&isRead=false&page=1&limit=5
+GET {{baseUrl}}/notifications?entityType=planning&isRead=false&page=1&limit=5
 Authorization: Bearer {{accessToken}}
 
 ### 11.2 Filtrar apenas por status
@@ -184,7 +184,7 @@ GET {{baseUrl}}/notifications?isRead=true&page=1&limit=10
 Authorization: Bearer {{accessToken}}
 
 ### 11.3 Filtrar apenas por tipo
-GET {{baseUrl}}/notifications?entityType=shift&page=1&limit=10
+GET {{baseUrl}}/notifications?entityType=work-order&page=1&limit=10
 Authorization: Bearer {{accessToken}}
 
 ### =============================================================================

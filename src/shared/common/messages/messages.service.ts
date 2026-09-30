@@ -12,7 +12,6 @@ export interface MessageContext {
   action?: string;
   userId?: string;
   companyId?: string;
-  postId?: string;
   [key: string]: any;
 }
 
@@ -89,26 +88,45 @@ export class MessagesService {
         notFound: 'Empresa não encontrada',
         alreadyExists: 'Empresa já existe',
       },
-      post: {
-        created: 'Posto criado com sucesso',
-        updated: 'Posto atualizado com sucesso',
-        deleted: 'Posto deletado com sucesso',
-        notFound: 'Posto não encontrado',
-        alreadyExists: 'Posto já existe',
+      regional: {
+        created: 'Regional criada com sucesso',
+        updated: 'Regional atualizada com sucesso',
+        deleted: 'Regional deletada com sucesso',
+        notFound: 'Regional não encontrada',
+        alreadyExists: 'Regional já existe',
       },
-      patrol: {
-        created: 'Ronda criada com sucesso',
-        updated: 'Ronda atualizada com sucesso',
-        deleted: 'Ronda deletada com sucesso',
-        notFound: 'Ronda não encontrada',
-        started: 'Ronda iniciada',
-        completed: 'Ronda concluída',
+      location: {
+        created: 'Localidade criada com sucesso',
+        updated: 'Localidade atualizada com sucesso',
+        deleted: 'Localidade deletada com sucesso',
+        notFound: 'Localidade não encontrada',
+        alreadyExists: 'Localidade já existe',
       },
-      incident: {
-        created: 'Incidente registrado com sucesso',
-        updated: 'Incidente atualizado com sucesso',
-        resolved: 'Incidente resolvido',
-        notFound: 'Incidente não encontrado',
+      asset: {
+        created: 'Ativo criado com sucesso',
+        updated: 'Ativo atualizado com sucesso',
+        deleted: 'Ativo deletado com sucesso',
+        notFound: 'Ativo não encontrado',
+        alreadyExists: 'Ativo já existe',
+      },
+      workOrder: {
+        created: 'Ordem de serviço criada com sucesso',
+        updated: 'Ordem de serviço atualizada com sucesso',
+        deleted: 'Ordem de serviço deletada com sucesso',
+        notFound: 'Ordem de serviço não encontrada',
+        completed: 'Ordem de serviço concluída',
+      },
+      planning: {
+        created: 'Planejamento criado com sucesso',
+        updated: 'Planejamento atualizado com sucesso',
+        deleted: 'Planejamento deletado com sucesso',
+        notFound: 'Planejamento não encontrado',
+      },
+      queue: {
+        created: 'Fila criada com sucesso',
+        updated: 'Fila atualizada com sucesso',
+        deleted: 'Fila deletada com sucesso',
+        notFound: 'Fila não encontrada',
       },
     };
 
@@ -155,10 +173,15 @@ export class MessagesService {
         invalid: 'Empresa inválida',
         notFound: 'Empresa não encontrada',
       },
-      postId: {
-        required: 'Posto é obrigatório',
-        invalid: 'Posto inválido',
-        notFound: 'Posto não encontrado',
+      regionalId: {
+        required: 'Regional é obrigatória',
+        invalid: 'Regional inválida',
+        notFound: 'Regional não encontrada',
+      },
+      locationId: {
+        required: 'Localidade é obrigatória',
+        invalid: 'Localidade inválida',
+        notFound: 'Localidade não encontrada',
       },
     };
 

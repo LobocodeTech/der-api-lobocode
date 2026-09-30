@@ -221,7 +221,7 @@ export class UniversalRepository<DtoCreate, DtoUpdate> {
 
   /**
    * Transforma dados com campos "Id" em relacionamentos Prisma
-   * Exemplo: { postId: "abc", userId: "xyz" } -> { post: { connect: { id: "abc" } }, user: { connect: { id: "xyz" } } }
+   * Exemplo: { regionalId: "abc", userId: "xyz" } -> { regional: { connect: { id: "abc" } }, user: { connect: { id: "xyz" } } }
    */
   private transformarDadosParaPrisma(data: any): any {
     if (!data || typeof data !== 'object') {
