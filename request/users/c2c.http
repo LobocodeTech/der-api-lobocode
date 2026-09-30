@@ -1,0 +1,43 @@
+@baseUrl = http://localhost:30100
+@token = {{ c2cLogin.response.body.access_token }}
+@userId = USER_ID_AQUI
+
+### Login C2C
+# @name c2cLogin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "login": "c2c.empresa@user.com",
+    "password": "SystemAdmin123@Senha"
+}
+
+### ========================================
+### C2C - Próprio perfil
+### ========================================
+
+### Buscar próprio perfil
+GET {{baseUrl}}/users/{{userId}}
+Authorization: Bearer {{token}}
+
+### Atualizar próprio perfil
+PATCH {{baseUrl}}/users/{{userId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "name": "Operador C2C Atualizado",
+    "phone": "(11) 99999-0002"
+}
+
+### Listar usuários (escopo permitido)
+GET {{baseUrl}}/users
+Authorization: Bearer {{token}}
+
+### Listar ordens de serviço
+GET {{baseUrl}}/work-orders
+Authorization: Bearer {{token}}
+
+### Listar planejamentos
+GET {{baseUrl}}/planning
+Authorization: Bearer {{token}}

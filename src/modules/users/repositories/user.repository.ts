@@ -129,11 +129,6 @@ export class UserRepository {
     });
   }
 
-  async conectarUserAosPosts(_userId: string, _postIds: string[]) {
-    // Schema DEPARTAMENTO ESTADUAL DE RODOVIAS: sem Post/UserPost - no-op para compatibilidade
-    return { count: 0 };
-  }
-
   async contar(where: Prisma.UserWhereInput) {
     return this.prisma.user.count({ where });
   }

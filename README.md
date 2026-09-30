@@ -4,14 +4,14 @@
 
 ## 📌 Sobre o Projeto
 
-O **Departamento de Estradas de Rodagem Engine** é um sistema backend robusto para gestão de segurança patrimonial, desenvolvido com NestJS 11. O sistema oferece controle de acesso multi-tenant com gestão de usuários baseada em roles, focando em segurança, escalabilidade e manutenibilidade.
+O **Departamento de Estradas de Rodagem Engine** é um sistema backend para gestão operacional de rodovias, desenvolvido com NestJS 11. O sistema oferece controle de acesso multi-tenant com gestão de usuários baseada em roles, focando em segurança, escalabilidade e manutenibilidade.
 
 ### 🎯 **Escopo do Sistema**
 
-- **Multi-tenant**: Suporte a múltiplas empresas/condomínios
-- **Gestão de Usuários**: Sistema de roles hierárquico
+- **Multi-tenant**: Suporte a múltiplas empresas
+- **Gestão de Usuários**: Roles `SYSTEM_ADMIN`, `ADMIN`, `FIELD_TEAM`, `C2C`
 - **Controle de Acesso**: Autorização granular por tipo de usuário
-- **Gestão de Postos**: Controle de pontos de acesso/segurança
+- **Operação**: Regionais, localidades, ativos, ordens de serviço, planejamento e filas
 - **Auditoria**: Rastreamento completo de ações dos usuários
 
 > 🎥 Referência: Assista ao vídeo explicativo para entender a estrutura por completo:  
@@ -27,7 +27,7 @@ O **Departamento de Estradas de Rodagem Engine** é um sistema backend robusto p
 - [Padrões de Codificação](./docs/CODING_STANDARDS.md) - Convenções gerais de código
 - [Convenções de Nomenclatura](./docs/NAMING_CONVENTIONS.md) - Padrões de nomenclatura específicos
 - [Padrão CRUD Genérico](./docs/padroes/crud-generic-pattern.md) - Padronização de métodos CRUD
-- [Módulo Users (arquitetura SOLID)](./docs/README-users.md) - Arquitetura do módulo de usuários
+- [Módulo Users](./src/modules/users/README.md) - Arquitetura do módulo de usuários
 - [Sistema de Tenant](./docs/README-tenant-multitenancy.md) - Multi-tenancy
 
 ### 🔐 **Autenticação e Segurança**
@@ -99,7 +99,7 @@ O **Departamento de Estradas de Rodagem Engine** é um sistema backend robusto p
 
 ## 🎯 Objetivo
 
-> Fornecer uma plataforma completa para gestão de segurança patrimonial com controle de acesso multi-tenant e sistema de roles hierárquico.
+> Fornecer uma plataforma completa para gestão operacional de rodovias (DER) com controle de acesso multi-tenant e sistema de roles.
 
 ### Principais Benefícios:
 
@@ -120,8 +120,11 @@ O **Departamento de Estradas de Rodagem Engine** é um sistema backend robusto p
 src/
 ├── modules/           # Módulos da aplicação
 │   ├── users/        # Gestão de usuários (multi-role)
-│   ├── companies/    # Gestão de empresas/condomínios
-│   └── posts/        # Gestão de postos de segurança
+│   ├── companies/    # Gestão de empresas (tenants)
+│   ├── regionals/    # Regionais
+│   ├── locations/    # Localizações
+│   ├── assets/       # Ativos
+│   └── work-orders/  # Ordens de serviço
 ├── shared/           # Recursos compartilhados
 │   ├── auth/         # Autenticação e autorização
 │   ├── prisma/       # Configuração do banco de dados

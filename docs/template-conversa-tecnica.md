@@ -1,63 +1,63 @@
-# 📝 Template para Conversas Técnicas - DEPARTAMENTO ESTADUAL DE RODOVIAS Engine
+# Template para Conversas Técnicas — DER API
 
-## 🎯 **Início de Conversa (Sempre usar)**
+## Início de Conversa (Sempre usar)
 
 ```
-Olá! Vou trabalhar no projeto DEPARTAMENTO ESTADUAL DE RODOVIAS Engine **seguindo as regras do projeto**:
+Olá! Vou trabalhar no projeto der-api-lobocode (DER) **seguindo as regras do projeto**:
 
 📋 **Contexto**:
-- Projeto: DEPARTAMENTO ESTADUAL DE RODOVIAS Engine (Sistema de Segurança Patrimonial)
+- Projeto: Departamento de Estradas de Rodagem (gestão operacional de rodovias)
 - Stack: NestJS + TypeScript + Prisma + PostgreSQL
 - Arquitetura: Multi-tenant, Sistema de Roles, Modular
 
 🔗 **Regras Obrigatórias**:
 - Arquivo: `.cursor/rules/nestjs-rules.mdc`
 - Documentação: `docs/NAMING_CONVENTIONS.md`
-- Contexto Completo: `projeto-context.md`
+- Contexto Completo: `docs/projeto-context.md`
 
 🎯 **Padrões Essenciais**:
 - Métodos: `buscarUserPorId()`, `validarSeUserExiste()`, `criarNovoAdmin()`
-- Entidades: `User`, `Company`, `Post`, `Role` (inglês)
+- Entidades: `User`, `Company`, `Regional`, `WorkOrder`, `Planning`, `Queue`
 - Propriedades: `id`, `name`, `email`, `companyId` (inglês)
 - Arquitetura: Repository → Validator → Factory → Service → Controller
 ```
 
-## 📋 **Checklist de Implementação**
+## Checklist de Implementação
 
-### ✅ **Antes de Qualquer Código**
+### Antes de Qualquer Código
 
 - [ ] Ler regras específicas no `.cursor/rules/nestjs-rules.mdc`
-- [ ] Consultar `projeto-context.md` para contexto de negócio
+- [ ] Consultar `docs/projeto-context.md` para contexto de negócio
 - [ ] Verificar `docs/NAMING_CONVENTIONS.md` para nomenclatura
 - [ ] Entender o padrão arquitetural específico
 
-### ✅ **Durante Implementação**
+### Durante Implementação
 
 - [ ] Métodos em português (`buscarTodos`, `validarSeUserExiste`)
-- [ ] Entidades em inglês (`User`, `Company`, `Post`)
+- [ ] Entidades em inglês (`User`, `Company`, `Regional`, `WorkOrder`)
 - [ ] Seguir padrão Repository → Validator → Factory → Service → Controller
 - [ ] Usar sistema de mensagens centralizadas
 - [ ] Implementar filtros de erro específicos
 - [ ] Documentar com JSDoc
-- [ ] Criar testes unitários
+- [ ] Criar testes unitários quando aplicável
 
-### ✅ **Validação Final**
+### Validação Final
 
-- [ ] Código segue **todas** as regras estabelecidas
+- [ ] Código segue as regras estabelecidas
 - [ ] Nomenclatura está correta
 - [ ] Arquitetura SOLID aplicada
 - [ ] Padrões do projeto respeitados
 - [ ] Documentação atualizada
 
-## 🚨 **Frases Obrigatórias**
+## Frases Obrigatórias
 
-### **Sempre mencionar:**
+### Sempre mencionar
 
 - "Seguindo as regras do projeto"
 - "Conforme estabelecido no `.cursor/rules/nestjs-rules.mdc`"
-- "Aplicando os padrões do DEPARTAMENTO ESTADUAL DE RODOVIAS Engine"
+- "Aplicando os padrões do DER API"
 
-### **Exemplo:**
+### Exemplo
 
 ```
 "Vou implementar esta funcionalidade **seguindo as regras do projeto**,
@@ -65,21 +65,21 @@ aplicando a arquitetura Repository → Validator → Factory → Service → Con
 e usando nomenclatura em português para métodos (`buscarTodos`, `validarSeUserExiste`)."
 ```
 
-## 📚 **Referências Rápidas**
+## Referências Rápidas
 
-### **Roles (7 tipos)**
+### Roles
 
-- `SYSTEM_ADMIN`, `ADMIN`, `SUPERVISOR`, `HR`, `GUARD`, `POST_SUPERVISOR`, `POST_RESIDENT`
+- `SYSTEM_ADMIN`, `ADMIN`, `FIELD_TEAM`, `C2C`
 
-### **Validações Customizadas**
+### Validações Customizadas
 
 - `@IsStrongPassword()`, `@IsUniqueEmail()`, `@IsUniqueCPF()`
 
-### **Filtros de Erro**
+### Filtros de Erro
 
 - `TokenExpiredError`, `ValidationError`, `NotFoundError`
 
-### **CRUD Genérico**
+### CRUD Genérico
 
 - `buscarTodos(page, limit)` - Lista com paginação
 - `buscarPorId(id)` - Busca específica
@@ -87,7 +87,7 @@ e usando nomenclatura em português para métodos (`buscarTodos`, `validarSeUser
 - `atualizar(id, dto)` - Atualização
 - `desativar(id)` - Soft delete
 
-### **Sistema de Mensagens**
+### Sistema de Mensagens
 
 ```typescript
 VALIDATION_MESSAGES.REQUIRED.NAME;
@@ -95,9 +95,9 @@ ERROR_MESSAGES.RESOURCE.NOT_FOUND;
 SUCCESS_MESSAGES.CRUD.CREATED;
 ```
 
-## 🔧 **Comandos Úteis**
+## Comandos Úteis
 
-### **Desenvolvimento**
+### Desenvolvimento
 
 ```bash
 npm run start:dev
@@ -105,7 +105,7 @@ npx prisma studio
 npm run test
 ```
 
-### **Build**
+### Build
 
 ```bash
 npm run build
@@ -113,59 +113,37 @@ npm run format
 npm run lint
 ```
 
-## 📄 **Documentação Essencial**
+## Documentação Essencial
 
-### **Sempre consultar:**
+### Sempre consultar
 
 1. `.cursor/rules/nestjs-rules.mdc` - Regras específicas
 2. `docs/NAMING_CONVENTIONS.md` - Nomenclatura
-3. `projeto-context.md` - Contexto completo
-4. `cursor-helper.md` - Padrões essenciais
+3. `docs/projeto-context.md` - Contexto completo
+4. `docs/cursor-helper.md` - Padrões essenciais
+5. `docs/ESCOPO-SISTEMA.md` - Escopo de negócio
 
-### **Documentação por módulo:**
+### Documentação por módulo
 
 - `src/shared/common/filters/README.md` - Sistema de filtros
 - `src/shared/auth/README.md` - Autenticação
 - `src/modules/users/README.md` - Usuários
 
-## 🎯 **Regras de Negócio Específicas**
+## Regras de Negócio (alto nível)
 
-### **Turnos**
-
-- 12 horas com tolerância de 5 minutos
-- Sistema bloqueia fora do horário
-
-### **Rondas**
-
-- Horárias obrigatórias
-- Checkpoints obrigatórios
-- Geolocalização obrigatória
-
-### **Botão de Pânico**
-
-- Acesso para moradores
-- Dados: nome, posto, GPS, horário
-- Notificação para supervisores
-
-### **Talão de Ocorrências**
-
-- Numeração automática
-- Reset diário às 00:00
+- Isolamento multi-tenant por `companyId`
+- OS com escopo por regional/localidade quando aplicável
+- Notificações via WebSocket/push para atividades de WorkOrder, Planning e Queue
+- Documentos com destinatários tipados no Prisma (`DocumentRecipientType` — não renomear)
 
 ---
 
-**💡 Dica**: Este template garante que sempre siga as regras do projeto, mesmo sem contexto anterior!
+**Dica**: Este template garante alinhamento às regras do projeto, mesmo sem contexto anterior.
 
-## 🎯 **Frase de Contextualização Completa**
+## Frase de Contextualização Completa
 
-### **📋 Copie e cole sempre:**
+### Copie e cole sempre
 
 ```
-Vou trabalhar no projeto DEPARTAMENTO ESTADUAL DE RODOVIAS Engine seguindo as regras do projeto estabelecidas em .cursor/rules/nestjs-rules.mdc. Leia cursor-helper.md para padrões essenciais, projeto-context.md para contexto completo e template-conversa-tecnica.md para estrutura. Aplique arquitetura Repository → Validator → Factory → Service → Controller, métodos em português (buscarTodos, validarSeUserExiste), entidades em inglês (User, Company, Post) e sistema de 7 roles hierárquicos.
+Vou trabalhar no projeto der-api-lobocode (DER) seguindo as regras do projeto estabelecidas em .cursor/rules/nestjs-rules.mdc. Leia docs/cursor-helper.md para padrões essenciais, docs/projeto-context.md para contexto completo e docs/template-conversa-tecnica.md para estrutura. Aplique arquitetura Repository → Validator → Factory → Service → Controller, métodos em português (buscarTodos, validarSeUserExiste), entidades em inglês (User, Company, Regional, WorkOrder) e roles SYSTEM_ADMIN / ADMIN / FIELD_TEAM / C2C.
 ```
-
----
-
-**💡 Esta frase única contém:**
-
-- ✅

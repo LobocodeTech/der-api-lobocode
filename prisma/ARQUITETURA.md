@@ -1,59 +1,34 @@
-# Arquitetura do Sistema de Gestão de Segurança (Departamento de Estradas de Rodagem)
+# Arquitetura de Domínio — DER API
 
-## Visão Geral
+API NestJS + Prisma para gestão operacional do DER (Departamento de Estradas de Rodagem): regionais, rodovias, ativos de monitoramento e ordens de serviço.
 
-Este sistema é uma plataforma completa para gestão de operações de segurança, com múltiplos perfis de acesso (Vigilante, RH, ADM/Gestão, Cliente) e funcionalidades avançadas para controle de rondas, ocorrências, RH, gestão de frota, BI, notificações, chat, auditoria e inteligência artificial.
+## Domínios principais
 
----
+| Domínio | Papel |
+|---------|--------|
+| **Regional** | CGR / regional geográfica; agrega usuários, localidades e colunas de kanban. |
+| **Location** | Rodovia/localidade vinculada a uma Regional (código, km de referência, edícula). |
+| **Asset** | Ativo (câmera, NVR, etc.) instalado em uma Location; status e criticidade. |
+| **WorkOrder** | Ordem de serviço (corretiva/preventiva) na Location; SLA, checklist, evidências, Kanban. |
+| **Planning** | Planejamento de manutenção; pode gerar WorkOrder e ter responsáveis. |
+| **Queue** | Fila de técnicos; associação N:N com WorkOrders via `WorkOrderQueue`. |
 
-## Perfis de Usuário
+## Relacionamentos (visão)
 
-- **Vigilante**: Realiza rondas, registra ocorrências, recebe advertências, acessa notificações, chat, escala e modo offline.
-- **RH**: Gerencia Cadastro de Funcionários, funcionários, relatórios, advertências, escalas e controle de ponto.
-- **ADM/Gestão**: Painel centralizado, gestão de frota, relatórios gerenciais, clientes, configurações, supervisores, checklists, notificações, chat, auditoria.
-- **Cliente**: Visualiza ocorrências, recebe notificações, histórico, feedback e suporte.
+```
+Company
+  └── Regional
+        └── Location
+              ├── Asset
+              ├── WorkOrder ←→ Queue (via WorkOrderQueue)
+              └── Planning ──(1:1 opcional)──► WorkOrder
+```
 
----
+## Multi-tenancy e permissões
 
-## Principais Módulos
+- Escopo por `companyId` (soft delete com `deletedAt`).
+- Autorização via CASL (roles/abilities); regionais restringem acesso a Locations/OS quando aplicável.
 
-- **Autenticação & Perfis**: Splash, escolha de perfil, login, recuperação de senha.
-- **Dashboard**: Específico para cada perfil.
-- **Ronda Inteligente**: GPS, QR Code/NFC, checklists, mídia, sugestão de rota (IA).
-- **Ocorrências**: Registro detalhado, anexos, notificações, integração com câmeras.
-- **Advertências**: Visualização, registro, histórico, feedback.
-- **Notificações & Alertas**: Push, alertas preditivos, integração com IA.
-- **Escalas & Jornadas**: Criação, atribuição, controle de folgas, integração com ponto.
-- **Gestão de Frota**: Abastecimento, manutenção, consumo, relatórios.
-- **Relatórios & BI**: Dashboards, relatórios customizados, agendamento, envio.
-- **Chat Interno**: Canais, histórico, notificações.
-- **Auditoria & Segurança**: Logs, RBAC, alertas de segurança.
-- **Inteligência Artificial**: Análise preditiva, detecção de anomalias, PNL.
+## Stack
 
----
-
-## Tecnologias Sugeridas
-
-- **Backend**: Node.js, NestJS, Prisma ORM, PostgreSQL
-- **Frontend**: Angular/React (Web), Ionic/React Native (Mobile)
-- **Notificações**: Firebase Cloud Messaging
-- **IA/ML**: Python (serviços externos), integração via API
-- **Infraestrutura**: Docker, CI/CD, Monitoramento
-
----
-
-## Fluxos Principais
-
-- **Login**: Splash → Escolha de perfil → Login → Dashboard específico
-- **Ronda**: Dashboard Vigilante → Registro de Ronda → GPS/QR Code/Checklist/Mídia
-- **Ocorrência**: Dashboard Vigilante → Registro de Ocorrência → Anexos/Notificação
-- **Advertência**: Supervisor/ADM → Registro → Notificação → Histórico RH
-- **Relatórios**: Módulo BI → Geração → Envio/Agendamento
-
----
-
-## Observações
-
-- O sistema é modular e expansível, permitindo integração com sistemas de terceiros (CFTV, Ponto Eletrônico, etc).
-- Suporte a modo offline para operações críticas.
-- Segurança baseada em RBAC e auditoria detalhada.
+NestJS · Prisma · PostgreSQL · JWT/CASL

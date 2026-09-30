@@ -29,7 +29,7 @@ export type PermActions =
   | 'approve'
   | 'export';
 
-// Recursos alinhados ao schema DEPARTAMENTO ESTADUAL DE RODOVIAS (sem Post, Shift, Patrol, etc.)
+// Recursos alinhados ao schema DEPARTAMENTO ESTADUAL DE RODOVIAS
 export type PermissionResource =
   | Subjects<{
       User: User;

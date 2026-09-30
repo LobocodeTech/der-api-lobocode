@@ -6,9 +6,9 @@ Bem-vindo à central de documentação do projeto! Aqui você encontra guias, ch
 
 ### **Módulos e Estrutura**
 
-- [Módulo Users (arquitetura SOLID)](./README-users.md)
 - [Sistema de Tenant/Multi-tenancy](./README-tenant-multitenancy.md)
 - [Escopo do Sistema](./ESCOPO-SISTEMA.md)
+- [Módulo Users](../src/modules/users/README.md)
 
 ### **Padrões de Desenvolvimento**
 
@@ -42,7 +42,6 @@ Bem-vindo à central de documentação do projeto! Aqui você encontra guias, ch
 
 - [Desenvolvimento](./DESENVOLVIMENTO.md)
 - [Comandos úteis de Docker, Prisma e NestJS](./README-comandos.md)
-- [Fundação Sólida - Fase 1](./FASE-1-FUNDACAO-SOLIDA.md)
 
 ### **Produção**
 

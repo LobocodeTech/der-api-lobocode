@@ -18,15 +18,8 @@ import { Roles } from '@prisma/client';
 import { RoleGuard } from 'src/shared/auth/guards/role.guard';
 import { CreateSystemAdminDto } from './dto/create-system-admin.dto';
 import { CreateAdminDto } from './dto/create-admin.dto';
-import { CreateGuardDto } from './dto/create-guard.dto';
-import { CreateHRDto } from './dto/create-hr.dto';
-import { CreatePostResidentDto } from './dto/create-post-resident.dto';
 import { TenantInterceptor } from 'src/shared/tenant/tenant.interceptor';
-import { CreatePostSupervisorDto } from './dto/create-post-supervisor.dto';
-import { CreateSupervisorDto } from './dto/create-supervisor.dto';
-import { Public } from 'src/shared/auth/decorators/public.decorator';
 
-// 🎯 NOVOS DECORATORS CASL
 import {
   CaslRead,
   CaslCreate,
@@ -43,7 +36,7 @@ function parseUserSoftDeleteScope(deletedOnly?: string): UserSoftDeleteScope {
 }
 
 @UseGuards(AuthGuard, RoleGuard)
-@UseInterceptors(TenantInterceptor, CaslInterceptor) // ✅ Adicionado CaslInterceptor
+@UseInterceptors(TenantInterceptor, CaslInterceptor)
 @RequiredRoles(Roles.SYSTEM_ADMIN)
 @Controller('users')
 export class UsersController {
@@ -152,32 +145,6 @@ export class UsersController {
     );
   }
 
-  @Get('active-guards-on-shift-post/:postId')
-  @CaslRead('User')
-  @RequiredRoles(Roles.ADMIN, Roles.FIELD_TEAM, Roles.C2C)
-  buscarVigilantesAtivosEmTurnoNoPosto(@Param('postId') postId: string) {
-    return this.service.buscarVigilantesAtivosEmTurnoNoPosto(postId);
-  }
-
-  @Get('post/:postId/clients')
-  @CaslRead('User')
-  @RequiredRoles(Roles.ADMIN, Roles.FIELD_TEAM, Roles.C2C)
-  buscarClientesPorPosto(
-    @Param('postId') postId: string,
-    @Query('page') page: string = '1',
-    @Query('limit') limit: string = '20',
-    @Query('orderBy') orderBy: string = 'name',
-    @Query('orderDirection') orderDirection: 'asc' | 'desc' = 'asc',
-  ) {
-    return this.service.buscarClientesPorPosto(
-      postId,
-      Number(page),
-      Number(limit),
-      orderBy,
-      orderDirection,
-    );
-  }
-
   @Get(':id')
   @CaslRead('User')
   @RequiredRoles(Roles.ADMIN, Roles.FIELD_TEAM, Roles.C2C, Roles.SYSTEM_ADMIN)
@@ -196,61 +163,6 @@ export class UsersController {
   @RequiredRoles(Roles.ADMIN)
   criarNovoAdmin(@Body() dto: CreateAdminDto) {
     return this.service.criarNovoAdmin(dto);
-  }
-
-  @Post('hr')
-  @CaslCreate('User')
-  @RequiredRoles(Roles.ADMIN)
-  criarNovoHR(@Body() dto: CreateHRDto) {
-    return this.service.criarNovoHR(dto);
-  }
-
-  @Post('supervisor')
-  @CaslCreate('User')
-  @RequiredRoles(Roles.ADMIN)
-  criarNovoSupervisor(@Body() dto: CreateSupervisorDto) {
-    return this.service.criarNovoSupervisor(dto);
-  }
-
-  @Post('guard')
-  @CaslCreate('User')
-  @RequiredRoles(Roles.ADMIN)
-  criarNovoGuard(@Body() dto: CreateGuardDto) {
-    return this.service.criarNovoGuard(dto);
-  }
-
-  @Post('post-supervisor')
-  @CaslCreate('User')
-  @RequiredRoles(Roles.ADMIN)
-  criarNovoPostSupervisor(@Body() dto: CreatePostSupervisorDto) {
-    return this.service.criarNovoPostSupervisor(dto);
-  }
-
-  @Post('post-resident')
-  @CaslCreate('User')
-  @RequiredRoles(Roles.ADMIN)
-  criarNovoPostResident(@Body() dto: CreatePostResidentDto) {
-    return this.service.criarNovoPostResident(dto);
-  }
-
-  /**
-   * Endpoint público para registro de síndico (auto-cadastro)
-   * Não requer autenticação
-   */
-  @Public()
-  @Post('public/post-supervisor')
-  criarPostSupervisorPublico(@Body() dto: CreatePostSupervisorDto) {
-    return this.service.criarPostSupervisorPublico(dto);
-  }
-
-  /**
-   * Endpoint público para registro de morador (auto-cadastro)
-   * Não requer autenticação
-   */
-  @Public()
-  @Post('public/post-resident')
-  criarPostResidentPublico(@Body() dto: CreatePostResidentDto) {
-    return this.service.criarPostResidentPublico(dto);
   }
 
   @Patch(':id')

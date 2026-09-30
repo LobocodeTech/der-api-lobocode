@@ -1,66 +1,68 @@
+@baseUrl = http://localhost:30100
 
 ###
 # @name adminLogin
-POST http://localhost:30100/auth/login
+POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-    "email": "admin@user.com",
-    "password": "admin"
+    "login": "admin@user.com",
+    "password": "SystemAdmin123@Senha"
 }
 
+@tokenAdmin = {{ adminLogin.response.body.access_token }}
+
 ###
-GET http://localhost:30100/users
+GET {{baseUrl}}/users
 Authorization: Bearer {{tokenAdmin}}
 
-###
-
-## Create Admin
-POST http://localhost:30100/users
+### Create Admin
+POST {{baseUrl}}/users/admin
 Content-Type: application/json
 Authorization: Bearer {{tokenAdmin}}
 
 {
     "name": "Admin",
-    "email": "admin@user.com",
-    "password": "admin",
-    "role": "ADMIN"
+    "login": "admin2@user.com",
+    "email": "admin2@user.com",
+    "password": "SystemAdmin123@Senha",
+    "companyId": "COMPANY_ID_AQUI"
 }
 
-###
-## Update Admin
-PATCH  http://localhost:30100/users/cmcgddkw30000ltiutljk7sl1
+### Update Admin
+PATCH {{baseUrl}}/users/USER_ID_AQUI
 Content-Type: application/json
 Authorization: Bearer {{tokenAdmin}}
 
 {
-    "name": "Felix",
-    "email": "admin@user.com",
-    "password": "SystemAdmin123@Senha"
+    "name": "Admin Atualizado",
+    "email": "admin@user.com"
 }
 
-### Create Reader
-POST http://localhost:30100/users
+### Create FIELD_TEAM
+POST {{baseUrl}}/users
 Content-Type: application/json
 Authorization: Bearer {{tokenAdmin}}
 
 {
-    "name": "Reader",
-    "email": "reader@user.com",
-    "password": "reader",
-    "role": "READER"
+    "name": "Equipe de Campo",
+    "login": "field@user.com",
+    "email": "field@user.com",
+    "password": "SystemAdmin123@Senha",
+    "role": "FIELD_TEAM"
 }
 
-### Create Writer
-POST http://localhost:30100/users
+### Create C2C
+POST {{baseUrl}}/users
 Content-Type: application/json
 Authorization: Bearer {{tokenAdmin}}
 
 {
-    "name": "Writer",
-    "email": "writer@user.com",
-    "password": "writer",
-    "role": "WRITER",
+    "name": "Operador C2C",
+    "login": "c2c@user.com",
+    "email": "c2c@user.com",
+    "password": "SystemAdmin123@Senha",
+    "role": "C2C",
     "permissions": [
         {
             "action": "read",
@@ -68,7 +70,7 @@ Authorization: Bearer {{tokenAdmin}}
         },
         {
             "action": "update",
-            "resource": "Post",
+            "resource": "WorkOrder",
             "condition": {
                 "id": "1"
             }
@@ -76,69 +78,42 @@ Authorization: Bearer {{tokenAdmin}}
     ]
 }
 
-
-GET http://localhost:30100/users/cm8z3gmns0002s9sywsjk9upq
-
-
 ###
-# @name adminLogin
-POST http://localhost:30100/auth/login
+# @name fieldTeamLogin
+POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-    "email": "admin@user.com",
-    "password": "admin"
+    "login": "field@user.com",
+    "password": "SystemAdmin123@Senha"
 }
 
-###
-
-@tokenAdmin = {{ adminLogin.response.body.access_token }}
+@tokenFieldTeam = {{ fieldTeamLogin.response.body.access_token }}
 
 ###
-# @name readerLogin
-POST http://localhost:30100/auth/login
+# @name c2cLogin
+POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-    "email": "reader@user.com",
-    "password": "reader"
+    "login": "c2c@user.com",
+    "password": "SystemAdmin123@Senha"
 }
 
-###
+@tokenC2c = {{ c2cLogin.response.body.access_token }}
 
-@tokenReader = {{ readerLogin.response.body.access_token }}
-
-
-###
-
-@tokenWriter = {{ writerLogin.response.body.access_token }}
-
-###
-POST http://localhost:30100/posts
-Content-Type: application/json
+### Listar ordens de serviço
+GET {{baseUrl}}/work-orders
 Authorization: Bearer {{tokenAdmin}}
 
-{
-    "title": "My first post",
-    "content": "This is the content of my first post.",
-    "published": false
-}
+### Listar localizações
+GET {{baseUrl}}/locations
+Authorization: Bearer {{tokenFieldTeam}}
 
-###
-GET http://localhost:30100/posts
-Authorization: Bearer {{tokenReader}}
-
-###
-GET http://localhost:30100/posts/cm8z70heh0001s9r7ick5369u
-Authorization: Bearer {{tokenReader}}
-
-###
-GET http://localhost:30100/users
+### Listar usuários
+GET {{baseUrl}}/users
 Authorization: Bearer {{tokenAdmin}}
 
-
-
 ###
-GET http://localhost:30100/
-
-Authorization: Bearer {{tokenReader}}
+GET {{baseUrl}}/
+Authorization: Bearer {{tokenC2c}}

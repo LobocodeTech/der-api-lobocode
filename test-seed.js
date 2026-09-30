@@ -1,28 +1,38 @@
+/**
+ * Smoke de conexão/contagens — domínio DER.
+ * Uso: node test-seed.js
+ */
 const { PrismaClient } = require('@prisma/client');
 
 async function testConnection() {
   const prisma = new PrismaClient();
-  
+
   try {
-    console.log('🔌 Testando conexão com o banco...');
+    console.log('[test-seed] Conectando...');
     await prisma.$connect();
-    console.log('✅ Conectado com sucesso!');
-    
-    console.log('📊 Verificando dados existentes...');
-    const userCount = await prisma.user.count();
-    console.log(`👥 Usuários: ${userCount}`);
-    
-    const companyCount = await prisma.company.count();
-    console.log(`🏢 Empresas: ${companyCount}`);
-    
-    const postCount = await prisma.post.count();
-    console.log(`🏪 Postos: ${postCount}`);
-    
-    const vehicleCount = await prisma.vehicle.count();
-    console.log(`🚗 Veículos: ${vehicleCount}`);
-    
+    console.log('[test-seed] Conectado.');
+
+    const [users, companies, regionals, locations, assets, workOrders, columns] =
+      await Promise.all([
+        prisma.user.count(),
+        prisma.company.count(),
+        prisma.regional.count(),
+        prisma.location.count(),
+        prisma.asset.count(),
+        prisma.workOrder.count(),
+        prisma.workOrderColumn.count(),
+      ]);
+
+    console.log(`[test-seed] Users: ${users}`);
+    console.log(`[test-seed] Companies: ${companies}`);
+    console.log(`[test-seed] Regionals: ${regionals}`);
+    console.log(`[test-seed] Locations: ${locations}`);
+    console.log(`[test-seed] Assets: ${assets}`);
+    console.log(`[test-seed] WorkOrders: ${workOrders}`);
+    console.log(`[test-seed] WorkOrderColumns: ${columns}`);
   } catch (error) {
-    console.error('❌ Erro:', error);
+    console.error('[test-seed] Erro:', error);
+    process.exitCode = 1;
   } finally {
     await prisma.$disconnect();
   }

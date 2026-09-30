@@ -10,10 +10,6 @@ import { AppService } from './app.service';
 import { AuthModule } from './shared/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { CompaniesModule } from './modules/companies/companies.module';
-// Módulos fora do escopo Prisma DEPARTAMENTO ESTADUAL DE RODOVIAS (desabilitados até remoção)
-// import { ShiftsModule } from './modules/shifts/shifts.module';
-// import { PostsModule } from './modules/posts/posts.module';
-// import { PatrolsModule } from './modules/patrols/patrols.module';
 import { WorkOrderReportsModule } from './modules/reports/work-order-reports.module';
 
 import { RateLimitMiddleware } from './shared/common/middleware/rate-limit.middleware';
@@ -41,8 +37,6 @@ import {
   RequiredFieldErrorFilter,
   PrismaErrorFilter,
 } from './shared/common/filters';
-// import { VehiclesModule } from './modules/vehicle/vehicles.module';
-// import { PanicEventsModule } from './modules/panic-events/panic-events.module';
 import { FilesModule } from './shared/files/files.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { NotificationModule } from './modules/notifications/notification.module';

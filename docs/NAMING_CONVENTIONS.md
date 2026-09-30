@@ -10,10 +10,10 @@ Este documento complementa o `CODING_STANDARDS.md` com foco específico em conve
 
 ```typescript
 // ✅ Correto
-(User, Company, Post, Role, Shift, Patrol, EventLog, PanicEvent);
+(User, Company, Regional, Location, Asset, WorkOrder, Planning, Queue);
 
 // ❌ Incorreto
-(Usuario, Empresa, Posto, Papel, Turno, Ronda, LogEvento, EventoPanico);
+(Usuario, Empresa, Regional, Localidade, Ativo, OrdemServico, Planejamento, Fila);
 ```
 
 ### 2. **Métodos SEMPRE em Português Literal**
@@ -34,10 +34,10 @@ createNewAdmin();
 
 ```typescript
 // ✅ Correto
-(id, name, email, companyId, postId, role, active, deletedAt);
+(id, name, email, companyId, regionalId, role, active, deletedAt);
 
 // ❌ Incorreto
-(identificador, nome, email, idEmpresa, idPosto, papel, ativo, dataDeletado);
+(identificador, nome, email, idEmpresa, idRegional, papel, ativo, dataDeletado);
 ```
 
 ## 🔍 Padrões por Categoria
@@ -49,7 +49,7 @@ createNewAdmin();
 buscarUserPorId(id: string)
 buscarUserPorEmail(email: string)
 buscarUsersPorCompany(companyId: string)
-buscarUsersPorPost(postId: string)
+buscarUsersPorRegional(regionalId: string)
 buscarUsersPorRole(role: Roles)
 buscarTodosOsUsers(page: number, limit: number)
 buscarUsersAtivos()
@@ -62,7 +62,7 @@ buscarUsersDeletados()
 // Padrão: validarSe[Entity]Existe
 validarSeUserExiste(id: string)
 validarSeCompanyExiste(companyId: string)
-validarSePostExiste(postId: string)
+validarSeRegionalExiste(regionalId: string)
 validarSeRoleExiste(role: Roles)
 ```
 
@@ -105,12 +105,8 @@ validarSePodeAcessarCompany(companyId: string)
 // Padrão: criarNovo[Entity]
 criarNovoUser(dto: CreateUserDto)
 criarNovoAdmin(dto: CreateAdminDto)
-criarNovoPlatformAdmin(dto: CreatePlatformAdminDto)
-criarNovoGuard(dto: CreateGuardDto)
-criarNovoHR(dto: CreateHRDto)
-criarNovoSupervisor(dto: CreateSupervisorDto)
-criarNovoPostSupervisor(dto: CreatePostSupervisorDto)
-criarNovoPostResident(dto: CreatePostResidentDto)
+criarNovoSystemAdmin(dto: CreateSystemAdminDto)
+criarNovoOthers(dto: CreateOthersDto)
 ```
 
 ### **Atualização de Entidades**
@@ -119,7 +115,7 @@ criarNovoPostResident(dto: CreatePostResidentDto)
 // Padrão: update[Entity]
 updateUser(id: string, updateUserDto: UpdateUserDto)
 updateCompany(id: string, updateCompanyDto: UpdateCompanyDto)
-updatePost(id: string, updatePostDto: UpdatePostDto)
+updateWorkOrder(id: string, updateWorkOrderDto: UpdateWorkOrderDto)
 updateUserStatus(id: string, status: boolean)
 updateUserRole(id: string, role: Roles)
 ```
@@ -194,7 +190,6 @@ deleteUserPermanentemente(where: Prisma.UserWhereUniqueInput)
 
 // Contagem e Relacionamentos
 contarQuantidadeDeUsers(where: Prisma.UserWhereInput)
-conectarUserAosPosts(userId: string, postIds: string[])
 ```
 
 ## 🔐 Permission Patterns
@@ -223,16 +218,12 @@ validarSePodeExecutarActionComRole(action: string, targetRole: Roles)
 
 ```typescript
 // Users
-criarNovoPlatformAdmin(dto: CreatePlatformAdminDto)
-criarNovoAdmin(dto: CreateAdminDto)
-criarNovoSupervisor(dto: CreateSupervisorDto)
-criarNovoGuard(dto: CreateGuardDto)
-criarNovoHR(dto: CreateHRDto)
-criarNovoPostSupervisor(dto: CreatePostSupervisorDto)
-criarNovoPostResident(dto: CreatePostResidentDto)
+criarSystemAdmin(dto: CreateSystemAdminDto)
+criarAdmin(dto: CreateAdminDto)
+criarOthers(dto: CreateOthersDto)
 
 // Utilitários
-hashPasswordDoUser(password: string)
+criptografarPassword(password: string)
 ```
 
 ## ✅ Validator Patterns
@@ -242,12 +233,11 @@ hashPasswordDoUser(password: string)
 ```typescript
 // Unicidade
 validarSeEmailEhUnico(email: string, excludeUserId?: string)
-validarSeCPFEhUnico(cpf: string, excludeUserId?: string)
 validarSePhoneEhUnico(phone: string, excludeUserId?: string)
 
 // Existência
 validarSeCompanyExiste(companyId: string)
-validarSePostPertenceACompany(postId: string, companyId: string)
+validarSeRegionalExiste(regionalId: string)
 validarSeUserExiste(id: string)
 
 // Regras de Negócio
@@ -262,23 +252,18 @@ validarSeUserPodeSerCriado(dados: any)
 
 ```typescript
 // Busca
-@Get() obterTodosOsUsers(@Query('page') page: string, @Query('limit') limit: string)
-@Get(':id') obterUserPorId(@Param('id') id: string)
-@Get('company/:companyId') obterUsersPorCompany(@Param('companyId') companyId: string)
+@Get() buscarTodos(...)
+@Get(':id') buscarPorId(@Param('id') id: string)
 
 // Criação
-@Post('platform-admin') criarNovoPlatformAdmin(@Body() dto: CreatePlatformAdminDto)
+@Post('system-admin') criarNovoSystemAdmin(@Body() dto: CreateSystemAdminDto)
 @Post('admin') criarNovoAdmin(@Body() dto: CreateAdminDto)
-@Post('supervisor') criarNovoSupervisor(@Body() dto: CreateSupervisorDto)
-@Post('guard') criarNovoGuard(@Body() dto: CreateGuardDto)
-@Post('hr') criarNovoHR(@Body() dto: CreateHRDto)
-@Post('post-supervisor') criarNovoPostSupervisor(@Body() dto: CreatePostSupervisorDto)
-@Post('post-resident') criarNovoPostResident(@Body() dto: CreatePostResidentDto)
+@Post() criarNovoOthers(@Body() dto: CreateOthersDto)
 
 // Atualização e Exclusão
-@Patch(':id') updateDadosDoUser(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto)
-@Delete(':id') removeUserDoSistema(@Param('id') id: string)
-@Post(':id/restore') restoreUserDeletado(@Param('id') id: string)
+@Patch(':id') atualizar(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto)
+@Delete(':id') desativar(@Param('id') id: string)
+@Post(':id/restore') reativar(@Param('id') id: string)
 ```
 
 ## 📊 Exemplos de Implementação Completa

@@ -384,8 +384,8 @@ export class DocumentsService {
       );
     } catch (error) {
       this.logger.error(
-        `Erro ao enviar notificações de documento: ${error.message}`,
-        error.stack,
+        `Erro ao enviar notificações de documento: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+        error instanceof Error ? error.stack : undefined,
       );
       // Não lançar erro para não quebrar o fluxo de criação do documento
     }

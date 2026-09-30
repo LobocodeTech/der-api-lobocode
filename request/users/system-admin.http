@@ -1,18 +1,15 @@
-@baseUrl = http://api.departamento-estadual-rodovias.com.br/api/
-# @baseUrl = http://localhost:30100
+@baseUrl = http://localhost:30100
 @companyId = cmeugkss50000ltt6ewnxidgy
 
+@token = {{ systemAdminLogin.response.body.access_token }}
 
-@token = {{ platformAdminLogin.response.body.access_token }}
- 
-### Login SYSTEM_ADMIN 
-# @name platformAdminLogin
+### Login SYSTEM_ADMIN
+# @name systemAdminLogin
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
-{ 
+{
     "login": "systemadmin@user.com",
-    # "login": "bruna oliveira",
     "password": "SystemAdmin123@Senha"
 }
 
@@ -20,38 +17,38 @@ Content-Type: application/json
 ### USERS - SYSTEM_ADMIN (Tenant Global)
 ### ========================================
 
-### Listar TODOS os usuários (tenant global)
-GET {{baseUrl}}/users 
+### Listar TODOS os usuários
+GET {{baseUrl}}/users
 Authorization: Bearer {{token}}
 
 ### Buscar usuário específico (qualquer empresa)
-GET {{baseUrl}}/users/cmco084n70001lt96th7lafk8     
+GET {{baseUrl}}/users/USER_ID_AQUI
 Authorization: Bearer {{token}}
 
 ### Atualizar usuário (qualquer empresa)
-PATCH {{baseUrl}}/users/cmcttd8eg0001lttqg2s3zp1b
+PATCH {{baseUrl}}/users/USER_ID_AQUI
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-    "name": "[Platform Admin] Claiver Almeida",
-    "active": true
+    "name": "Usuário Atualizado pelo System Admin",
+    "status": "ACTIVE"
 }
 
 ### Deletar usuário (qualquer empresa)
-DELETE {{baseUrl}}/users/cmcpq4bj4000altyjpjjfccvl
+DELETE {{baseUrl}}/users/USER_ID_AQUI
 Authorization: Bearer {{token}}
 
 ### ========================================
 ### USERS - SYSTEM_ADMIN (Tenant Específico)
 ### ========================================
 
-### Listar usuários de empresa específica (via query)
+### Listar usuários de empresa específica
 GET {{baseUrl}}/users?companyId={{companyId}}
 Authorization: Bearer {{token}}
 
 ### Buscar usuário de empresa específica
-GET {{baseUrl}}/users/cmco41oh1000altzzr6h8mr5m?companyId={{companyId}}
+GET {{baseUrl}}/users/USER_ID_AQUI?companyId={{companyId}}
 Authorization: Bearer {{token}}
 
 ### ========================================
@@ -59,23 +56,15 @@ Authorization: Bearer {{token}}
 ### ========================================
 
 ### Criar novo SYSTEM_ADMIN
-POST {{baseUrl}}/users/guard
+POST {{baseUrl}}/users/system-admin
 Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
-  "name": "Elaine Silva de Oliveira",
-  "email": "elaine.silva771@yahoo.com",
-  "login": "elaine silva",
-  "password": "Q6v4I@32KOxmp",
-  "role": "GUARD",
-  "permissions": ["SUPPORT"],
-#   "phone": "(11) 99999-9990",
-  "address": "AV. PEDRO PAULINO 83 - CAHAB",
-  "rg": "63.745.904-0",
-  "cpf": "070.784.305-73",
-  "registration": "03",
-  "companyId": "{{companyId}}"
+    "name": "Novo System Admin",
+    "login": "novo.systemadmin",
+    "email": "novo.systemadmin@user.com",
+    "password": "SystemAdmin123@Senha"
 }
 
 ### Criar ADMIN em empresa específica
@@ -85,82 +74,64 @@ Authorization: Bearer {{token}}
 
 {
     "name": "Admin Empresa A",
+    "login": "admin.empresaA",
     "email": "admin.empresaA@user.com",
     "password": "SystemAdmin123@Senha",
     "companyId": "{{companyId}}"
 }
 
-### Criar HR em empresa específica
-POST {{baseUrl}}/users/hr
+### Criar FIELD_TEAM em empresa específica
+POST {{baseUrl}}/users
 Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
-    "name": "Bruna Oliveira",
-    "login": "bruna oliveira",
-    "role": "HR",
-    "email": "hr.empresaA@user.com",
+    "name": "Equipe de Campo Empresa A",
+    "login": "field.empresaA",
+    "email": "field.empresaA@user.com",
     "password": "SystemAdmin123@Senha",
+    "role": "FIELD_TEAM",
     "companyId": "{{companyId}}"
 }
 
-### Criar GUARD em empresa específica
-POST {{baseUrl}}/users/guard
+### Criar C2C em empresa específica
+POST {{baseUrl}}/users
 Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
-    "name": "Guard Empresa A",
-    "email": "guard.empresaA@user.com",
+    "name": "Operador C2C Empresa A",
+    "login": "c2c.empresaA",
+    "email": "c2c.empresaA@user.com",
     "password": "SystemAdmin123@Senha",
-    "companyId": "{{companyId}}",
-    "unitIds": ["unit_id_1", "unit_id_2"]
-}
-
-### Criar RESIDENT em empresa específica
-POST {{baseUrl}}/users/resident
-Content-Type: application/json
-Authorization: Bearer {{token}}
-
-{
-    "name": "Resident Empresa A",
-    "email": "resident.empresaA@user.com",
-    "password": "SystemAdmin123@Senha",
-    "companyId": "{{companyId}}",
-    "unitId": "unit_id_1"
-}
-
-### ========================================
-### POSTS - SYSTEM_ADMIN
-### ========================================
-
-### Listar TODOS os posts (tenant global)
-GET {{baseUrl}}/posts
-Authorization: Bearer {{token}}
-
-### Listar posts de empresa específica
-GET {{baseUrl}}/posts?companyId={{companyId}}
-Authorization: Bearer {{token}}
-
-### Criar post em empresa específica
-POST {{baseUrl}}/posts
-Content-Type: application/json
-Authorization: Bearer {{token}}
-
-{
-    "title": "Post da Empresa A",
-    "content": "Conteúdo do post",
+    "role": "C2C",
     "companyId": "{{companyId}}"
 }
 
 ### ========================================
-### OUTROS RECURSOS - SYSTEM_ADMIN
+### RECURSOS DER - SYSTEM_ADMIN
 ### ========================================
 
-### Listar produtos (se existir)
-GET {{baseUrl}}/products
-Authorization: Bearer {{token}}
-
-### Listar empresas (se existir)
+### Listar empresas
 GET {{baseUrl}}/companies
-Authorization: Bearer {{token}} 
+Authorization: Bearer {{token}}
+
+### Listar regionais
+GET {{baseUrl}}/regionals
+Authorization: Bearer {{token}}
+
+### Listar localizações
+GET {{baseUrl}}/locations
+Authorization: Bearer {{token}}
+
+### Listar ativos
+GET {{baseUrl}}/assets
+Authorization: Bearer {{token}}
+
+### Listar ordens de serviço
+GET {{baseUrl}}/work-orders
+Authorization: Bearer {{token}}
+
+### Listar planejamentos
+GET {{baseUrl}}/planning
+Authorization: Bearer {{token}}

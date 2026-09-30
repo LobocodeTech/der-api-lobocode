@@ -1,299 +1,130 @@
-# 🔔 Sistema de Notificações Global
+# Sistema de Notificações — DER
 
-Sistema de notificações global e simplificado para o ifraseg-engine. Fornece funcionalidades de notificação em tempo real para todas as entidades do sistema.
+Sistema de notificações do **der-api-lobocode** (Departamento de Estradas de Rodagem). Cobre in-app, WebSocket e push, com destinatários resolvidos por regra de empresa.
 
-## 📋 Visão Geral
+## Visão Geral
 
-O sistema de notificações é composto por:
+| Peça | Papel |
+|------|--------|
+| **`NotificationService`** | Persistência e envio (WebSocket / e-mail / push) |
+| **`NotificationHelper`** | API genérica (`entidadeCriada`, `entidadeAtualizada`, `notificar`, `notificarUsuarios`) |
+| **`NotificationRecipientsService`** | Resolve destinatários via `getRecipients` |
+| **`WorkOrderActivityNotificationService`** | Eventos de ciclo de vida e atribuição de OS |
+| **`PlanningActivityNotificationService`** | Criação / atribuição / remoção em Planning |
+| **`QueueActivityNotificationService`** | Associação / desassociação em Queue |
+| **`NotificationGateway`** | Canal WebSocket em tempo real |
 
-- **`NotificationService`**: Lógica principal de notificações
-- **`NotificationHelper`**: Métodos simplificados por entidade
-- **`NotificationMixin`**: Mixin para integração automática
-- **`NotificationGateway`**: WebSocket para tempo real
+Não há helpers por entidade de domínio legado neste projeto. Use o `NotificationHelper` genérico ou os activity services acima (WorkOrder, Planning, Queue).
 
-## 🚀 Como Usar
+## Destinatários (`getRecipients`)
 
-### 1. **Importação Básica**
+`NotificationRecipientsService.getRecipients(companyId, recipientType, rule?)` retorna IDs de usuários ativos da empresa:
+
+| `RecipientType` | Comportamento |
+|-----------------|---------------|
+| **`ALL`** | Todos os usuários `ACTIVE` da empresa |
+| **`ADMINS_ONLY`** | Apenas `ADMIN` e `SYSTEM_ADMIN` |
+| **`SPECIFIC_USERS`** | IDs em `rule.userIds` |
+
+```typescript
+import { NotificationRecipientsService } from './shared/notification.recipients';
+
+const ids = await this.recipientsService.getRecipients(companyId, 'ALL');
+const admins = await this.recipientsService.getRecipients(companyId, 'ADMINS_ONLY');
+const específicos = await this.recipientsService.getRecipients(
+  companyId,
+  'SPECIFIC_USERS',
+  { type: 'SPECIFIC_USERS', userIds: ['user-1', 'user-2'] },
+);
+```
+
+Os activity services ainda filtram por preferências do usuário (`ActivityNotificationPreferencesService`) e, no caso de Work Order, por escopo regional (`WorkOrderNotificationScopeService`).
+
+## NotificationHelper (genérico)
 
 ```typescript
 import { NotificationHelper } from '../notifications/notification.helper';
 
 @Injectable()
-export class MeuService extends UniversalService<DtoCreate, DtoUpdate> {
-  constructor(
-    // ... outros parâmetros
-    private notificationHelper: NotificationHelper,
-  ) {
-    super(/* ... */);
-  }
-}
-```
+export class MeuService {
+  constructor(private readonly notificationHelper: NotificationHelper) {}
 
-### 2. **Notificações Automáticas nos Hooks**
-
-```typescript
-// Notificar criação
-protected async depoisDeCriar(data: any, resultado: any): Promise<void> {
-  await this.notificationHelper.entidadeCriada(
-    'minhaEntidade',
-    resultado.id,
-    data.name || 'Entidade',
-    data.userId,
-    this.obterCompanyId(),
-  );
-}
-
-// Notificar atualização
-protected async depoisDeAtualizar(id: string, data: any, resultado: any): Promise<void> {
-  await this.notificationHelper.entidadeAtualizada(
-    'minhaEntidade',
-    id,
-    data.name || 'Entidade',
-    this.obterUsuarioLogado().id,
-    this.obterCompanyId(),
-  );
-}
-```
-
-### 3. **Notificações Específicas por Entidade**
-
-#### **📋 Supplies (Suprimentos)**
-```typescript
-// Criação
-await this.notificationHelper.supplyCriado(
-  supplyId, 'Nome do Suprimento', userId, companyId
-);
-
-// Atualização
-await this.notificationHelper.supplyAtualizado(
-  supplyId, 'Nome do Suprimento', userId, companyId
-);
-```
-
-#### **🕐 Shifts (Turnos)**
-```typescript
-// Início do turno
-await this.notificationHelper.turnoIniciado(
-  turnoId, 'Nome do Posto', userId, companyId
-);
-
-// Fim do turno
-await this.notificationHelper.turnoFinalizado(
-  turnoId, 'Nome do Posto', userId, companyId
-);
-
-// Turno em intervalo
-await this.notificationHelper.turnoEmIntervalo(
-  turnoId, 'Nome do Posto', userId, companyId
-);
-```
-
-#### **🚨 Occurrences (Ocorrências)**
-```typescript
-// Criação
-await this.notificationHelper.ocorrenciaCriada(
-  ocorrenciaId, 'Título da Ocorrência', userId, companyId
-);
-
-// Atualização
-await this.notificationHelper.ocorrenciaAtualizada(
-  ocorrenciaId, 'Título da Ocorrência', userId, companyId
-);
-```
-
-#### **🚗 Vehicle Checklists**
-```typescript
-// Criação
-await this.notificationHelper.checklistVeiculoCriado(
-  checklistId, 'Modelo do Veículo', userId, companyId
-);
-
-// Atualização
-await this.notificationHelper.checklistVeiculoAtualizado(
-  checklistId, 'Modelo do Veículo', userId, companyId
-);
-```
-
-#### **👥 Users (Usuários)**
-```typescript
-// Criação
-await this.notificationHelper.usuarioCriado(
-  userId, 'Nome do Usuário', 'ADMIN', criadoPorUserId, companyId
-);
-
-// Atualização
-await this.notificationHelper.usuarioAtualizado(
-  userId, 'Nome do Usuário', criadoPorUserId, companyId
-);
-
-// Desativação
-await this.notificationHelper.usuarioDesativado(
-  userId, 'Nome do Usuário', criadoPorUserId, companyId
-);
-```
-
-### 4. **Notificações Customizadas**
-
-```typescript
-// Notificação genérica
-await this.notificationHelper.notificar(
-  'Título da Notificação',
-  'Mensagem da notificação',
-  userId,
-  companyId,
-  'entityType',
-  'entityId'
-);
-
-// Notificar usuários específicos
-await this.notificationHelper.notificarUsuarios(
-  ['userId1', 'userId2'],
-  'Título',
-  'Mensagem',
-  'entityType',
-  'entityId',
-  criadoPorUserId,
-  companyId
-);
-```
-
-## 🔧 Exemplos Práticos
-
-### **Exemplo 1: Supplies Service**
-
-```typescript
-@Injectable()
-export class SuppliesService extends UniversalService<CreateSupplyDto, UpdateSupplyDto> {
-  constructor(
-    // ... outros parâmetros
-    private notificationHelper: NotificationHelper,
-  ) {
-    super(/* ... */);
-  }
-
-  protected async depoisDeCriar(data: any, resultado: any): Promise<void> {
-    await this.notificationHelper.supplyCriado(
+  async depoisDeCriar(resultado: { id: string; name: string }, userId: string, companyId: string) {
+    await this.notificationHelper.entidadeCriada(
+      'asset',
       resultado.id,
-      data.name || 'Suprimento',
-      data.userId,
-      this.obterCompanyId(),
+      resultado.name,
+      userId,
+      companyId,
     );
   }
 
-  protected async depoisDeAtualizar(id: string, data: any, resultado: any): Promise<void> {
-    await this.notificationHelper.supplyAtualizado(
-      id,
-      data.name || 'Suprimento',
-      this.obterUsuarioLogado().id,
-      this.obterCompanyId(),
+  async notificarCustom() {
+    await this.notificationHelper.notificar(
+      'Título',
+      'Mensagem',
+      userId,
+      companyId,
+      'work-order',
+      workOrderId,
+    );
+  }
+
+  async notificarLista() {
+    await this.notificationHelper.notificarUsuarios(
+      ['userId1', 'userId2'],
+      'Título',
+      'Mensagem',
+      'planning',
+      planningId,
+      criadoPorUserId,
+      companyId,
     );
   }
 }
 ```
 
-### **Exemplo 2: Shifts Service**
+## Activity notification services (domínio DER)
+
+### Work Order
+
+`WorkOrderActivityNotificationService` — atribuição, desatribuição e eventos de ciclo de vida (`started`, `paused`, `resumed`, `completed`, `submitted_for_review`, `approved`, `rejected`, `deleted`), com filtro de escopo da OS.
+
+### Planning
+
+`PlanningActivityNotificationService` — `notifyOnCreate` (destinatários `ALL` da empresa, exceto o ator), `notifyAssignment`, `notifyUnassignment`.
+
+### Queue
+
+`QueueActivityNotificationService` — `notifyAssociationOnCreate`, `notifyAssociationOnUpdate`, `notifyUnassociation` para usuários da fila.
+
+## WebSocket
 
 ```typescript
-@Injectable()
-export class ShiftsService extends UniversalService<CreateShiftDto, UpdateShiftDto> {
-  constructor(
-    // ... outros parâmetros
-    private notificationHelper: NotificationHelper,
-  ) {
-    super(/* ... */);
-  }
-
-  async inicioDoTurno(data: CreateShiftDto) {
-    const resultado = await super.criar(shiftData);
-    
-    // Notificar início do turno
-    const postName = await this.obterNomeDoPosto(data.postId);
-    await this.notificationHelper.turnoIniciado(
-      resultado.id,
-      postName,
-      this.obterUsuarioLogado().id,
-      this.obterCompanyId(),
-    );
-
-    return resultado;
-  }
-
-  async fimDoTurno(id: string, data: UpdateShiftDto) {
-    const resultado = await super.atualizar(id, shiftData);
-    
-    // Notificar fim do turno
-    const postName = await this.obterNomeDoPosto(resultado.postId);
-    await this.notificationHelper.turnoFinalizado(
-      id,
-      postName,
-      this.obterUsuarioLogado().id,
-      this.obterCompanyId(),
-    );
-
-    return resultado;
-  }
-}
-```
-
-## 🌐 WebSocket (Tempo Real)
-
-O sistema inclui WebSocket para notificações em tempo real:
-
-```typescript
-// Frontend (Angular)
 import { io } from 'socket.io-client';
 
-const socket = io('/notifications', {
-  auth: {
-    token: 'seu-jwt-token'
-  }
-});
+const socket = io('/notifications', { auth: { token: 'seu-jwt-token' } });
 
-// Escutar notificações
 socket.on('new_notification', (notification) => {
   console.log('Nova notificação:', notification);
 });
 
-// Escutar contador de não lidas
 socket.on('unread_count_updated', (data) => {
-  console.log('Contador atualizado:', data.unreadCount);
+  console.log('Não lidas:', data.unreadCount);
 });
 ```
 
-## 📊 Endpoints REST
+## Endpoints REST
 
-```typescript
-// Buscar notificações do usuário
-GET /notifications?page=1&limit=20&isRead=false&entityType=supply
-
-// Contar não lidas
-GET /notifications/unread-count
-
-// Marcar como lida
-PUT /notifications/:id/read
-
-// Marcar todas como lidas
-PUT /notifications/read-all
+```http
+GET  /notifications?page=1&limit=20&isRead=false&entityType=work-order
+GET  /notifications/unread-count
+PUT  /notifications/:id/read
+PUT  /notifications/read-all
 ```
 
-## 🎯 Benefícios
+## Segurança
 
-1. **Simplicidade**: Métodos específicos para cada entidade
-2. **Automação**: Integração automática nos hooks do UniversalService
-3. **Tempo Real**: WebSocket para notificações instantâneas
-4. **Flexibilidade**: Notificações customizadas quando necessário
-5. **Global**: Acessível em todos os módulos do sistema
-
-## 🔒 Segurança
-
-- Autenticação JWT obrigatória
-- Validação de acesso por empresa
-- Rate limiting implementado
-- Logs de auditoria
-
-## 📈 Monitoramento
-
-- Métricas de notificações enviadas
-- Logs estruturados
-- Health checks
-- Alertas de falhas
+- JWT obrigatório
+- Isolamento por `companyId` (multi-tenant)
+- Preferências de atividade e escopo regional aplicados nos fluxos de OS
