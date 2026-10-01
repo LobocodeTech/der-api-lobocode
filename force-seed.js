@@ -137,4 +137,4 @@ async function upsertWorkOrderColumns(companyId) {
   }
 }
 
-// forceSeed(); -- Descomentar para executar o seed
+// forceSeed(); -- NÃO DESCOMENTAR ESTA LINHA ABAIXO PARA EXECUTAR O SEED (TESTE)
