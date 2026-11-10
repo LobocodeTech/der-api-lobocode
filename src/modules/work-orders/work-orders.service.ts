@@ -959,36 +959,106 @@ export class WorkOrdersService extends UniversalService<
     }
   }
 
-  async iniciarTrabalho(id: string) {
-    const roleUser = this.obterUsuarioLogado()?.role;
+  /** Perfis que podem iniciar uma OS e concluir OS corretivas. */
+  private static readonly ROLES_EXECUCAO: ReadonlySet<string> = new Set([
+    Roles.FIELD_TEAM,
+    Roles.ADMIN,
+    Roles.SYSTEM_ADMIN,
+  ]);
 
-    if (roleUser !== Roles.FIELD_TEAM) {
+  private validarPerfilPodeIniciar(): void {
+    const roleUser = this.obterUsuarioLogado()?.role;
+    if (!roleUser || !WorkOrdersService.ROLES_EXECUCAO.has(roleUser)) {
       throw new BadRequestException(
-        'Você não tem permissão para iniciar uma ordem de serviço. Apenas usuários Técnicos do Campo.',
+        'Você não tem permissão para iniciar uma ordem de serviço. Apenas usuários Técnicos do Campo, Administradores ou Administradores do Sistema.',
       );
     }
+  }
+
+  private validarPerfilPodeConcluirCorretiva(): void {
+    const roleUser = this.obterUsuarioLogado()?.role;
+    if (!roleUser || !WorkOrdersService.ROLES_EXECUCAO.has(roleUser)) {
+      throw new BadRequestException(
+        'Apenas técnicos de campo, administradores ou administradores do sistema podem concluir OS corretivas.',
+      );
+    }
+  }
+
+  /** Técnico de Campo só inicia OS de fila da qual participa. */
+  private async validarParticipacaoNaFilaParaIniciar(
+    workOrderId: string,
+    companyId: string | null | undefined,
+  ): Promise<string[]> {
+    const recipientIds =
+      await this.workOrderQueueUsersService.resolveUserIdsFromWorkOrderId(
+        workOrderId,
+        companyId ?? undefined,
+      );
+    if (recipientIds.length === 0) {
+      throw new BadRequestException(
+        'A ordem de serviço precisa ter ao menos uma fila com membros antes de iniciar.',
+      );
+    }
+    const usuarioLogadoId = this.obterUsuarioLogadoId();
+    if (!usuarioLogadoId) {
+      throw new BadRequestException('Usuário não autenticado.');
+    }
+    if (
+      this.obterUsuarioLogado()?.role === Roles.FIELD_TEAM &&
+      !recipientIds.includes(usuarioLogadoId)
+    ) {
+      throw new BadRequestException(
+        'Você só pode iniciar uma ordem de serviço associada a uma fila da qual participa.',
+      );
+    }
+    return recipientIds;
+  }
+
+  /**
+   * Regras de mudança de status aplicadas fora dos endpoints dedicados
+   * (kanban e edição comum), para não contornar iniciar/concluir/aprovar.
+   */
+  private async validarTransicaoDeStatus(
+    ordem: { id: string; companyId?: string | null; status: WorkOrderStatus },
+    novoStatus: WorkOrderStatus,
+  ): Promise<void> {
+    if (novoStatus === ordem.status) return;
+
+    if (ordem.status === WorkOrderStatus.COMPLETED_UNDER_REVIEW) {
+      throw new BadRequestException(
+        'OS em análise só pode ser aprovada ou reprovada. Arraste para Concluída para aprovar ou para uma coluna de execução para reprovar.',
+      );
+    }
+
+    if (
+      novoStatus === WorkOrderStatus.IN_PROGRESS &&
+      (ordem.status === WorkOrderStatus.PENDING ||
+        ordem.status === WorkOrderStatus.ASSIGNED)
+    ) {
+      this.validarPerfilPodeIniciar();
+      await this.validarParticipacaoNaFilaParaIniciar(
+        ordem.id,
+        ordem.companyId ?? this.obterCompanyId(),
+      );
+    }
+
+    if (novoStatus === WorkOrderStatus.COMPLETED_UNDER_REVIEW) {
+      this.validarPerfilPodeConcluirCorretiva();
+    }
+  }
+
+  async iniciarTrabalho(id: string) {
+    this.validarPerfilPodeIniciar();
 
     const ordem = await this.buscarOrdemPorId(id);
     await this.validarFilasAssociadasParaIniciar(ordem.id);
     const usuarioLogadoId = this.obterUsuarioLogadoId();
     const companyId =
       (ordem as { companyId?: string }).companyId ?? this.obterCompanyId();
-    const recipientIds =
-      await this.workOrderQueueUsersService.resolveUserIdsFromWorkOrderId(
-        ordem.id,
-        companyId ?? undefined,
-      );
-
-    if (recipientIds.length === 0) {
-      throw new BadRequestException(
-        'A ordem de serviço precisa ter ao menos uma fila com membros antes de iniciar.',
-      );
-    }
-    if (!usuarioLogadoId || !recipientIds.includes(usuarioLogadoId)) {
-      throw new BadRequestException(
-        'Você só pode iniciar uma ordem de serviço associada a uma fila da qual participa.',
-      );
-    }
+    const recipientIds = await this.validarParticipacaoNaFilaParaIniciar(
+      ordem.id,
+      companyId,
+    );
 
     if (ordem.status === WorkOrderStatus.CANCELLED) {
       throw new BadRequestException(
@@ -1077,7 +1147,6 @@ export class WorkOrdersService extends UniversalService<
 
   async concluirOrdem(id: string, dto: CompleteWorkOrderDto) {
     const ordem = await this.buscarOrdemPorId(id);
-    const roleUser = this.obterUsuarioLogado()?.role;
 
     if (ordem.status === WorkOrderStatus.COMPLETED) {
       throw new BadRequestException('A ordem de serviço já foi concluída.');
@@ -1092,11 +1161,7 @@ export class WorkOrdersService extends UniversalService<
     const completedAt = new Date();
 
     if (ordem.type === WorkOrderType.CORRECTIVE) {
-      if (roleUser !== Roles.FIELD_TEAM) {
-        throw new BadRequestException(
-          'Apenas técnicos de campo podem concluir OS corretivas.',
-        );
-      }
+      this.validarPerfilPodeConcluirCorretiva();
       if (ordem.status !== WorkOrderStatus.IN_PROGRESS) {
         throw new BadRequestException(
           'A OS corretiva só pode ser concluída com status em andamento.',
@@ -1168,6 +1233,42 @@ export class WorkOrdersService extends UniversalService<
     return this.buscarDetalhesPorId(ordem.id);
   }
 
+  /** Coluna escolhida ao reprovar: mesma empresa/regional e de execução. */
+  private async validarColunaDeExecucaoParaReprovar(
+    ordem: { companyId: string; locationId?: string | null; type: WorkOrderType },
+    columnId: string,
+  ): Promise<{ id: string }> {
+    const coluna = await this.prisma.workOrderColumn.findFirst({
+      where: { id: columnId, deletedAt: null, companyId: ordem.companyId },
+      select: { id: true, name: true, regionalId: true },
+    });
+    if (!coluna) {
+      throw new NotFoundException('Coluna do Kanban não encontrada.');
+    }
+    if (coluna.regionalId) {
+      const local = ordem.locationId
+        ? await this.prisma.location.findFirst({
+            where: { id: ordem.locationId },
+            select: { regionalId: true },
+          })
+        : null;
+      if (coluna.regionalId !== (local?.regionalId ?? null)) {
+        throw new BadRequestException(
+          'A coluna selecionada pertence a outra regional.',
+        );
+      }
+    }
+    if (
+      this.obterStatusPorNomeDaColuna(coluna.name, ordem.type) !==
+      WorkOrderStatus.IN_PROGRESS
+    ) {
+      throw new BadRequestException(
+        'Ao reprovar, a OS deve voltar para uma coluna de execução.',
+      );
+    }
+    return { id: coluna.id };
+  }
+
   async reprovarConclusaoOrdem(id: string, dto: RejectWorkOrderCompletionDto) {
     this.validarPermissaoAprovacaoConclusao();
     const ordem = await this.buscarOrdemPorId(id);
@@ -1182,12 +1283,14 @@ export class WorkOrdersService extends UniversalService<
       );
     }
     const motivo = dto.reason.trim();
-    const colunaAndamento = await this.resolverColunaPorStatusDaOrdem(
-      ordem.id,
-      ordem.companyId,
-      WorkOrderStatus.IN_PROGRESS,
-      ordem.type,
-    );
+    const colunaAndamento = dto.columnId
+      ? await this.validarColunaDeExecucaoParaReprovar(ordem, dto.columnId)
+      : await this.resolverColunaPorStatusDaOrdem(
+          ordem.id,
+          ordem.companyId,
+          WorkOrderStatus.IN_PROGRESS,
+          ordem.type,
+        );
     await this.prisma.workOrder.update({
       where: { id: ordem.id },
       data: {
@@ -1222,7 +1325,11 @@ export class WorkOrdersService extends UniversalService<
 
   private validarPermissaoAprovacaoConclusao(): void {
     const roleUser = this.obterUsuarioLogado()?.role;
-    if (roleUser !== Roles.ADMIN && roleUser !== Roles.C2C) {
+    if (
+      roleUser !== Roles.ADMIN &&
+      roleUser !== Roles.C2C &&
+      roleUser !== Roles.SYSTEM_ADMIN
+    ) {
       throw new BadRequestException(
         'Você não tem permissão para aprovar ou reprovar conclusões de OS.',
       );
@@ -1411,6 +1518,7 @@ export class WorkOrdersService extends UniversalService<
       nomeColunaDestino,
       ordem.type,
     );
+    await this.validarTransicaoDeStatus(ordem, novoStatus);
     if (novoStatus === WorkOrderStatus.IN_PROGRESS) {
       await this.validarFilasAssociadasParaIniciar(ordem.id);
     }
@@ -1979,7 +2087,18 @@ export class WorkOrdersService extends UniversalService<
       data.status !== WorkOrderStatus.COMPLETED_UNDER_REVIEW
     ) {
       throw new BadRequestException(
-        'OS em análise só pode ser aprovada ou reprovada pelos endpoints dedicados.',
+        'OS em análise só pode ser aprovada ou reprovada. Arraste para Concluída para aprovar ou para uma coluna de execução para reprovar.',
+      );
+    }
+
+    if (data.status !== undefined) {
+      await this.validarTransicaoDeStatus(
+        ordemAtual as {
+          id: string;
+          companyId?: string | null;
+          status: WorkOrderStatus;
+        },
+        data.status,
       );
     }
 
