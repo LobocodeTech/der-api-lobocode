@@ -2,6 +2,8 @@ import { BadRequestException } from '@nestjs/common';
 import { Roles, WorkOrderStatus, WorkOrderType } from '@prisma/client';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { WorkOrdersService } from './work-orders.service';
+import { WorkOrdersController } from './work-orders.controller';
+import { ROLE_BY_METHOD_KEY } from 'src/shared/auth/role-by-method.decorator';
 
 /**
  * Regras de permissão do ciclo de vida da OS:
@@ -60,7 +62,9 @@ function construirServico(
       },
       dadosAuditoriaAtualizacaoPrisma: () => ({}),
       dadosAtorCompletedByPrisma: () => ({}),
-      registrarComentarioAutomatico: jest.fn<any>().mockResolvedValue(undefined),
+      registrarComentarioAutomatico: jest
+        .fn<any>()
+        .mockResolvedValue(undefined),
       notificarEventoCicloDeVida: notificar,
       resolverColunaPorStatusDaOrdem: jest.fn<any>().mockResolvedValue(null),
       resolverDestinatariosAdminC2c: jest.fn<any>().mockResolvedValue([]),
@@ -76,32 +80,30 @@ const dadosDoUpdate = (update: jest.Mock<any>) =>
   (update.mock.calls[0][0] as { data: Record<string, unknown> }).data;
 
 describe('Permissões — iniciar OS', () => {
-  it.each([Roles.FIELD_TEAM, Roles.ADMIN, Roles.SYSTEM_ADMIN])('%s pode iniciar', async (role) => {
-    const { service, update } = construirServico(role);
-
-    await service.iniciarTrabalho('os-1');
-
-    expect(dadosDoUpdate(update).status).toBe(WorkOrderStatus.IN_PROGRESS);
-  });
-
-  it.each([Roles.C2C])(
-    '%s não pode iniciar',
+  it.each([Roles.FIELD_TEAM, Roles.ADMIN, Roles.SYSTEM_ADMIN])(
+    '%s pode iniciar',
     async (role) => {
       const { service, update } = construirServico(role);
 
-      await expect(service.iniciarTrabalho('os-1')).rejects.toThrow(
-        'Apenas usuários Técnicos do Campo',
-      );
-      expect(update).not.toHaveBeenCalled();
+      await service.iniciarTrabalho('os-1');
+
+      expect(dadosDoUpdate(update).status).toBe(WorkOrderStatus.IN_PROGRESS);
     },
   );
 
-  it('FIELD_TEAM fora da fila não pode iniciar', async () => {
-    const { service, update } = construirServico(
-      Roles.FIELD_TEAM,
-      {},
-      ['outro-usuario'],
+  it.each([Roles.C2C])('%s não pode iniciar', async (role) => {
+    const { service, update } = construirServico(role);
+
+    await expect(service.iniciarTrabalho('os-1')).rejects.toThrow(
+      'Apenas usuários Técnicos do Campo',
     );
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('FIELD_TEAM fora da fila não pode iniciar', async () => {
+    const { service, update } = construirServico(Roles.FIELD_TEAM, {}, [
+      'outro-usuario',
+    ]);
 
     await expect(service.iniciarTrabalho('os-1')).rejects.toThrow(
       'fila da qual participa',
@@ -110,11 +112,9 @@ describe('Permissões — iniciar OS', () => {
   });
 
   it('ADMIN fora da fila pode iniciar', async () => {
-    const { service, update } = construirServico(
-      Roles.ADMIN,
-      {},
-      ['outro-usuario'],
-    );
+    const { service, update } = construirServico(Roles.ADMIN, {}, [
+      'outro-usuario',
+    ]);
 
     await service.iniciarTrabalho('os-1');
 
@@ -168,17 +168,14 @@ describe('Permissões — concluir OS', () => {
     },
   );
 
-  it.each([Roles.C2C])(
-    '%s não conclui corretiva',
-    async (role) => {
-      const { service, update } = construirServico(role, corretivaEmAndamento);
+  it.each([Roles.C2C])('%s não conclui corretiva', async (role) => {
+    const { service, update } = construirServico(role, corretivaEmAndamento);
 
-      await expect(service.concluirOrdem('os-1', {} as any)).rejects.toThrow(
-        'Apenas técnicos de campo',
-      );
-      expect(update).not.toHaveBeenCalled();
-    },
-  );
+    await expect(service.concluirOrdem('os-1', {} as any)).rejects.toThrow(
+      'Apenas técnicos de campo',
+    );
+    expect(update).not.toHaveBeenCalled();
+  });
 
   it('ADMIN não conclui corretiva pausada', async () => {
     const { service } = construirServico(Roles.ADMIN, {
@@ -324,20 +321,15 @@ describe('Permissões — mover no kanban', () => {
     },
   );
 
-  it.each([Roles.C2C])(
-    '%s não conclui corretiva arrastando',
-    async (role) => {
-      const { service, update } = servicoKanban(
-        role,
-        WorkOrderStatus.IN_PROGRESS,
-        'Concluída',
-      );
-      await expect(mover(service)).rejects.toThrow(
-        'Apenas técnicos de campo',
-      );
-      expect(update).not.toHaveBeenCalled();
-    },
-  );
+  it.each([Roles.C2C])('%s não conclui corretiva arrastando', async (role) => {
+    const { service, update } = servicoKanban(
+      role,
+      WorkOrderStatus.IN_PROGRESS,
+      'Concluída',
+    );
+    await expect(mover(service)).rejects.toThrow('Apenas técnicos de campo');
+    expect(update).not.toHaveBeenCalled();
+  });
 
   it('C2C conclui preventiva arrastando', async () => {
     const { service, update } = servicoKanban(
@@ -358,7 +350,9 @@ describe('Permissões — mover no kanban', () => {
         WorkOrderStatus.COMPLETED_UNDER_REVIEW,
         'Em andamento',
       );
-      await expect(mover(service)).rejects.toThrow('só pode ser aprovada ou reprovada');
+      await expect(mover(service)).rejects.toThrow(
+        'só pode ser aprovada ou reprovada',
+      );
       expect(update).not.toHaveBeenCalled();
     },
   );
@@ -441,24 +435,32 @@ describe('Permissões — aprovar/reprovar conclusão', () => {
     status: WorkOrderStatus.COMPLETED_UNDER_REVIEW,
   };
 
-  it.each([Roles.ADMIN, Roles.C2C, Roles.SYSTEM_ADMIN])('%s pode aprovar', async (role) => {
-    const { service, concluirDefinitiva } = construirServico(
-      role,
-      corretivaEmAnalise,
-    );
+  it.each([Roles.ADMIN, Roles.C2C, Roles.SYSTEM_ADMIN])(
+    '%s pode aprovar',
+    async (role) => {
+      const { service, concluirDefinitiva } = construirServico(
+        role,
+        corretivaEmAnalise,
+      );
 
-    await service.aprovarConclusaoOrdem('os-1');
+      await service.aprovarConclusaoOrdem('os-1');
 
-    expect(concluirDefinitiva).toHaveBeenCalled();
-  });
+      expect(concluirDefinitiva).toHaveBeenCalled();
+    },
+  );
 
-  it.each([Roles.ADMIN, Roles.C2C, Roles.SYSTEM_ADMIN])('%s pode reprovar', async (role) => {
-    const { service, update } = construirServico(role, corretivaEmAnalise);
+  it.each([Roles.ADMIN, Roles.C2C, Roles.SYSTEM_ADMIN])(
+    '%s pode reprovar',
+    async (role) => {
+      const { service, update } = construirServico(role, corretivaEmAnalise);
 
-    await service.reprovarConclusaoOrdem('os-1', { reason: 'Refazer' } as any);
+      await service.reprovarConclusaoOrdem('os-1', {
+        reason: 'Refazer',
+      } as any);
 
-    expect(dadosDoUpdate(update).status).toBe(WorkOrderStatus.IN_PROGRESS);
-  });
+      expect(dadosDoUpdate(update).status).toBe(WorkOrderStatus.IN_PROGRESS);
+    },
+  );
 
   it.each([Roles.FIELD_TEAM])(
     '%s não pode aprovar nem reprovar',
@@ -482,16 +484,17 @@ describe('Permissões — aprovar/reprovar conclusão', () => {
 
 describe('SYSTEM_ADMIN e reprovação com coluna de destino', () => {
   it('SYSTEM_ADMIN fora da fila pode iniciar', async () => {
-    const { service, update } = construirServico(
-      Roles.SYSTEM_ADMIN,
-      {},
-      ['outro-usuario'],
-    );
+    const { service, update } = construirServico(Roles.SYSTEM_ADMIN, {}, [
+      'outro-usuario',
+    ]);
     await service.iniciarTrabalho('os-1');
     expect(dadosDoUpdate(update).status).toBe(WorkOrderStatus.IN_PROGRESS);
   });
 
-  function servicoReprovacao(nomeColuna: string, regionalColuna: string | null = null) {
+  function servicoReprovacao(
+    nomeColuna: string,
+    regionalColuna: string | null = null,
+  ) {
     const base = construirServico(Roles.C2C, {
       type: WorkOrderType.CORRECTIVE,
       status: WorkOrderStatus.COMPLETED_UNDER_REVIEW,
@@ -570,8 +573,16 @@ describe('Mapeamento coluna → status (deve bater com o app)', () => {
     ['Em andamento', WorkOrderType.CORRECTIVE, WorkOrderStatus.IN_PROGRESS],
     ['Execução', WorkOrderType.CORRECTIVE, WorkOrderStatus.IN_PROGRESS],
     ['Equipe de campo', WorkOrderType.CORRECTIVE, WorkOrderStatus.IN_PROGRESS],
-    ['Monitoramento C2C', WorkOrderType.CORRECTIVE, WorkOrderStatus.IN_PROGRESS],
-    ['Concluída', WorkOrderType.CORRECTIVE, WorkOrderStatus.COMPLETED_UNDER_REVIEW],
+    [
+      'Monitoramento C2C',
+      WorkOrderType.CORRECTIVE,
+      WorkOrderStatus.IN_PROGRESS,
+    ],
+    [
+      'Concluída',
+      WorkOrderType.CORRECTIVE,
+      WorkOrderStatus.COMPLETED_UNDER_REVIEW,
+    ],
     ['Concluída', WorkOrderType.PREVENTIVE, WorkOrderStatus.COMPLETED],
     ['Finalizadas', WorkOrderType.GENERAL, WorkOrderStatus.COMPLETED],
     ['Atribuídas', WorkOrderType.CORRECTIVE, WorkOrderStatus.ASSIGNED],
@@ -584,14 +595,14 @@ describe('Mapeamento coluna → status (deve bater com o app)', () => {
 });
 
 describe('Perfis liberados nas rotas (controller)', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { WorkOrdersController } = require('./work-orders.controller');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { ROLE_BY_METHOD_KEY } = require('src/shared/auth/role-by-method.decorator');
-  const perfis = (metodo: string) =>
-    Reflect.getMetadata(
-      ROLE_BY_METHOD_KEY,
-      WorkOrdersController.prototype[metodo],
+  const perfis = (metodo: string): string[] | undefined =>
+    (
+      Reflect.getMetadata(
+        ROLE_BY_METHOD_KEY,
+        (WorkOrdersController.prototype as unknown as Record<string, object>)[
+          metodo
+        ],
+      ) as { PATCH?: string[] } | undefined
     )?.PATCH;
 
   it.each(['aprovarConclusaoOrdem', 'reprovarConclusaoOrdem'])(
