@@ -1235,7 +1235,11 @@ export class WorkOrdersService extends UniversalService<
 
   /** Coluna escolhida ao reprovar: mesma empresa/regional e de execução. */
   private async validarColunaDeExecucaoParaReprovar(
-    ordem: { companyId: string; locationId?: string | null; type: WorkOrderType },
+    ordem: {
+      companyId: string;
+      locationId?: string | null;
+      type: WorkOrderType;
+    },
     columnId: string,
   ): Promise<{ id: string }> {
     const coluna = await this.prisma.workOrderColumn.findFirst({
