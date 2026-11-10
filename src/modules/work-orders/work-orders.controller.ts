@@ -131,7 +131,7 @@ export class WorkOrdersController extends UniversalController<
 
   @Patch(':id/approve-completion')
   @RoleByMethod({
-    PATCH: [Roles.ADMIN, Roles.C2C],
+    PATCH: [Roles.SYSTEM_ADMIN, Roles.ADMIN, Roles.C2C],
   })
   async aprovarConclusaoOrdem(
     @Param('id') id: string,
@@ -142,7 +142,7 @@ export class WorkOrdersController extends UniversalController<
 
   @Patch(':id/reject-completion')
   @RoleByMethod({
-    PATCH: [Roles.ADMIN, Roles.C2C],
+    PATCH: [Roles.SYSTEM_ADMIN, Roles.ADMIN, Roles.C2C],
   })
   async reprovarConclusaoOrdem(
     @Param('id') id: string,
